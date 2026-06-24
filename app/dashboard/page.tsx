@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { supabase } from "../../lib/supabase";
 
 export default async function DashboardPage() {
@@ -14,10 +16,31 @@ export default async function DashboardPage() {
   ]);
 
   const cards = [
-    { title: "Proprietários", value: proprietarios.count ?? 0 },
-    { title: "Imóveis", value: imoveis.count ?? 0 },
-    { title: "Atendimentos", value: atendimentos.count ?? 0 },
-    { title: "Corretores", value: corretores.count ?? 0 },
+    {
+      title: "Proprietários",
+      subtitle: "Proprietários cadastrados",
+      value: proprietarios.count ?? 0,
+      icon: "⌂",
+      href: "/dashboard/proprietarios",
+    },
+    {
+      title: "Imóveis",
+      subtitle: "Imóveis cadastrados",
+      value: imoveis.count ?? 0,
+      icon: "⌘",
+    },
+    {
+      title: "Atendimentos",
+      subtitle: "Atendimentos realizados",
+      value: atendimentos.count ?? 0,
+      icon: "◌",
+    },
+    {
+      title: "Corretores",
+      subtitle: "Corretores ativos",
+      value: corretores.count ?? 0,
+      icon: "♙",
+    },
   ];
 
   return (
@@ -31,17 +54,38 @@ export default async function DashboardPage() {
       </p>
 
       <section className="mt-10 grid gap-6 md:grid-cols-4">
-        {cards.map((card) => (
-          <div
-            key={card.title}
-            className="rounded-2xl border border-[#dfd4c2] bg-white p-6 shadow-sm"
-          >
-            <p className="text-sm text-[#6b746c]">{card.title}</p>
-            <strong className="mt-3 block text-4xl text-[#143d2c]">
-              {card.value}
-            </strong>
-          </div>
-        ))}
+        {cards.map((card) => {
+          const content = (
+            <>
+              <div className="flex items-start justify-between gap-4">
+                <p className="text-sm font-medium text-[#6b746c]">{card.title}</p>
+                <span
+                  aria-hidden="true"
+                  className="flex size-9 items-center justify-center rounded-xl bg-[#edf2ed] text-lg text-[#143d2c]"
+                >
+                  {card.icon}
+                </span>
+              </div>
+              <strong className="mt-5 block text-4xl text-[#143d2c]">
+                {card.value}
+              </strong>
+              <p className="mt-2 text-sm text-[#6b746c]">{card.subtitle}</p>
+            </>
+          );
+
+          const className =
+            "rounded-2xl border border-[#dfd4c2] bg-white p-6 shadow-sm transition duration-200 hover:scale-[1.02] hover:shadow-md";
+
+          return card.href ? (
+            <Link key={card.title} href={card.href} className={className}>
+              {content}
+            </Link>
+          ) : (
+            <div key={card.title} className={className}>
+              {content}
+            </div>
+          );
+        })}
       </section>
     </main>
   );
