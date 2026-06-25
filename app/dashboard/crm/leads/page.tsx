@@ -85,50 +85,50 @@ export default async function LeadsPage() {
   const leads = (data ?? []) as Lead[];
 
   return (
-    <main className="min-h-screen bg-[#f7f3ed] px-6 py-10 sm:px-8">
+    <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
       <div className="mx-auto max-w-7xl">
         <div>
-          <span className="rounded-full border border-[#dfd4c2] bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#7a8a80]">
+          <span className="rounded-full border border-[#C89B3C]/35 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#8B6827]">
             Terrazza CRM
           </span>
-          <h1 className="mt-5 text-4xl font-bold text-[#143d2c]">Leads</h1>
-          <p className="mt-2 text-[#5f6f65]">
+          <h1 className="mt-5 text-4xl font-bold text-[#071E36]">Leads</h1>
+          <p className="mt-2 text-[#64736D]">
             Central comercial da Terrazza CRM.
           </p>
         </div>
 
-        <section className="mt-10 rounded-2xl border border-[#dfd4c2] bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="text-xl font-semibold text-[#143d2c]">
+        <section className="mt-10 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
+          <h2 className="text-xl font-semibold text-[#071E36]">
             Novo lead manual
           </h2>
 
           <form action={cadastrarLead} className="mt-6 grid gap-5 md:grid-cols-3">
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Nome
               <input
                 name="nome"
                 required
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Nome do lead"
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Telefone
               <input
                 name="telefone"
                 type="tel"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="(00) 00000-0000"
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Tipo de lead
               <select
                 name="tipo_lead"
                 defaultValue="proprietário"
-                className="rounded-xl border border-[#dfd4c2] bg-white px-4 py-3 text-[#143d2c] outline-none transition focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
               >
                 {tiposLead.map((tipo) => (
                   <option key={tipo} value={tipo}>
@@ -138,39 +138,39 @@ export default async function LeadsPage() {
               </select>
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Objetivo
               <input
                 name="objetivo"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Comprar, alugar, vender..."
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Cidade
               <input
                 name="cidade"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Cidade"
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Bairro de interesse
               <input
                 name="bairro_interesse"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Bairro"
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Origem
               <select
                 name="origem"
                 defaultValue="manual"
-                className="rounded-xl border border-[#dfd4c2] bg-white px-4 py-3 text-[#143d2c] outline-none transition focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
               >
                 {origens.map((origem) => (
                   <option key={origem} value={origem}>
@@ -180,12 +180,12 @@ export default async function LeadsPage() {
               </select>
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Status
               <select
                 name="status"
                 defaultValue="novo"
-                className="rounded-xl border border-[#dfd4c2] bg-white px-4 py-3 text-[#143d2c] outline-none transition focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
               >
                 {statusLeads.map((status) => (
                   <option key={status} value={status}>
@@ -195,21 +195,21 @@ export default async function LeadsPage() {
               </select>
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Responsável
               <input
                 name="responsavel"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Corretor ou responsável"
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346] md:col-span-3">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27] md:col-span-3">
               Observação
               <textarea
                 name="observacao"
                 rows={4}
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Contexto do atendimento, necessidade, próximos passos..."
               />
             </label>
@@ -217,7 +217,7 @@ export default async function LeadsPage() {
             <div className="md:col-span-3">
               <button
                 type="submit"
-                className="rounded-xl bg-[#143d2c] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0f3022]"
+                className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
               >
                 Salvar Lead
               </button>
@@ -225,12 +225,12 @@ export default async function LeadsPage() {
           </form>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-[#dfd4c2] bg-white p-6 shadow-sm sm:p-8">
+        <section className="mt-6 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
           <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-xl font-semibold text-[#143d2c]">
+            <h2 className="text-xl font-semibold text-[#071E36]">
               Leads cadastrados
             </h2>
-            <span className="text-sm text-[#6b746c]">
+            <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-sm font-medium text-[#8B6827]">
               {leads.length} cadastrado{leads.length === 1 ? "" : "s"}
             </span>
           </div>
@@ -240,13 +240,13 @@ export default async function LeadsPage() {
               Não foi possível carregar os leads. Verifique se a tabela já foi criada.
             </p>
           ) : leads.length === 0 ? (
-            <p className="mt-6 rounded-xl bg-[#f7f3ed] px-4 py-8 text-center text-sm text-[#6b746c]">
+            <p className="mt-6 rounded-xl bg-[#F7F3ED] px-4 py-8 text-center text-sm text-[#64736D]">
               Nenhum lead cadastrado até o momento.
             </p>
           ) : (
             <div className="mt-6 overflow-x-auto">
               <table className="w-full min-w-[960px] text-left text-sm">
-                <thead className="border-b border-[#dfd4c2] text-[#6b746c]">
+                <thead className="border-b border-[#E8DDCB] text-[#64736D]">
                   <tr>
                     <th className="px-4 py-3 font-medium">Nome</th>
                     <th className="px-4 py-3 font-medium">Telefone</th>
@@ -259,10 +259,10 @@ export default async function LeadsPage() {
                     <th className="px-4 py-3 font-medium">Data</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#eee7dc] text-[#355346]">
+                <tbody className="divide-y divide-[#eee7dc] text-[#102A27]">
                   {leads.map((lead) => (
                     <tr key={lead.id}>
-                      <td className="px-4 py-4 font-medium text-[#143d2c]">
+                      <td className="px-4 py-4 font-medium text-[#071E36]">
                         {lead.nome}
                       </td>
                       <td className="px-4 py-4">{lead.telefone || "—"}</td>

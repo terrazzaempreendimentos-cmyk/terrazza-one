@@ -100,32 +100,35 @@ export default async function ImoveisPage() {
   );
 
   return (
-    <main className="min-h-screen bg-[#f7f3ed] px-6 py-10 sm:px-8">
+    <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
       <div className="mx-auto max-w-6xl">
         <Link
           href="/dashboard"
-          className="inline-flex rounded-xl border border-[#dfd4c2] bg-white px-4 py-2 text-sm font-medium text-[#143d2c] transition hover:bg-[#f4efe7]"
+          className="inline-flex rounded-xl border border-[#E8DDCB] bg-white px-4 py-2 text-sm font-medium text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
         >
           ← Voltar ao Dashboard
         </Link>
 
         <div className="mt-8">
-          <h1 className="text-4xl font-bold text-[#143d2c]">Imóveis</h1>
-          <p className="mt-2 text-[#5f6f65]">
+          <span className="rounded-full border border-[#C89B3C]/35 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#8B6827]">
+            Cadastros
+          </span>
+          <h1 className="mt-5 text-4xl font-bold text-[#071E36]">Imóveis</h1>
+          <p className="mt-2 text-[#64736D]">
             Cadastro e acompanhamento dos imóveis da Terrazza.
           </p>
         </div>
 
-        <section className="mt-10 rounded-2xl border border-[#dfd4c2] bg-white p-6 shadow-sm sm:p-8">
-          <h2 className="text-xl font-semibold text-[#143d2c]">Novo imóvel</h2>
+        <section className="mt-10 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
+          <h2 className="text-xl font-semibold text-[#071E36]">Novo imóvel</h2>
 
           <form action={cadastrarImovel} className="mt-6 grid gap-5 md:grid-cols-3">
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Proprietário
               <select
                 name="proprietario_id"
                 required
-                className="rounded-xl border border-[#dfd4c2] bg-white px-4 py-3 text-[#143d2c] outline-none transition focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
                 defaultValue=""
               >
                 <option value="" disabled>
@@ -139,102 +142,102 @@ export default async function ImoveisPage() {
               </select>
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Tipo
               <input
                 name="tipo"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Apartamento, casa, studio..."
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Situação
               <input
                 name="situacao"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Disponível, ocupado..."
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Cidade
               <input
                 name="cidade"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Cidade"
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Bairro
               <input
                 name="bairro"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Bairro"
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Condomínio
               <input
                 name="condominio"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Nome do condomínio"
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Quartos
               <input
                 name="quartos"
                 type="number"
                 min="0"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="0"
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Banheiros
               <input
                 name="banheiros"
                 type="number"
                 min="0"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="0"
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346]">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Metragem
               <input
                 name="metragem"
                 type="number"
                 min="0"
                 step="0.01"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="0"
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#355346] md:col-span-2">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27] md:col-span-2">
               Aluguel pretendido
               <input
                 name="aluguel_pretendido"
                 type="number"
                 min="0"
                 step="0.01"
-                className="rounded-xl border border-[#dfd4c2] px-4 py-3 text-[#143d2c] outline-none transition placeholder:text-[#9a9d98] focus:border-[#143d2c]"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="R$ 0,00"
               />
             </label>
 
-            <label className="flex items-center gap-3 self-end rounded-xl border border-[#dfd4c2] px-4 py-3 text-sm font-medium text-[#355346]">
+            <label className="flex items-center gap-3 self-end rounded-xl border border-[#E8DDCB] px-4 py-3 text-sm font-medium text-[#102A27]">
               <input
                 name="garagem"
                 type="checkbox"
-                className="size-4 accent-[#143d2c]"
+                className="size-4 accent-[#C89B3C]"
               />
               Possui garagem
             </label>
@@ -242,7 +245,7 @@ export default async function ImoveisPage() {
             <div className="md:col-span-3">
               <button
                 type="submit"
-                className="rounded-xl bg-[#143d2c] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0f3022]"
+                className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
               >
                 Salvar Imóvel
               </button>
@@ -250,12 +253,12 @@ export default async function ImoveisPage() {
           </form>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-[#dfd4c2] bg-white p-6 shadow-sm sm:p-8">
+        <section className="mt-6 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
           <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-xl font-semibold text-[#143d2c]">
+            <h2 className="text-xl font-semibold text-[#071E36]">
               Imóveis cadastrados
             </h2>
-            <span className="text-sm text-[#6b746c]">
+            <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-sm font-medium text-[#8B6827]">
               {imoveis.length} cadastrado{imoveis.length === 1 ? "" : "s"}
             </span>
           </div>
@@ -265,13 +268,13 @@ export default async function ImoveisPage() {
               Não foi possível carregar os imóveis. Tente novamente.
             </p>
           ) : imoveis.length === 0 ? (
-            <p className="mt-6 rounded-xl bg-[#f7f3ed] px-4 py-8 text-center text-sm text-[#6b746c]">
+            <p className="mt-6 rounded-xl bg-[#F7F3ED] px-4 py-8 text-center text-sm text-[#64736D]">
               Nenhum imóvel cadastrado até o momento.
             </p>
           ) : (
             <div className="mt-6 overflow-x-auto">
               <table className="w-full min-w-[760px] text-left text-sm">
-                <thead className="border-b border-[#dfd4c2] text-[#6b746c]">
+                <thead className="border-b border-[#E8DDCB] text-[#64736D]">
                   <tr>
                     <th className="px-4 py-3 font-medium">Proprietário</th>
                     <th className="px-4 py-3 font-medium">Tipo</th>
@@ -281,10 +284,10 @@ export default async function ImoveisPage() {
                     <th className="px-4 py-3 font-medium">Situação</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#eee7dc] text-[#355346]">
+                <tbody className="divide-y divide-[#eee7dc] text-[#102A27]">
                   {imoveis.map((imovel) => (
                     <tr key={imovel.id}>
-                      <td className="px-4 py-4 font-medium text-[#143d2c]">
+                      <td className="px-4 py-4 font-medium text-[#071E36]">
                         {imovel.proprietario_id
                           ? proprietariosPorId.get(imovel.proprietario_id) ?? "—"
                           : "—"}
