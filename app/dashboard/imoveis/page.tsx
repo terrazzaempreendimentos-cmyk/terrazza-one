@@ -15,6 +15,9 @@ type Imovel = {
   cidade: string | null;
   bairro: string | null;
   aluguel_pretendido: number | string | null;
+  valor_condominio: number | string | null;
+  valor_iptu: number | string | null;
+  taxa_bombeiro: number | string | null;
   situacao: string | null;
 };
 
@@ -71,6 +74,9 @@ export default async function ImoveisPage() {
       metragem: valorNumero(formData, "metragem"),
       situacao: situacao || null,
       aluguel_pretendido: valorNumero(formData, "aluguel_pretendido"),
+      valor_condominio: valorNumero(formData, "valor_condominio"),
+      valor_iptu: valorNumero(formData, "valor_iptu"),
+      taxa_bombeiro: valorNumero(formData, "taxa_bombeiro"),
     });
 
     if (error) {
@@ -89,7 +95,7 @@ export default async function ImoveisPage() {
     supabase
       .from("imoveis")
       .select(
-        "id, proprietario_id, tipo, cidade, bairro, aluguel_pretendido, situacao",
+        "id, proprietario_id, tipo, cidade, bairro, aluguel_pretendido, valor_condominio, valor_iptu, taxa_bombeiro, situacao",
       ),
   ]);
 
@@ -221,10 +227,46 @@ export default async function ImoveisPage() {
               />
             </label>
 
-            <label className="grid gap-2 text-sm font-medium text-[#102A27] md:col-span-2">
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Aluguel pretendido
               <input
                 name="aluguel_pretendido"
+                type="number"
+                min="0"
+                step="0.01"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
+                placeholder="R$ 0,00"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+              Condomínio
+              <input
+                name="valor_condominio"
+                type="number"
+                min="0"
+                step="0.01"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
+                placeholder="R$ 0,00"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+              IPTU
+              <input
+                name="valor_iptu"
+                type="number"
+                min="0"
+                step="0.01"
+                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
+                placeholder="R$ 0,00"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-medium text-[#102A27] md:col-span-2">
+              Taxa bombeiro
+              <input
+                name="taxa_bombeiro"
                 type="number"
                 min="0"
                 step="0.01"
@@ -273,7 +315,7 @@ export default async function ImoveisPage() {
             </p>
           ) : (
             <div className="mt-6 overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className="w-full min-w-[980px] text-left text-sm">
                 <thead className="border-b border-[#E8DDCB] text-[#64736D]">
                   <tr>
                     <th className="px-4 py-3 font-medium">Proprietário</th>
@@ -281,6 +323,9 @@ export default async function ImoveisPage() {
                     <th className="px-4 py-3 font-medium">Cidade</th>
                     <th className="px-4 py-3 font-medium">Bairro</th>
                     <th className="px-4 py-3 font-medium">Aluguel pretendido</th>
+                    <th className="px-4 py-3 font-medium">Condomínio</th>
+                    <th className="px-4 py-3 font-medium">IPTU</th>
+                    <th className="px-4 py-3 font-medium">Taxa bombeiro</th>
                     <th className="px-4 py-3 font-medium">Situação</th>
                   </tr>
                 </thead>
@@ -297,6 +342,15 @@ export default async function ImoveisPage() {
                       <td className="px-4 py-4">{imovel.bairro || "—"}</td>
                       <td className="px-4 py-4">
                         {formatarMoeda(imovel.aluguel_pretendido)}
+                      </td>
+                      <td className="px-4 py-4">
+                        {formatarMoeda(imovel.valor_condominio)}
+                      </td>
+                      <td className="px-4 py-4">
+                        {formatarMoeda(imovel.valor_iptu)}
+                      </td>
+                      <td className="px-4 py-4">
+                        {formatarMoeda(imovel.taxa_bombeiro)}
                       </td>
                       <td className="px-4 py-4">{imovel.situacao || "—"}</td>
                     </tr>
