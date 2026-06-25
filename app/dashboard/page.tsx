@@ -28,6 +28,7 @@ export default async function DashboardPage() {
       subtitle: "Imóveis cadastrados",
       value: imoveis.count ?? 0,
       icon: "⌘",
+      href: "/dashboard/imoveis",
     },
     {
       title: "Atendimentos",
