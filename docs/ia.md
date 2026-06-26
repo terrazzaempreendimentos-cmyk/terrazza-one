@@ -71,6 +71,23 @@ Nesta etapa, a tabela `ia_conhecimento` apenas guarda o conteúdo manualmente
 cadastrado. Ainda não há embeddings, RAG, upload de documentos, OpenAI ou
 consulta automática pela IA.
 
+## Conhecimentos Prioritários
+
+A Base de Conhecimento possui campos de organização para indicar quais conteúdos
+devem receber maior atenção operacional no futuro uso pela IA Comercial.
+
+- `fixado`: conteúdo que deve ter maior peso operacional e aparecer primeiro na
+  organização interna.
+- `prioridade`: importância do conhecimento para respostas futuras da IA. Pode
+  ser baixa, normal, alta ou crítica.
+- `palavras_chave`: termos que ajudam na busca, filtragem e recuperação futura
+  do conhecimento.
+- `observacoes`: notas internas da equipe sobre uso, cuidado, contexto ou
+  interpretação daquele conteúdo.
+
+Esses campos preparam a futura recuperação de conhecimento interno da Terrazza,
+mas ainda não implementam embeddings, RAG ou consulta automática pela IA.
+
 ## Ferramentas
 
 As ferramentas serão funções internas que a IA poderá chamar futuramente.

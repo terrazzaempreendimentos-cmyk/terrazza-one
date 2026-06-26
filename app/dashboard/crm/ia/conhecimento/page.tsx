@@ -9,6 +9,10 @@ type Conhecimento = {
   titulo: string;
   conteudo: string;
   ativo: boolean | null;
+  prioridade: string | null;
+  fixado: boolean | null;
+  palavras_chave: string | null;
+  observacoes: string | null;
   origem: string | null;
   created_at: string | null;
 };
@@ -31,6 +35,15 @@ const categorias = [
   "Jurídico",
 ];
 
+const prioridades = ["baixa", "normal", "alta", "critica"];
+
+const pesoPrioridade: Record<string, number> = {
+  critica: 4,
+  alta: 3,
+  normal: 2,
+  baixa: 1,
+};
+
 function valorTexto(formData: FormData, campo: string) {
   return String(formData.get(campo) ?? "").trim();
 }
@@ -45,6 +58,47 @@ function formatarData(data: string | null) {
 
 function resumirConteudo(conteudo: string) {
   return conteudo.length > 180 ? `${conteudo.slice(0, 180)}...` : conteudo;
+}
+
+function resumirTexto(texto: string | null) {
+  if (!texto) return null;
+
+  return texto.length > 120 ? `${texto.slice(0, 120)}...` : texto;
+}
+
+function labelPrioridade(prioridade: string | null) {
+  if (!prioridade) return "normal";
+
+  return prioridade === "critica" ? "crítica" : prioridade;
+}
+
+function prioridadeClassName(prioridade: string | null) {
+  switch (prioridade) {
+    case "critica":
+      return "bg-red-50 text-red-700 border-red-100";
+    case "alta":
+      return "bg-orange-50 text-orange-700 border-orange-100";
+    case "baixa":
+      return "bg-slate-100 text-slate-600 border-slate-200";
+    case "normal":
+    default:
+      return "bg-sky-50 text-sky-700 border-sky-100";
+  }
+}
+
+function ordenarConhecimentos(conhecimentos: Conhecimento[]) {
+  return conhecimentos.sort((a, b) => {
+    if (a.fixado !== b.fixado) return a.fixado ? -1 : 1;
+
+    const prioridadeA = pesoPrioridade[a.prioridade || "normal"] ?? 2;
+    const prioridadeB = pesoPrioridade[b.prioridade || "normal"] ?? 2;
+
+    if (prioridadeA !== prioridadeB) return prioridadeB - prioridadeA;
+
+    return (
+      new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime()
+    );
+  });
 }
 
 export default async function BaseConhecimentoPage() {
@@ -64,6 +118,10 @@ export default async function BaseConhecimentoPage() {
       titulo,
       conteudo,
       ativo: formData.get("ativo") === "on",
+      prioridade: valorTexto(formData, "prioridade") || "normal",
+      fixado: formData.get("fixado") === "on",
+      palavras_chave: valorTexto(formData, "palavras_chave") || null,
+      observacoes: valorTexto(formData, "observacoes") || null,
       origem: valorTexto(formData, "origem") || "manual",
     });
 
@@ -76,10 +134,12 @@ export default async function BaseConhecimentoPage() {
 
   const { data, error } = await supabase
     .from("ia_conhecimento")
-    .select("id, categoria, titulo, conteudo, ativo, origem, created_at")
+    .select(
+      "id, categoria, titulo, conteudo, ativo, prioridade, fixado, palavras_chave, observacoes, origem, created_at",
+    )
     .order("created_at", { ascending: false });
 
-  const conhecimentos = (data ?? []) as Conhecimento[];
+  const conhecimentos = ordenarConhecimentos((data ?? []) as Conhecimento[]);
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -181,6 +241,40 @@ export default async function BaseConhecimentoPage() {
                 />
               </label>
 
+              <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+                Prioridade
+                <select
+                  name="prioridade"
+                  defaultValue="normal"
+                  className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
+                >
+                  {prioridades.map((prioridade) => (
+                    <option key={prioridade} value={prioridade}>
+                      {labelPrioridade(prioridade)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+                Palavras-chave
+                <input
+                  name="palavras_chave"
+                  className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
+                  placeholder="Ex.: aluguel, garantia, vistoria"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+                Observações
+                <textarea
+                  name="observacoes"
+                  rows={4}
+                  className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
+                  placeholder="Notas internas para a equipe..."
+                />
+              </label>
+
               <label className="flex items-center gap-3 rounded-2xl border border-[#E8DDCB] bg-[#F7F3ED] px-4 py-3 text-sm font-medium text-[#102A27]">
                 <input
                   name="ativo"
@@ -189,6 +283,15 @@ export default async function BaseConhecimentoPage() {
                   className="h-4 w-4 accent-[#071E36]"
                 />
                 Conhecimento ativo
+              </label>
+
+              <label className="flex items-center gap-3 rounded-2xl border border-[#E8DDCB] bg-[#F7F3ED] px-4 py-3 text-sm font-medium text-[#102A27]">
+                <input
+                  name="fixado"
+                  type="checkbox"
+                  className="h-4 w-4 accent-[#C89B3C]"
+                />
+                Fixar como prioritário
               </label>
 
               <button
@@ -256,9 +359,50 @@ export default async function BaseConhecimentoPage() {
                       </span>
                     </div>
 
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {conhecimento.fixado ? (
+                        <span className="rounded-full border border-[#C89B3C]/30 bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                          fixado
+                        </span>
+                      ) : null}
+                      <span
+                        className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] ${prioridadeClassName(
+                          conhecimento.prioridade,
+                        )}`}
+                      >
+                        {labelPrioridade(conhecimento.prioridade)}
+                      </span>
+                    </div>
+
                     <p className="mt-4 text-sm leading-6 text-[#64736D]">
                       {resumirConteudo(conhecimento.conteudo)}
                     </p>
+
+                    {conhecimento.palavras_chave ? (
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {conhecimento.palavras_chave.split(",").map((palavra) => {
+                          const palavraTratada = palavra.trim();
+
+                          if (!palavraTratada) return null;
+
+                          return (
+                            <span
+                              key={`${conhecimento.id}-${palavraTratada}`}
+                              className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-medium text-[#64736D]"
+                            >
+                              {palavraTratada}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    ) : null}
+
+                    {resumirTexto(conhecimento.observacoes) ? (
+                      <p className="mt-4 rounded-2xl border border-[#E8DDCB] bg-white px-4 py-3 text-sm leading-6 text-[#64736D]">
+                        <strong className="text-[#071E36]">Observações:</strong>{" "}
+                        {resumirTexto(conhecimento.observacoes)}
+                      </p>
+                    ) : null}
 
                     <div className="mt-5 flex flex-wrap gap-2 border-t border-[#E8DDCB]/70 pt-4 text-xs font-medium text-[#64736D]">
                       <span className="rounded-full bg-white px-3 py-1">
