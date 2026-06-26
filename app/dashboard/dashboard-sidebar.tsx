@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -189,16 +190,14 @@ export function DashboardSidebar() {
     <aside className="border-b border-white/10 bg-[#071E36] px-4 py-5 shadow-2xl shadow-[#071E36]/20 lg:fixed lg:inset-y-0 lg:left-0 lg:flex lg:w-72 lg:flex-col lg:overflow-y-auto lg:border-b-0 lg:border-r">
       <div className="rounded-3xl border border-[#C89B3C]/30 bg-white/[0.035] p-5 shadow-inner shadow-white/5">
         <Link href="/dashboard" className="block">
-          <span className="text-xs font-semibold uppercase tracking-[0.32em] text-[#E1B866]">
-            TERRAZZA
-          </span>
-          <strong className="mt-2 block text-3xl leading-none text-white">
-            One
-          </strong>
-          <span className="mt-4 block h-px w-16 bg-[#C89B3C]" />
-          <p className="mt-3 text-sm font-medium text-white/70">
-            Painel Operacional
-          </p>
+          <Image
+            src="/terrazza-logo.png"
+            alt="Terrazza Soluções Imobiliárias"
+            width={900}
+            height={520}
+            priority
+            className="h-auto w-full rounded-2xl object-contain"
+          />
         </Link>
       </div>
 
