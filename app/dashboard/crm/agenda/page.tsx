@@ -1,5 +1,19 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import {
+  AlertTriangle,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardList,
+  FilePenLine,
+  FileWarning,
+  Home,
+  KeyRound,
+  MessageCircle,
+  Phone,
+  RotateCcw,
+  UsersRound,
+} from "lucide-react";
 
 import { supabase } from "../../../../lib/supabase";
 
@@ -65,6 +79,72 @@ const statusTarefa = ["pendente", "em_andamento", "concluida", "cancelada"];
 
 const prioridades = ["baixa", "media", "alta", "urgente"];
 
+const iconesPorTipo = {
+  tarefa: ClipboardList,
+  ligacao: Phone,
+  mensagem: MessageCircle,
+  visita: Home,
+  avaliacao_imovel: ClipboardList,
+  reuniao: UsersRound,
+  pendencia_documental: FileWarning,
+  assinatura: FilePenLine,
+  entrega_chaves: KeyRound,
+  follow_up: RotateCcw,
+};
+
+function corPrioridade(prioridade: string | null) {
+  switch (prioridade) {
+    case "baixa":
+      return {
+        barra: "bg-emerald-500",
+        badge: "bg-emerald-50 text-emerald-700 ring-emerald-100",
+      };
+    case "alta":
+      return {
+        barra: "bg-orange-500",
+        badge: "bg-orange-50 text-orange-700 ring-orange-100",
+      };
+    case "urgente":
+      return {
+        barra: "bg-red-500",
+        badge: "bg-red-50 text-red-700 ring-red-100",
+      };
+    case "media":
+    default:
+      return {
+        barra: "bg-sky-500",
+        badge: "bg-sky-50 text-sky-700 ring-sky-100",
+      };
+  }
+}
+
+function corStatus(status: string | null) {
+  switch (status) {
+    case "pendente":
+      return "bg-amber-50 text-amber-700 ring-amber-100";
+    case "em_andamento":
+      return "bg-sky-50 text-sky-700 ring-sky-100";
+    case "concluida":
+      return "bg-emerald-50 text-emerald-700 ring-emerald-100";
+    case "cancelada":
+      return "bg-slate-100 text-slate-600 ring-slate-200";
+    default:
+      return "bg-[#F7F3ED] text-[#64736D] ring-[#E8DDCB]";
+  }
+}
+
+function iniciaisResponsavel(nome: string | null) {
+  if (!nome) return "TZ";
+
+  return nome
+    .split(" ")
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((parte) => parte[0])
+    .join("")
+    .toUpperCase();
+}
+
 function valorTexto(formData: FormData, campo: string) {
   return String(formData.get(campo) ?? "").trim();
 }
@@ -73,6 +153,12 @@ function valorOpcional(formData: FormData, campo: string) {
   const valor = valorTexto(formData, campo);
 
   return valor || null;
+}
+
+function uuidOpcional(formData: FormData, campo: string) {
+  const valor = valorTexto(formData, campo);
+
+  return valor === "" ? null : valor;
 }
 
 function labelTexto(valor: string | null) {
@@ -96,6 +182,39 @@ function formatarData(data: string | null) {
   }).format(new Date(`${data}T00:00:00.000Z`));
 }
 
+function etiquetaData(data: string | null, hoje: string) {
+  if (!data) return "Sem data";
+
+  const dataTarefa = new Date(`${data}T00:00:00.000Z`);
+  const dataHoje = new Date(`${hoje}T00:00:00.000Z`);
+  const diferencaDias = Math.round(
+    (dataTarefa.getTime() - dataHoje.getTime()) / 86_400_000,
+  );
+
+  if (diferencaDias === 0) return "Hoje";
+  if (diferencaDias === 1) return "Amanhã";
+  if (diferencaDias > 1 && diferencaDias <= 7) return "Esta semana";
+
+  return formatarData(data);
+}
+
+function corEtiquetaData(data: string | null, hoje: string) {
+  const etiqueta = etiquetaData(data, hoje);
+
+  switch (etiqueta) {
+    case "Hoje":
+      return "border-[#C89B3C]/30 bg-[#C89B3C]/10 text-[#8B6827]";
+    case "Amanhã":
+      return "border-sky-100 bg-sky-50 text-sky-700";
+    case "Esta semana":
+      return "border-[#071E36]/10 bg-[#071E36]/5 text-[#071E36]";
+    case "Sem data":
+      return "border-slate-200 bg-slate-50 text-slate-500";
+    default:
+      return "border-[#E8DDCB] bg-white text-[#64736D]";
+  }
+}
+
 function formatarHora(hora: string | null) {
   if (!hora) return "";
 
@@ -116,6 +235,7 @@ function nomeImovel(imovel: Imovel | undefined) {
 
 function TarefaCard({
   tarefa,
+  hoje,
   leadsPorId,
   proprietariosPorId,
   imoveisPorId,
@@ -123,12 +243,17 @@ function TarefaCard({
   corretoresPorId,
 }: {
   tarefa: Tarefa;
+  hoje: string;
   leadsPorId: Map<string, string>;
   proprietariosPorId: Map<string, string>;
   imoveisPorId: Map<string, Imovel>;
   inquilinosPorId: Map<string, string>;
   corretoresPorId: Map<string, string>;
 }) {
+  const IconeTipo =
+    iconesPorTipo[tarefa.tipo as keyof typeof iconesPorTipo] ?? ClipboardList;
+  const prioridade = corPrioridade(tarefa.prioridade);
+
   const vinculos = [
     tarefa.lead_id ? ["Lead", leadsPorId.get(tarefa.lead_id)] : null,
     tarefa.proprietario_id
@@ -142,26 +267,51 @@ function TarefaCard({
   ].filter((vinculo): vinculo is string[] => Boolean(vinculo?.[1]));
 
   return (
-    <article className="rounded-2xl border border-[#E8DDCB] bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="text-lg font-semibold text-[#071E36]">{tarefa.titulo}</h3>
-          <p className="mt-1 text-sm text-[#64736D]">
-            {formatarData(tarefa.data)}
+    <article className="group relative cursor-pointer overflow-hidden rounded-3xl border border-[#E8DDCB] bg-white p-5 shadow-sm transition duration-200 hover:scale-[1.01] hover:border-[#C89B3C]/35 hover:shadow-xl hover:shadow-[#071E36]/10">
+      <span
+        aria-hidden="true"
+        className={`absolute inset-y-0 left-0 w-[5px] ${prioridade.barra}`}
+      />
+
+      <div className="flex flex-wrap items-start justify-between gap-4 pl-2">
+        <div className="flex min-w-0 flex-1 gap-4">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#E8DDCB] bg-[#F7F3ED] text-[#071E36] transition group-hover:border-[#C89B3C]/40 group-hover:bg-[#C89B3C]/10">
+            <IconeTipo size={19} strokeWidth={2.2} />
+          </span>
+          <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-lg font-semibold leading-tight text-[#071E36]">
+              {tarefa.titulo}
+            </h3>
+            <span
+              className={`rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] ring-1 ${corStatus(
+                tarefa.status,
+              )}`}
+            >
+              {labelTexto(tarefa.status)}
+            </span>
+          </div>
+          <p
+            className={`mt-3 inline-flex rounded-full border px-3 py-1 text-sm font-medium ${corEtiquetaData(
+              tarefa.data,
+              hoje,
+            )}`}
+          >
+            {etiquetaData(tarefa.data, hoje)}
             {tarefa.hora ? ` às ${formatarHora(tarefa.hora)}` : ""}
           </p>
         </div>
-        <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+        </div>
+        <span
+          className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.12em] ring-1 ${prioridade.badge}`}
+        >
           {labelTexto(tarefa.prioridade)}
         </span>
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2 text-xs font-medium">
+      <div className="mt-5 flex flex-wrap gap-2 pl-2 text-xs font-medium">
         <span className="rounded-full bg-[#071E36]/10 px-3 py-1 text-[#071E36]">
           {labelTexto(tarefa.tipo)}
-        </span>
-        <span className="rounded-full bg-[#F7F3ED] px-3 py-1 text-[#64736D]">
-          {labelTexto(tarefa.status)}
         </span>
         <span className="rounded-full bg-[#F7F3ED] px-3 py-1 text-[#64736D]">
           {tarefa.origem || "manual"}
@@ -169,23 +319,38 @@ function TarefaCard({
       </div>
 
       {descricaoCurta(tarefa.descricao) ? (
-        <p className="mt-4 text-sm leading-6 text-[#64736D]">
+        <p className="mt-5 pl-2 text-sm leading-6 text-[#64736D]">
           {descricaoCurta(tarefa.descricao)}
         </p>
       ) : null}
 
-      <div className="mt-4 grid gap-2 text-sm text-[#102A27]">
-        <span>
-          <strong className="font-semibold text-[#071E36]">Responsável:</strong>{" "}
-          {tarefa.responsavel || "—"}
-        </span>
+      <div className="mt-5 grid gap-4 border-t border-[#E8DDCB]/70 pt-4 pl-2 text-sm text-[#102A27]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#071E36] text-xs font-bold text-[#E1B866] shadow-sm">
+              {iniciaisResponsavel(tarefa.responsavel)}
+            </span>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#64736D]">
+                Responsável
+              </p>
+              <p className="font-semibold text-[#071E36]">
+                {tarefa.responsavel || "Sem responsável"}
+              </p>
+            </div>
+          </div>
+
+          <span className="text-xs font-medium text-[#C89B3C] opacity-0 transition group-hover:opacity-100">
+            Ver detalhes →
+          </span>
+        </div>
 
         {vinculos.length > 0 ? (
-          <div className="flex flex-wrap gap-2 pt-1">
+          <div className="flex flex-wrap gap-2">
             {vinculos.map(([label, nome]) => (
               <span
                 key={`${label}-${nome}`}
-                className="rounded-full border border-[#E8DDCB] px-3 py-1 text-xs text-[#64736D]"
+                className="rounded-full border border-[#E8DDCB] bg-[#fffdfa] px-3 py-1 text-xs font-medium text-[#64736D]"
               >
                 {label}: {nome}
               </span>
@@ -200,6 +365,7 @@ function TarefaCard({
 function GrupoTarefas({
   titulo,
   tarefas,
+  hoje,
   leadsPorId,
   proprietariosPorId,
   imoveisPorId,
@@ -208,6 +374,7 @@ function GrupoTarefas({
 }: {
   titulo: string;
   tarefas: Tarefa[];
+  hoje: string;
   leadsPorId: Map<string, string>;
   proprietariosPorId: Map<string, string>;
   imoveisPorId: Map<string, Imovel>;
@@ -215,16 +382,16 @@ function GrupoTarefas({
   corretoresPorId: Map<string, string>;
 }) {
   return (
-    <section className="rounded-2xl border border-[#E8DDCB] bg-white/70 p-5 shadow-sm">
+    <section className="rounded-3xl border border-[#E8DDCB] bg-white/80 p-5 shadow-sm backdrop-blur-sm">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-xl font-semibold text-[#071E36]">{titulo}</h2>
-        <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-sm font-medium text-[#8B6827]">
+        <span className="rounded-full border border-[#C89B3C]/25 bg-[#C89B3C]/10 px-3 py-1 text-sm font-semibold text-[#8B6827]">
           {tarefas.length}
         </span>
       </div>
 
       {tarefas.length === 0 ? (
-        <p className="mt-5 rounded-xl bg-[#F7F3ED] px-4 py-8 text-center text-sm text-[#64736D]">
+        <p className="mt-5 rounded-2xl border border-dashed border-[#E8DDCB] bg-[#F7F3ED] px-4 py-10 text-center text-sm text-[#64736D]">
           Nenhuma tarefa neste bloco.
         </p>
       ) : (
@@ -233,6 +400,7 @@ function GrupoTarefas({
             <TarefaCard
               key={tarefa.id}
               tarefa={tarefa}
+              hoje={hoje}
               leadsPorId={leadsPorId}
               proprietariosPorId={proprietariosPorId}
               imoveisPorId={imoveisPorId}
@@ -259,11 +427,11 @@ export default async function AgendaPage() {
     const status = valorTexto(formData, "status") || "pendente";
     const tipo = valorTexto(formData, "tipo") || "tarefa";
     const descricao = valorOpcional(formData, "descricao");
-    const leadId = valorOpcional(formData, "lead_id");
-    const proprietarioId = valorOpcional(formData, "proprietario_id");
-    const imovelId = valorOpcional(formData, "imovel_id");
-    const inquilinoId = valorOpcional(formData, "inquilino_id");
-    const corretorId = valorOpcional(formData, "corretor_id");
+    const leadId = uuidOpcional(formData, "lead_id");
+    const proprietarioId = uuidOpcional(formData, "proprietario_id");
+    const inquilinoId = uuidOpcional(formData, "inquilino_id");
+    const imovelId = uuidOpcional(formData, "imovel_id");
+    const corretorId = uuidOpcional(formData, "corretor_id");
     const origem = valorTexto(formData, "origem") || "manual";
 
     const { error } = await supabase.from("tarefas").insert({
@@ -298,19 +466,30 @@ export default async function AgendaPage() {
             titulo: "Tarefa criada.",
           };
 
-    const { error: timelineError } = await supabase.from("timeline").insert({
-      ...eventoTimeline,
+    const timelinePayload = {
+      tipo: eventoTimeline.tipo,
+      titulo: eventoTimeline.titulo,
       descricao: descricao || titulo,
       lead_id: leadId,
       proprietario_id: proprietarioId,
-      imovel_id: imovelId,
       inquilino_id: inquilinoId,
+      imovel_id: imovelId,
       corretor_id: corretorId,
       origem,
-    });
+    };
+
+    const { error: timelineError } = await supabase
+      .from("timeline")
+      .insert(timelinePayload);
 
     if (timelineError) {
-      throw new Error("Não foi possível registrar a tarefa na timeline.");
+      console.error("timelineError", timelineError);
+
+      throw new Error(
+        `Não foi possível registrar a tarefa na timeline: ${
+          timelineError.message || "erro desconhecido"
+        }`,
+      );
     }
 
     revalidatePath("/dashboard/crm/agenda");
@@ -378,6 +557,36 @@ export default async function AgendaPage() {
   );
   const tarefasSemData = tarefasAbertas.filter((tarefa) => !tarefa.data);
   const tarefasConcluidas = tarefas.filter((tarefa) => tarefa.status === "concluida");
+  const cardsResumo = [
+    {
+      titulo: "Hoje",
+      valor: tarefasHoje.length,
+      descricao: "Compromissos do dia",
+      icone: CalendarDays,
+      cor: "bg-[#071E36] text-[#E1B866]",
+    },
+    {
+      titulo: "Próximas",
+      valor: tarefasProximas.length,
+      descricao: "Agenda futura",
+      icone: ClipboardList,
+      cor: "bg-sky-50 text-sky-700",
+    },
+    {
+      titulo: "Pendentes",
+      valor: tarefasSemData.length,
+      descricao: "Sem data definida",
+      icone: AlertTriangle,
+      cor: "bg-amber-50 text-amber-700",
+    },
+    {
+      titulo: "Concluídas",
+      valor: tarefasConcluidas.length,
+      descricao: "Finalizadas",
+      icone: CheckCircle2,
+      cor: "bg-emerald-50 text-emerald-700",
+    },
+  ];
 
   const erroCarregamento =
     tarefasResult.error ||
@@ -397,19 +606,68 @@ export default async function AgendaPage() {
           ← Voltar ao Dashboard
         </Link>
 
-        <div className="mt-8">
-          <span className="rounded-full border border-[#C89B3C]/35 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#8B6827]">
-            Terrazza CRM
-          </span>
-          <h1 className="mt-5 text-4xl font-bold text-[#071E36]">
-            Agenda Inteligente
-          </h1>
-          <p className="mt-2 max-w-3xl text-[#64736D]">
-            Tarefas, visitas, retornos e pendências comerciais da Terrazza CRM.
-          </p>
-        </div>
+        <header className="mt-8 rounded-[2rem] border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
+          <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+            <div className="flex items-start gap-4">
+              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[#071E36] text-[#E1B866] shadow-lg shadow-[#071E36]/15">
+                <CalendarDays size={25} strokeWidth={2.2} />
+              </span>
+              <div>
+                <span className="rounded-full border border-[#C89B3C]/35 bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#8B6827]">
+                  Terrazza CRM
+                </span>
+                <h1 className="mt-4 text-4xl font-bold tracking-tight text-[#071E36]">
+                  Agenda Inteligente
+                </h1>
+                <p className="mt-2 max-w-3xl text-sm leading-6 text-[#64736D]">
+                  Tarefas, visitas, retornos e pendências comerciais organizadas
+                  em uma visão operacional premium.
+                </p>
+              </div>
+            </div>
 
-        <section className="mt-10 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
+            <div className="rounded-2xl border border-[#E8DDCB] bg-[#F7F3ED] px-4 py-3 text-sm text-[#64736D]">
+              <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6827]">
+                Visão
+              </span>
+              <strong className="mt-1 block text-[#071E36]">
+                Comercial e Operacional
+              </strong>
+            </div>
+          </div>
+
+          <div className="mt-6 h-px bg-gradient-to-r from-[#C89B3C]/60 via-[#E8DDCB] to-transparent" />
+        </header>
+
+        <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          {cardsResumo.map((card) => {
+            const IconeResumo = card.icone;
+
+            return (
+              <article
+                key={card.titulo}
+                className="rounded-3xl border border-[#E8DDCB] bg-white p-5 shadow-sm transition duration-200 hover:scale-[1.01] hover:border-[#C89B3C]/35 hover:shadow-xl hover:shadow-[#071E36]/10"
+              >
+                <div className="flex items-center justify-between gap-4">
+                  <span
+                    className={`flex h-11 w-11 items-center justify-center rounded-2xl ${card.cor}`}
+                  >
+                    <IconeResumo size={20} strokeWidth={2.2} />
+                  </span>
+                  <strong className="text-3xl font-bold text-[#071E36]">
+                    {card.valor}
+                  </strong>
+                </div>
+                <h2 className="mt-4 text-sm font-semibold uppercase tracking-[0.14em] text-[#071E36]">
+                  {card.titulo}
+                </h2>
+                <p className="mt-1 text-sm text-[#64736D]">{card.descricao}</p>
+              </article>
+            );
+          })}
+        </section>
+
+        <section className="mt-6 rounded-3xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-xl font-semibold text-[#071E36]">
             Nova tarefa
           </h2>
@@ -618,6 +876,7 @@ export default async function AgendaPage() {
             <GrupoTarefas
               titulo="Hoje"
               tarefas={tarefasHoje}
+              hoje={hoje}
               leadsPorId={leadsPorId}
               proprietariosPorId={proprietariosPorId}
               imoveisPorId={imoveisPorId}
@@ -627,6 +886,7 @@ export default async function AgendaPage() {
             <GrupoTarefas
               titulo="Próximas"
               tarefas={tarefasProximas}
+              hoje={hoje}
               leadsPorId={leadsPorId}
               proprietariosPorId={proprietariosPorId}
               imoveisPorId={imoveisPorId}
@@ -636,6 +896,7 @@ export default async function AgendaPage() {
             <GrupoTarefas
               titulo="Pendentes sem data"
               tarefas={tarefasSemData}
+              hoje={hoje}
               leadsPorId={leadsPorId}
               proprietariosPorId={proprietariosPorId}
               imoveisPorId={imoveisPorId}
@@ -645,6 +906,7 @@ export default async function AgendaPage() {
             <GrupoTarefas
               titulo="Concluídas"
               tarefas={tarefasConcluidas}
+              hoje={hoje}
               leadsPorId={leadsPorId}
               proprietariosPorId={proprietariosPorId}
               imoveisPorId={imoveisPorId}
