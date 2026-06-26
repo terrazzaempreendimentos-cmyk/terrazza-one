@@ -56,6 +56,21 @@ Memórias previstas:
 - Memórias por imóvel
 - Memórias operacionais
 
+## Base de Conhecimento
+
+A Base de Conhecimento será usada futuramente pela IA Comercial para responder
+com base no conhecimento interno da Terrazza, evitando respostas genéricas e
+mantendo alinhamento com regras, processos, linguagem e contexto operacional da
+empresa.
+
+Ela poderá armazenar conteúdos sobre atendimento, locação, venda, garantias,
+documentação, proprietários, inquilinos, corretores, Vista ERP, OKE Sistemas,
+LGPD, processos jurídicos e diretrizes comerciais.
+
+Nesta etapa, a tabela `ia_conhecimento` apenas guarda o conteúdo manualmente
+cadastrado. Ainda não há embeddings, RAG, upload de documentos, OpenAI ou
+consulta automática pela IA.
+
 ## Ferramentas
 
 As ferramentas serão funções internas que a IA poderá chamar futuramente.
@@ -70,4 +85,3 @@ Ferramentas previstas:
 - Consultar Vista
 - Gerar resumo para corretor
 - Preparar resposta para WhatsApp
-

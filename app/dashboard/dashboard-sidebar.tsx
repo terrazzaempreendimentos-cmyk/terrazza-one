@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  BookOpen,
   Bot,
   Building2,
   ChevronDown,
@@ -52,6 +53,11 @@ const menuGroups = [
       { label: "Leads", href: "/dashboard/crm/leads", icon: UsersRound },
       { label: "Kanban", href: "/dashboard/crm/kanban", icon: BarChart3 },
       { label: "🤖 IA Comercial", href: "/dashboard/crm/ia", icon: Bot },
+      {
+        label: "Base de Conhecimento",
+        href: "/dashboard/crm/ia/conhecimento",
+        icon: BookOpen,
+      },
       { label: "Agenda Inteligente", href: "/dashboard/crm/agenda", icon: ClipboardCheck },
       { label: "Corretores", href: "/dashboard/crm/corretores", icon: ShieldCheck },
     ],
