@@ -18,7 +18,7 @@ const menuSections = [
       { label: "Leads", href: "/dashboard/crm/leads" },
       { label: "Kanban", href: "/dashboard/crm/kanban" },
       { label: "IA WhatsApp", href: "/dashboard/crm/ia-whatsapp" },
-      { label: "Agenda", href: "/dashboard/crm/agenda" },
+      { label: "Agenda Inteligente", href: "/dashboard/crm/agenda" },
       { label: "Corretores", href: "/dashboard/crm/corretores" },
     ],
   },
