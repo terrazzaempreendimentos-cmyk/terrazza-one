@@ -256,28 +256,65 @@ export default async function AgendaPage() {
       throw new Error("O título da tarefa é obrigatório.");
     }
 
+    const status = valorTexto(formData, "status") || "pendente";
+    const tipo = valorTexto(formData, "tipo") || "tarefa";
+    const descricao = valorOpcional(formData, "descricao");
+    const leadId = valorOpcional(formData, "lead_id");
+    const proprietarioId = valorOpcional(formData, "proprietario_id");
+    const imovelId = valorOpcional(formData, "imovel_id");
+    const inquilinoId = valorOpcional(formData, "inquilino_id");
+    const corretorId = valorOpcional(formData, "corretor_id");
+    const origem = valorTexto(formData, "origem") || "manual";
+
     const { error } = await supabase.from("tarefas").insert({
       titulo,
-      descricao: valorOpcional(formData, "descricao"),
-      tipo: valorTexto(formData, "tipo") || "tarefa",
-      status: valorTexto(formData, "status") || "pendente",
+      descricao,
+      tipo,
+      status,
       prioridade: valorTexto(formData, "prioridade") || "media",
       data: valorOpcional(formData, "data"),
       hora: valorOpcional(formData, "hora"),
-      lead_id: valorOpcional(formData, "lead_id"),
-      proprietario_id: valorOpcional(formData, "proprietario_id"),
-      imovel_id: valorOpcional(formData, "imovel_id"),
-      inquilino_id: valorOpcional(formData, "inquilino_id"),
-      corretor_id: valorOpcional(formData, "corretor_id"),
+      lead_id: leadId,
+      proprietario_id: proprietarioId,
+      imovel_id: imovelId,
+      inquilino_id: inquilinoId,
+      corretor_id: corretorId,
       responsavel: valorOpcional(formData, "responsavel"),
-      origem: valorTexto(formData, "origem") || "manual",
+      origem,
     });
 
     if (error) {
       throw new Error("Não foi possível salvar a tarefa.");
     }
 
+    const eventoTimeline =
+      status === "concluida"
+        ? {
+            tipo: "tarefa_concluida",
+            titulo: "Tarefa concluída.",
+          }
+        : {
+            tipo: "tarefa_criada",
+            titulo: "Tarefa criada.",
+          };
+
+    const { error: timelineError } = await supabase.from("timeline").insert({
+      ...eventoTimeline,
+      descricao: descricao || titulo,
+      lead_id: leadId,
+      proprietario_id: proprietarioId,
+      imovel_id: imovelId,
+      inquilino_id: inquilinoId,
+      corretor_id: corretorId,
+      origem,
+    });
+
+    if (timelineError) {
+      throw new Error("Não foi possível registrar a tarefa na timeline.");
+    }
+
     revalidatePath("/dashboard/crm/agenda");
+    revalidatePath("/dashboard/crm/timeline");
   }
 
   const [
