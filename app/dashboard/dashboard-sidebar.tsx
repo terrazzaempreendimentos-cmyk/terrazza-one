@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   BarChart3,
+  Bot,
   Building2,
   ChevronDown,
   ChevronRight,
@@ -16,7 +17,6 @@ import {
   KeyRound,
   LayoutDashboard,
   LineChart,
-  MessageCircle,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -51,7 +51,7 @@ const menuGroups = [
     links: [
       { label: "Leads", href: "/dashboard/crm/leads", icon: UsersRound },
       { label: "Kanban", href: "/dashboard/crm/kanban", icon: BarChart3 },
-      { label: "IA WhatsApp", href: "/dashboard/crm/ia-whatsapp", icon: MessageCircle },
+      { label: "🤖 IA Comercial", href: "/dashboard/crm/ia", icon: Bot },
       { label: "Agenda Inteligente", href: "/dashboard/crm/agenda", icon: ClipboardCheck },
       { label: "Corretores", href: "/dashboard/crm/corretores", icon: ShieldCheck },
     ],
@@ -88,26 +88,47 @@ const menuGroups = [
 
 type OpenGroups = Record<string, boolean>;
 
-function defaultOpenGroups() {
+function createDefaultOpenGroups() {
   return menuGroups.reduce<OpenGroups>((groups, group) => {
     groups[group.id] = true;
     return groups;
   }, {});
 }
 
-function getStoredOpenGroups() {
-  const fallbackGroups = defaultOpenGroups();
+const DEFAULT_OPEN_GROUPS = createDefaultOpenGroups();
 
-  if (typeof window === "undefined") return fallbackGroups;
+let cachedOpenGroupsRaw: string | null = null;
+let cachedOpenGroupsSnapshot: OpenGroups = DEFAULT_OPEN_GROUPS;
+
+function getStoredOpenGroups() {
+  if (typeof window === "undefined") return DEFAULT_OPEN_GROUPS;
 
   const storedGroups = window.localStorage.getItem(STORAGE_KEY);
 
-  if (!storedGroups) return fallbackGroups;
+  if (!storedGroups) {
+    cachedOpenGroupsRaw = null;
+    cachedOpenGroupsSnapshot = DEFAULT_OPEN_GROUPS;
+
+    return cachedOpenGroupsSnapshot;
+  }
+
+  if (storedGroups === cachedOpenGroupsRaw) {
+    return cachedOpenGroupsSnapshot;
+  }
 
   try {
-    return { ...fallbackGroups, ...JSON.parse(storedGroups) };
+    cachedOpenGroupsRaw = storedGroups;
+    cachedOpenGroupsSnapshot = {
+      ...DEFAULT_OPEN_GROUPS,
+      ...JSON.parse(storedGroups),
+    };
+
+    return cachedOpenGroupsSnapshot;
   } catch {
-    return fallbackGroups;
+    cachedOpenGroupsRaw = null;
+    cachedOpenGroupsSnapshot = DEFAULT_OPEN_GROUPS;
+
+    return cachedOpenGroupsSnapshot;
   }
 }
 
@@ -145,7 +166,7 @@ export function DashboardSidebar() {
   const openGroups = useSyncExternalStore(
     subscribeOpenGroups,
     getStoredOpenGroups,
-    defaultOpenGroups,
+    () => DEFAULT_OPEN_GROUPS,
   );
 
   function toggleGroup(groupId: string) {
