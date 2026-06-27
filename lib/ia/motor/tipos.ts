@@ -3,6 +3,11 @@ import type { TipoLeadSimulador } from "../fluxos";
 import type { PersonaComercial } from "../personas/Base";
 import type { HipoteseIA } from "./inferencia";
 import type { RiscoComercial } from "../comercial";
+import type {
+  UCEBrokerMentorBriefing,
+  UCECommercialAwareness,
+  UCECommercialStrategy,
+} from "../../uce";
 
 export type LeadTemperature = "frio" | "morno" | "quente";
 
@@ -129,6 +134,9 @@ export type MotorTurnResult = {
   riscoComercial: RiscoComercial | null;
   precisaCorretorHumano: boolean;
   leituraComercial: string | null;
+  commercialStrategy: UCECommercialStrategy;
+  commercialAwareness: UCECommercialAwareness;
+  brokerMentorBriefing: UCEBrokerMentorBriefing;
   qualificado: boolean;
   motivoQualificacao: string;
   podePassarCorretor: boolean;

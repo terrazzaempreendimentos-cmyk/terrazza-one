@@ -52,6 +52,12 @@ import {
 import { processarTurno } from "../../../../../lib/ia/motor/adapter";
 import { selecionarPersona } from "../../../../../lib/ia/personas";
 import type { RespostaComercial } from "../../../../../lib/ia/comercial";
+import {
+  uceAcademyScenarios,
+  type UCEBrokerMentorBriefing,
+  type UCECommercialAwareness,
+  type UCECommercialStrategy,
+} from "../../../../../lib/uce";
 
 const tiposLead: Array<{ label: string; value: TipoLeadSimulador }> = [
   { label: "Proprietario", value: "proprietario" },
@@ -192,6 +198,12 @@ export default function SimuladorIaPage() {
   const [passagemVisivel, setPassagemVisivel] = useState(false);
   const [leituraComercial, setLeituraComercial] =
     useState<RespostaComercial | null>(null);
+  const [commercialStrategy, setCommercialStrategy] =
+    useState<UCECommercialStrategy | null>(null);
+  const [commercialAwareness, setCommercialAwareness] =
+    useState<UCECommercialAwareness | null>(null);
+  const [brokerMentorBriefing, setBrokerMentorBriefing] =
+    useState<UCEBrokerMentorBriefing | null>(null);
   const fimChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -299,6 +311,9 @@ export default function SimuladorIaPage() {
     setBriefingVisivel(false);
     setPassagemVisivel(false);
     setLeituraComercial(null);
+    setCommercialStrategy(null);
+    setCommercialAwareness(null);
+    setBrokerMentorBriefing(null);
   }
 
   function reiniciarSimulacao() {
@@ -308,6 +323,9 @@ export default function SimuladorIaPage() {
     setBriefingVisivel(false);
     setPassagemVisivel(false);
     setLeituraComercial(null);
+    setCommercialStrategy(null);
+    setCommercialAwareness(null);
+    setBrokerMentorBriefing(null);
     setContexto(
       contextoConfigurado({
         tipoLead,
@@ -345,6 +363,9 @@ export default function SimuladorIaPage() {
       precisaCorretorHumano: resultado.precisaCorretorHumano,
       leituraComercial: resultado.leituraComercial,
     });
+    setCommercialStrategy(resultado.commercialStrategy);
+    setCommercialAwareness(resultado.commercialAwareness);
+    setBrokerMentorBriefing(resultado.brokerMentorBriefing);
     setMensagem("");
     window.requestAnimationFrame(() => textareaRef.current?.focus());
   }
@@ -865,6 +886,214 @@ export default function SimuladorIaPage() {
                             "Seguir fluxo principal do Motor Cognitivo."}
                         </p>
                       </div>
+                    </div>
+                  </section>
+
+                  <section className="grid gap-5 xl:grid-cols-3">
+                    <div className="rounded-[1.75rem] border border-[#C89B3C]/35 bg-white p-5 shadow-sm">
+                      <span className="rounded-full border border-[#C89B3C]/35 bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#8B6827]">
+                        Estrategia Comercial
+                      </span>
+                      <h3 className="mt-4 text-xl font-semibold text-[#071E36]">
+                        {commercialStrategy?.name ?? "Aguardando estrategia"}
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 text-[#64736D]">
+                        {commercialStrategy?.description ??
+                          "A UCE define a melhor conducao comercial apos o primeiro turno do cliente."}
+                      </p>
+
+                      <div className="mt-5 grid gap-3 text-sm">
+                        <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                          <p className="font-semibold text-[#071E36]">Motivo</p>
+                          <p className="mt-1 leading-6 text-[#64736D]">
+                            {commercialStrategy?.reason ??
+                              "Sem leitura comercial suficiente ainda."}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                          <p className="font-semibold text-[#071E36]">
+                            Tom recomendado
+                          </p>
+                          <p className="mt-1 leading-6 text-[#64736D]">
+                            {commercialStrategy?.tone ?? "Aguardando contexto."}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                          <p className="font-semibold text-[#071E36]">
+                            Proxima melhor acao
+                          </p>
+                          <p className="mt-1 leading-6 text-[#64736D]">
+                            {commercialStrategy?.nextBestAction ??
+                              "Seguir qualificando o lead."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
+                      <span className="rounded-full border border-[#071E36]/10 bg-[#071E36]/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#071E36]">
+                        Consciencia Comercial
+                      </span>
+                      <div className="mt-4 flex items-end justify-between gap-3">
+                        <div>
+                          <h3 className="text-xl font-semibold text-[#071E36]">
+                            Chance de conversao
+                          </h3>
+                          <p className="mt-1 text-sm text-[#64736D]">
+                            Leitura de potencial e risco comercial.
+                          </p>
+                        </div>
+                        <strong className="text-3xl text-[#071E36]">
+                          {commercialAwareness?.conversionChance ?? 0}%
+                        </strong>
+                      </div>
+
+                      <div className="mt-5 h-3 overflow-hidden rounded-full bg-[#F1E8DA]">
+                        <div
+                          className="h-full rounded-full bg-[#C89B3C] transition-all duration-300"
+                          style={{
+                            width: `${commercialAwareness?.conversionChance ?? 0}%`,
+                          }}
+                        />
+                      </div>
+
+                      <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+                        <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                          <p className="font-semibold text-[#071E36]">
+                            Potencial
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {commercialAwareness?.financialPotential ??
+                              "indefinido"}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                          <p className="font-semibold text-[#071E36]">
+                            Esforco
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {commercialAwareness?.leadEffort ?? "indefinido"}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                          <p className="font-semibold text-[#071E36]">Risco</p>
+                          <p className="mt-1 text-[#64736D]">
+                            {commercialAwareness?.commercialRisk ?? "indefinido"}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                          <p className="font-semibold text-[#071E36]">
+                            Passar humano
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {commercialAwareness?.shouldEscalateToHuman
+                              ? "Sim"
+                              : "Nao"}
+                          </p>
+                        </div>
+                      </div>
+
+                      <p className="mt-4 rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3 text-sm leading-6 text-[#64736D]">
+                        {commercialAwareness?.reason ??
+                          "Aguardando dados para avaliar chance, esforco e risco."}
+                      </p>
+                    </div>
+
+                    <div className="rounded-[1.75rem] border border-[#071E36]/10 bg-[#071E36] p-5 text-white shadow-sm">
+                      <span className="rounded-full border border-[#C89B3C]/35 bg-[#C89B3C]/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#E1B866]">
+                        Mentor do Corretor
+                      </span>
+                      <h3 className="mt-4 text-xl font-semibold">
+                        {brokerMentorBriefing?.summary ??
+                          "Briefing comercial aguardando conversa"}
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 text-white/70">
+                        {brokerMentorBriefing?.psychologicalProfile ??
+                          "A UCE vai orientar o corretor sobre abordagem, frases e riscos."}
+                      </p>
+
+                      <div className="mt-5 grid gap-3 text-sm">
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                          <p className="font-semibold text-[#E1B866]">
+                            Melhor abordagem
+                          </p>
+                          <p className="mt-1 leading-6 text-white/75">
+                            {brokerMentorBriefing?.bestApproach ??
+                              "Conduzir com clareza e coletar criterios essenciais."}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                          <p className="font-semibold text-[#E1B866]">
+                            Frases sugeridas
+                          </p>
+                          <ul className="mt-2 grid gap-1 leading-6 text-white/75">
+                            {(brokerMentorBriefing?.phrasesToUse ?? [
+                              "Vou organizar isso para facilitar sua decisao.",
+                            ]).map((phrase) => (
+                              <li key={phrase}>- {phrase}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                          <p className="font-semibold text-[#E1B866]">
+                            Frases a evitar
+                          </p>
+                          <ul className="mt-2 grid gap-1 leading-6 text-white/75">
+                            {(brokerMentorBriefing?.phrasesToAvoid ?? [
+                              "Evitar promessas sem base.",
+                            ]).map((phrase) => (
+                              <li key={phrase}>- {phrase}</li>
+                            ))}
+                          </ul>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                          <p className="font-semibold text-[#E1B866]">Alertas</p>
+                          <p className="mt-1 leading-6 text-white/75">
+                            {brokerMentorBriefing?.riskAlerts.join(", ") ||
+                              "Sem alertas relevantes ate aqui."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-xl font-semibold text-[#071E36]">
+                          Academia UCE
+                        </h3>
+                        <p className="mt-1 text-sm text-[#64736D]">
+                          Cenarios de treino disponiveis para validacao futura.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6827]">
+                        somente leitura
+                      </span>
+                    </div>
+
+                    <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                      {uceAcademyScenarios.map((scenario) => (
+                        <div
+                          key={scenario.id}
+                          className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3"
+                        >
+                          <p className="font-semibold text-[#071E36]">
+                            {scenario.title}
+                          </p>
+                          <p className="mt-1 text-sm leading-6 text-[#64736D]">
+                            {scenario.description}
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            <span className="rounded-full bg-[#071E36]/5 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#64736D]">
+                              {scenario.leadType}
+                            </span>
+                            <span className="rounded-full bg-[#C89B3C]/10 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                              {scenario.expectedStrategy}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </section>
 

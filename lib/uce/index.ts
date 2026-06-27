@@ -6,3 +6,5 @@ export * from "./inference";
 export * from "./score";
 export * from "./briefing";
 export * from "./domain";
+export * from "./commercial";
+export * from "./academy";

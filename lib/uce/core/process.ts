@@ -5,6 +5,11 @@ import type {
   UCEProcessResult,
 } from "./types";
 import { generateUCEBriefing } from "../briefing";
+import {
+  evaluateCommercialAwareness,
+  generateBrokerMentorBriefing,
+  selectCommercialStrategy,
+} from "../commercial";
 import { getNextSmartQuestion } from "../flow";
 import { generateHypotheses } from "../inference";
 import { interpretContextualAnswer } from "../interpreters/contextual";
@@ -216,6 +221,19 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
   const missing = pendingFields(context);
   const hypotheses = generateHypotheses(context);
   const { score, temperature } = calculateUCEScore(context, hypotheses);
+  const commercialStrategy = selectCommercialStrategy(context, hypotheses);
+  const commercialAwareness = evaluateCommercialAwareness(
+    context,
+    score,
+    hypotheses,
+    commercialStrategy,
+  );
+  const brokerMentorBriefing = generateBrokerMentorBriefing(
+    context,
+    hypotheses,
+    commercialStrategy,
+    commercialAwareness,
+  );
   const briefing = generateUCEBriefing({
     context,
     hypotheses,
@@ -246,5 +264,8 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     temperature,
     hypotheses,
     briefing,
+    commercialStrategy,
+    commercialAwareness,
+    brokerMentorBriefing,
   };
 }

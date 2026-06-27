@@ -48,6 +48,75 @@ export type UCEBriefing = {
   pendingFields: string[];
 };
 
+export type UCECommercialStrategy = {
+  id:
+    | "modo_consultivo"
+    | "modo_conversao"
+    | "modo_captacao"
+    | "modo_administracao"
+    | "modo_reengajamento"
+    | "modo_alto_padrao"
+    | "modo_investidor"
+    | "modo_juridico_cauteloso";
+  name: string;
+  description: string;
+  whenToUse: string;
+  tone: string;
+  nextBestAction: string;
+  risk: "baixo" | "medio" | "alto";
+  suggestedMessage: string;
+  reason: string;
+};
+
+export type UCECommercialAwareness = {
+  conversionChance: number;
+  financialPotential: "baixo" | "medio" | "alto";
+  leadEffort: "baixo" | "medio" | "alto";
+  urgencyLevel: string;
+  commercialRisk: "baixo" | "medio" | "alto";
+  shouldEscalateToHuman: boolean;
+  reason: string;
+};
+
+export type UCEBrokerMentorBriefing = {
+  summary: string;
+  psychologicalProfile: string;
+  probableObjections: string[];
+  bestApproach: string;
+  phrasesToUse: string[];
+  phrasesToAvoid: string[];
+  nextBestAction: string;
+  riskAlerts: string[];
+};
+
+export type UCEMemorySnapshot = {
+  leadType: string | null;
+  fields: Record<string, unknown>;
+  messages: UCEMessage[];
+  summary: string;
+  createdAt: string;
+};
+
+export type UCEAcademyScenario = {
+  id: string;
+  title: string;
+  description: string;
+  leadType: string;
+  startingMessage: string;
+  expectedFields: string[];
+  expectedStrategy: UCECommercialStrategy["id"];
+  expectedRisks: string[];
+  expectedHandoff: string;
+};
+
+export type UCEAcademyEvaluation = {
+  score: number;
+  passed: boolean;
+  missingFields: string[];
+  wrongStrategy: boolean;
+  recommendations: string[];
+};
+
 export type UCEContext = {
   domain: UCEDomain;
   leadType: string | null;
@@ -85,4 +154,7 @@ export type UCEProcessResult = {
   temperature: UCETemperature;
   hypotheses: UCEHypothesis[];
   briefing: UCEBriefing;
+  commercialStrategy: UCECommercialStrategy;
+  commercialAwareness: UCECommercialAwareness;
+  brokerMentorBriefing: UCEBrokerMentorBriefing;
 };

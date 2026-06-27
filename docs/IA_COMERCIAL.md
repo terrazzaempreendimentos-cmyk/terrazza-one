@@ -420,6 +420,23 @@ UCE entrega briefing ao adapter legado
 O adapter em `lib/ia/motor/adapter.ts` permite que o simulador continue usando
 os tipos atuais enquanto o processamento passa pela nova fundacao.
 
+## Inteligencia Comercial UCE
+
+A IA Comercial da Terrazza passa a contar com um pacote de inteligencia
+comercial dentro da UCE. Alem de interpretar respostas, ela agora consegue
+orientar a conducao do atendimento.
+
+Novas capacidades:
+
+- estrategia comercial ativa;
+- consciencia comercial sobre chance de conversao, potencial e risco;
+- mentor do corretor com abordagem sugerida;
+- simulacoes por cenario na Academia UCE.
+
+Isso permite que o simulador mostre nao apenas "o que a IA entendeu", mas tambem
+como ela pretende conduzir, quando deve escalar para humano e como o corretor
+deve agir na passagem de bastao.
+
 ## Futuro
 
 A IA deverá consultar:
