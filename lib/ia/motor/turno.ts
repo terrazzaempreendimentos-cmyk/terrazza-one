@@ -10,6 +10,7 @@ import { atualizarContexto, camposPendentes } from "./memoria";
 import { descobrirProximaPergunta } from "./perguntas";
 import { calcularScore } from "./score";
 import { selecionarPersona } from "../personas";
+import { sugerirRespostaComercial } from "../comercial";
 import type { ExtractedInfo, LeadContext, MotorTurnResult } from "./tipos";
 
 function resumoDoQueEntendeu(informacoes: ExtractedInfo) {
@@ -107,6 +108,11 @@ export function processarTurno({
     ultimaPerguntaCampo: proximaPergunta?.campo ?? null,
   });
   const inferenciasComerciais = gerarInferenciasComerciais(contextoComPergunta);
+  const leituraComercial = sugerirRespostaComercial(
+    mensagemUsuario,
+    contextoComPergunta,
+    inferenciasComerciais,
+  );
   const personaAtiva = selecionarPersona(contextoComPergunta);
   const { score, temperatura } = calcularScore(
     contextoComPergunta,
@@ -127,6 +133,7 @@ export function processarTurno({
     temperatura,
     sugestao: script.proximaAcaoSugerida,
     hipotesesComerciais: inferenciasComerciais,
+    alertasComerciais: leituraComercial,
   });
 
   return {
@@ -142,6 +149,12 @@ export function processarTurno({
     hipoteses,
     inferenciasComerciais,
     personaAtiva,
+    objecaoDetectada: leituraComercial.objecaoDetectada,
+    respostaComercialSugerida: leituraComercial.respostaComercialSugerida,
+    proximaPerguntaComercial: leituraComercial.proximaPerguntaSugerida,
+    riscoComercial: leituraComercial.riscoComercial,
+    precisaCorretorHumano: leituraComercial.precisaCorretorHumano,
+    leituraComercial: leituraComercial.leituraComercial,
     qualificado,
     motivoQualificacao,
     podePassarCorretor,

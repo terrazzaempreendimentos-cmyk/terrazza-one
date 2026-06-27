@@ -51,6 +51,7 @@ import {
   type LeadContext,
 } from "../../../../../lib/ia/motor";
 import { selecionarPersona } from "../../../../../lib/ia/personas";
+import type { RespostaComercial } from "../../../../../lib/ia/comercial";
 
 const tiposLead: Array<{ label: string; value: TipoLeadSimulador }> = [
   { label: "Proprietario", value: "proprietario" },
@@ -189,6 +190,8 @@ export default function SimuladorIaPage() {
   );
   const [briefingVisivel, setBriefingVisivel] = useState(false);
   const [passagemVisivel, setPassagemVisivel] = useState(false);
+  const [leituraComercial, setLeituraComercial] =
+    useState<RespostaComercial | null>(null);
   const fimChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -250,6 +253,7 @@ export default function SimuladorIaPage() {
         temperatura: scoreMotor.temperatura,
         sugestao: scriptAtivo.proximaAcaoSugerida,
         hipotesesComerciais: inferenciasComerciais,
+        alertasComerciais: leituraComercial,
       }),
     [
       contexto,
@@ -257,6 +261,7 @@ export default function SimuladorIaPage() {
       scoreMotor.temperatura,
       scriptAtivo,
       inferenciasComerciais,
+      leituraComercial,
     ],
   );
 
@@ -293,6 +298,7 @@ export default function SimuladorIaPage() {
     setMensagem("");
     setBriefingVisivel(false);
     setPassagemVisivel(false);
+    setLeituraComercial(null);
   }
 
   function reiniciarSimulacao() {
@@ -301,6 +307,7 @@ export default function SimuladorIaPage() {
     setMensagem("");
     setBriefingVisivel(false);
     setPassagemVisivel(false);
+    setLeituraComercial(null);
     setContexto(
       contextoConfigurado({
         tipoLead,
@@ -330,6 +337,14 @@ export default function SimuladorIaPage() {
       novaMensagem("ia", resultado.respostaIa),
     ]);
     setContexto(resultado.contexto);
+    setLeituraComercial({
+      objecaoDetectada: resultado.objecaoDetectada,
+      respostaComercialSugerida: resultado.respostaComercialSugerida,
+      proximaPerguntaSugerida: resultado.proximaPerguntaComercial,
+      riscoComercial: resultado.riscoComercial,
+      precisaCorretorHumano: resultado.precisaCorretorHumano,
+      leituraComercial: resultado.leituraComercial,
+    });
     setMensagem("");
     window.requestAnimationFrame(() => textareaRef.current?.focus());
   }
@@ -782,6 +797,77 @@ export default function SimuladorIaPage() {
                     </div>
                   </section>
 
+                  <section className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-xl font-semibold text-[#071E36]">
+                          Leitura Comercial
+                        </h3>
+                        <p className="mt-1 text-sm text-[#64736D]">
+                          Objeções, risco e sugestão de condução sem OpenAI.
+                        </p>
+                      </div>
+                      <span
+                        className={
+                          leituraComercial?.riscoComercial === "alto"
+                            ? "rounded-full bg-red-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-red-700 ring-1 ring-red-100"
+                            : leituraComercial?.riscoComercial === "medio"
+                              ? "rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-700 ring-1 ring-amber-100"
+                              : "rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 ring-1 ring-emerald-100"
+                        }
+                      >
+                        {leituraComercial?.riscoComercial ?? "sem risco"}
+                      </span>
+                    </div>
+
+                    <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
+                      <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                        <p className="font-semibold text-[#071E36]">
+                          Objeção detectada
+                        </p>
+                        <p className="mt-1 text-[#64736D]">
+                          {leituraComercial?.objecaoDetectada ??
+                            "Nenhuma objeção detectada no último turno."}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                        <p className="font-semibold text-[#071E36]">
+                          Precisa corretor humano
+                        </p>
+                        <p className="mt-1 text-[#64736D]">
+                          {leituraComercial?.precisaCorretorHumano ? "Sim" : "Não"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3 md:col-span-2">
+                        <p className="font-semibold text-[#071E36]">
+                          Leitura comercial
+                        </p>
+                        <p className="mt-1 leading-6 text-[#64736D]">
+                          {leituraComercial?.leituraComercial ??
+                            "Aguardando sinais de objeção, dúvida ou momento crítico."}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3 md:col-span-2">
+                        <p className="font-semibold text-[#071E36]">
+                          Resposta sugerida
+                        </p>
+                        <p className="mt-1 leading-6 text-[#64736D]">
+                          {leituraComercial?.respostaComercialSugerida ??
+                            "Sem resposta comercial sugerida ainda."}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3 md:col-span-2">
+                        <p className="font-semibold text-[#071E36]">
+                          Próxima pergunta sugerida
+                        </p>
+                        <p className="mt-1 leading-6 text-[#64736D]">
+                          {leituraComercial?.proximaPerguntaSugerida ??
+                            "Seguir fluxo principal do Motor Cognitivo."}
+                        </p>
+                      </div>
+                    </div>
+                  </section>
+
                   <section className="grid gap-5 lg:grid-cols-2">
                     <div className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
                       <div className="flex items-center justify-between gap-3">
@@ -879,6 +965,34 @@ export default function SimuladorIaPage() {
                             ? camposPendentesMotor.join(", ")
                             : "Sem pendencias essenciais"}
                         </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3 text-sm">
+                      <p className="font-semibold text-[#071E36]">
+                        Alertas Comerciais
+                      </p>
+                      <div className="mt-2 grid gap-2 leading-6 text-[#64736D]">
+                        <p>
+                          Objeção:{" "}
+                          {leituraComercial?.objecaoDetectada ??
+                            "nenhuma objeção detectada"}
+                        </p>
+                        <p>
+                          Risco: {leituraComercial?.riscoComercial ?? "baixo"}
+                        </p>
+                        <p>
+                          Corretor humano:{" "}
+                          {leituraComercial?.precisaCorretorHumano
+                            ? "sim"
+                            : "não"}
+                        </p>
+                        {leituraComercial?.respostaComercialSugerida ? (
+                          <p>
+                            Condução sugerida:{" "}
+                            {leituraComercial.respostaComercialSugerida}
+                          </p>
+                        ) : null}
                       </div>
                     </div>
 

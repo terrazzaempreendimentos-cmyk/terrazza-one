@@ -15,12 +15,19 @@ export function gerarBriefing({
   temperatura,
   sugestao,
   hipotesesComerciais = [],
+  alertasComerciais,
 }: {
   contexto: LeadContext;
   score: number;
   temperatura: LeadTemperature;
   sugestao: string;
   hipotesesComerciais?: HipoteseIA[];
+  alertasComerciais?: {
+    objecaoDetectada: string | null;
+    riscoComercial: string | null;
+    precisaCorretorHumano: boolean;
+    respostaComercialSugerida: string | null;
+  } | null;
 }) {
   const pendencias = camposPendentes(contexto, [
     "bairro",
@@ -48,6 +55,21 @@ export function gerarBriefing({
           )
           .join("\n")
       : "- Sem hipoteses comerciais relevantes ainda.",
+    "Alertas Comerciais:",
+    alertasComerciais?.objecaoDetectada
+      ? [
+          `- Objecao: ${alertasComerciais.objecaoDetectada}`,
+          `- Risco: ${alertasComerciais.riscoComercial ?? "baixo"}`,
+          `- Precisa corretor humano: ${
+            alertasComerciais.precisaCorretorHumano ? "sim" : "nao"
+          }`,
+          alertasComerciais.respostaComercialSugerida
+            ? `- Conducao sugerida: ${alertasComerciais.respostaComercialSugerida}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join("\n")
+      : "- Nenhum alerta comercial detectado.",
     `Pendencias: ${
       pendencias.length > 0 ? pendencias.join(", ") : "Sem pendencias essenciais"
     }`,

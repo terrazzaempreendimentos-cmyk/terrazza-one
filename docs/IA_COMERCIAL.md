@@ -357,6 +357,39 @@ Simulador exibe raciocinio, persona e hipoteses
 Esse fluxo transforma o simulador em uma academia de treinamento da IA Comercial,
 antes de qualquer integracao com OpenAI, WhatsApp ou Vista ERP.
 
+## Biblioteca Comercial
+
+A Biblioteca Comercial e a camada de metodologia da IA Comercial. Ela registra
+objecoes, respostas sugeridas, estrategias por tipo de lead e alertas comerciais
+para que a IA aprenda a conduzir conversas imobiliarias com criterio.
+
+Essa biblioteca reforca uma diferenca central:
+
+- responder e apenas devolver uma informacao;
+- conduzir e entender o momento comercial, reduzir inseguranca, fazer a proxima
+  pergunta certa e saber quando acionar um corretor humano.
+
+As objecoes iniciais cobrem temas como preco, condominio, documentacao,
+indecisao, comparacao, prazo, fiador, garantia, localizacao, visita,
+proprietario e financiamento.
+
+Cada objecao possui:
+
+- sinais de linguagem;
+- leitura comercial;
+- risco;
+- resposta sugerida;
+- proxima pergunta.
+
+As estrategias por tipo de lead orientam a abordagem para proprietarios,
+inquilinos, compradores, vendedores e corretores parceiros. Elas definem foco de
+qualificacao, sinais de alta e baixa intencao, momento de passagem para corretor
+e proxima melhor acao.
+
+No simulador, essa camada aparece como "Leitura Comercial" e como "Alertas
+Comerciais" dentro do briefing. O objetivo e formar uma IA com metodologia
+comercial propria da Terrazza, sem depender de OpenAI nesta fase.
+
 ## Futuro
 
 A IA deverá consultar:

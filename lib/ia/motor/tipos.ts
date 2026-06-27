@@ -2,6 +2,7 @@ import type { ScriptQualificacao } from "../scriptsQualificacao";
 import type { TipoLeadSimulador } from "../fluxos";
 import type { PersonaComercial } from "../personas/Base";
 import type { HipoteseIA } from "./inferencia";
+import type { RiscoComercial } from "../comercial";
 
 export type LeadTemperature = "frio" | "morno" | "quente";
 
@@ -122,6 +123,12 @@ export type MotorTurnResult = {
   hipoteses: HipoteseComercial[];
   inferenciasComerciais: HipoteseIA[];
   personaAtiva: PersonaComercial;
+  objecaoDetectada: string | null;
+  respostaComercialSugerida: string | null;
+  proximaPerguntaComercial: string | null;
+  riscoComercial: RiscoComercial | null;
+  precisaCorretorHumano: boolean;
+  leituraComercial: string | null;
   qualificado: boolean;
   motivoQualificacao: string;
   podePassarCorretor: boolean;
