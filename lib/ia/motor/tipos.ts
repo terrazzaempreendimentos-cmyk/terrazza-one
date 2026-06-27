@@ -20,7 +20,7 @@ export type CampoPergunta =
   | "objetivo"
   | "quartos"
   | "financiamento"
-  | "fgts";
+  | "fgts"
   | "documentacao";
 
 export type LeadContext = {
