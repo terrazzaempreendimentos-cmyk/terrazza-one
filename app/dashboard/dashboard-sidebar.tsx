@@ -54,7 +54,7 @@ const menuGroups = [
     links: [
       { label: "Leads", href: "/dashboard/crm/leads", icon: UsersRound },
       { label: "Kanban", href: "/dashboard/crm/kanban", icon: BarChart3 },
-      { label: "🤖 IA Comercial", href: "/dashboard/crm/ia", icon: Bot },
+      { label: "IA Comercial", href: "/dashboard/crm/ia", icon: Bot },
       {
         label: "Simulador IA",
         href: "/dashboard/crm/ia/simulador",

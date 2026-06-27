@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Bot,
   ClipboardList,
+  FileText,
   MessageCircle,
   Play,
   Send,
@@ -16,12 +17,15 @@ import {
 import {
   calcularScoreSimulado,
   gerarMensagemInicial,
-  gerarPerguntasQualificacao,
   sugestaoPassagemCorretor,
   sugestaoProximaAcao,
   temperaturaPorScore,
   type TipoLeadSimulador,
 } from "../../../../../lib/ia/fluxos";
+import {
+  obterLacunasPendentes,
+  obterScriptQualificacao,
+} from "../../../../../lib/ia/scriptsQualificacao";
 
 const tiposLead: Array<{ label: string; value: TipoLeadSimulador }> = [
   { label: "Proprietário", value: "proprietario" },
@@ -57,6 +61,36 @@ function temperaturaClassName(temperatura: string) {
   }
 }
 
+function ListaScript({
+  titulo,
+  itens,
+  destaque,
+}: {
+  titulo: string;
+  itens: string[];
+  destaque?: boolean;
+}) {
+  return (
+    <div className="rounded-2xl border border-[#E8DDCB] bg-white px-4 py-3">
+      <p className="text-sm font-semibold text-[#071E36]">{titulo}</p>
+      <ul className="mt-3 grid gap-2 text-sm leading-6 text-[#64736D]">
+        {itens.map((item) => (
+          <li key={item} className="flex gap-2">
+            <span
+              className={
+                destaque
+                  ? "mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#C89B3C]"
+                  : "mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#071E36]/35"
+              }
+            />
+            <span>{item}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function SimuladorIaPage() {
   const [tipoLead, setTipoLead] = useState<TipoLeadSimulador>("proprietario");
   const [origem, setOrigem] = useState("instagram");
@@ -64,13 +98,17 @@ export default function SimuladorIaPage() {
   const [canal, setCanal] = useState("whatsapp");
   const [simulacaoIniciada, setSimulacaoIniciada] = useState(false);
 
-  const perguntas = useMemo(
-    () => gerarPerguntasQualificacao(tipoLead),
+  const scriptAtivo = useMemo(
+    () => obterScriptQualificacao(tipoLead),
     [tipoLead],
   );
   const score = useMemo(
     () => calcularScoreSimulado({ tipoLead, origem, cidade, canal }),
     [canal, cidade, origem, tipoLead],
+  );
+  const lacunasPendentes = useMemo(
+    () => obterLacunasPendentes(tipoLead, cidade),
+    [cidade, tipoLead],
   );
   const temperatura = temperaturaPorScore(score);
   const mensagemInicial = gerarMensagemInicial(tipoLead, origem);
@@ -120,92 +158,134 @@ export default function SimuladorIaPage() {
           </div>
         </header>
 
-        <section className="mt-8 grid gap-6 xl:grid-cols-[360px_1fr]">
-          <form
-            onSubmit={iniciarSimulacao}
-            className="rounded-[2rem] border border-[#E8DDCB] bg-white p-6 shadow-sm"
-          >
-            <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#071E36] text-[#E1B866]">
-                <Sparkles size={20} />
-              </span>
-              <div>
-                <h2 className="text-xl font-semibold text-[#071E36]">
-                  Cenário de teste
-                </h2>
-                <p className="text-sm text-[#64736D]">
-                  Configure o atendimento simulado.
+        <section className="mt-8 grid gap-6 xl:grid-cols-[380px_1fr]">
+          <div className="grid gap-6">
+            <form
+              onSubmit={iniciarSimulacao}
+              className="rounded-[2rem] border border-[#E8DDCB] bg-white p-6 shadow-sm"
+            >
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#071E36] text-[#E1B866]">
+                  <Sparkles size={20} />
+                </span>
+                <div>
+                  <h2 className="text-xl font-semibold text-[#071E36]">
+                    Cenário de teste
+                  </h2>
+                  <p className="text-sm text-[#64736D]">
+                    Configure o atendimento simulado.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-5">
+                <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+                  Tipo de lead
+                  <select
+                    value={tipoLead}
+                    onChange={(event) =>
+                      setTipoLead(event.target.value as TipoLeadSimulador)
+                    }
+                    className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
+                  >
+                    {tiposLead.map((tipo) => (
+                      <option key={tipo.value} value={tipo.value}>
+                        {tipo.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+                  Origem
+                  <select
+                    value={origem}
+                    onChange={(event) => setOrigem(event.target.value)}
+                    className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
+                  >
+                    {origens.map((item) => (
+                      <option key={item} value={item}>
+                        {labelTexto(item)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+                  Cidade
+                  <input
+                    value={cidade}
+                    onChange={(event) => setCidade(event.target.value)}
+                    className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
+                    placeholder="Ex.: Maceió"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+                  Canal
+                  <select
+                    value={canal}
+                    onChange={(event) => setCanal(event.target.value)}
+                    className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
+                  >
+                    {canais.map((item) => (
+                      <option key={item} value={item}>
+                        {labelTexto(item)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
+              >
+                Iniciar simulação
+                <Play size={16} />
+              </button>
+            </form>
+
+            <aside className="rounded-[2rem] border border-[#C89B3C]/35 bg-[#071E36] p-6 text-white shadow-sm">
+              <div className="flex items-center gap-3">
+                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-white/10 text-[#E1B866]">
+                  <FileText size={20} />
+                </span>
+                <div>
+                  <h2 className="text-xl font-semibold">Script ativo</h2>
+                  <p className="text-sm text-white/60">{labelTexto(tipoLead)}</p>
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#E1B866]">
+                  Objetivo
+                </p>
+                <p className="mt-2 text-sm leading-6 text-white/75">
+                  {scriptAtivo.objetivo}
                 </p>
               </div>
-            </div>
 
-            <div className="mt-6 grid gap-5">
-              <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-                Tipo de lead
-                <select
-                  value={tipoLead}
-                  onChange={(event) =>
-                    setTipoLead(event.target.value as TipoLeadSimulador)
-                  }
-                  className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
-                >
-                  {tiposLead.map((tipo) => (
-                    <option key={tipo.value} value={tipo.value}>
-                      {tipo.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-                Origem
-                <select
-                  value={origem}
-                  onChange={(event) => setOrigem(event.target.value)}
-                  className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
-                >
-                  {origens.map((item) => (
-                    <option key={item} value={item}>
-                      {labelTexto(item)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-                Cidade
-                <input
-                  value={cidade}
-                  onChange={(event) => setCidade(event.target.value)}
-                  className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                  placeholder="Ex.: Maceió"
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-                Canal
-                <select
-                  value={canal}
-                  onChange={(event) => setCanal(event.target.value)}
-                  className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
-                >
-                  {canais.map((item) => (
-                    <option key={item} value={item}>
-                      {labelTexto(item)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-
-            <button
-              type="submit"
-              className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
-            >
-              Iniciar simulação
-              <Play size={16} />
-            </button>
-          </form>
+              <div className="mt-4 grid gap-3 text-sm">
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                  <p className="font-semibold text-[#E1B866]">
+                    Condição de passagem
+                  </p>
+                  <p className="mt-2 leading-6 text-white/75">
+                    {scriptAtivo.condicaoPassagemCorretor}
+                  </p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-4">
+                  <p className="font-semibold text-[#E1B866]">
+                    Próxima ação sugerida
+                  </p>
+                  <p className="mt-2 leading-6 text-white/75">
+                    {scriptAtivo.proximaAcaoSugerida}
+                  </p>
+                </div>
+              </div>
+            </aside>
+          </div>
 
           <div className="overflow-hidden rounded-[2rem] border border-[#E8DDCB] bg-white shadow-sm">
             <div className="border-b border-[#E8DDCB] bg-[#071E36] px-6 py-5 text-white">
@@ -222,9 +302,9 @@ export default function SimuladorIaPage() {
               </div>
             </div>
 
-            <div className="min-h-[520px] bg-[#fffdfa] px-5 py-6 sm:px-8">
+            <div className="min-h-[620px] bg-[#fffdfa] px-5 py-6 sm:px-8">
               {!simulacaoIniciada ? (
-                <div className="flex min-h-[430px] items-center justify-center">
+                <div className="flex min-h-[520px] items-center justify-center">
                   <div className="max-w-md rounded-[2rem] border border-dashed border-[#E8DDCB] bg-white p-6 text-center shadow-sm">
                     <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#C89B3C]/15 text-[#8B6827]">
                       <Bot size={22} />
@@ -233,8 +313,8 @@ export default function SimuladorIaPage() {
                       Pronto para simular
                     </h3>
                     <p className="mt-2 text-sm leading-6 text-[#64736D]">
-                      Escolha o cenário à esquerda e inicie o fluxo para ver a
-                      abordagem, perguntas e resumo de passagem.
+                      Escolha o cenário à esquerda e inicie o fluxo para ver
+                      abordagem, script, score e briefing para o corretor.
                     </p>
                   </div>
                 </div>
@@ -259,31 +339,60 @@ export default function SimuladorIaPage() {
                     </p>
                   </div>
 
-                  <div className="max-w-3xl rounded-[1.5rem] rounded-bl-md border border-[#E8DDCB] bg-white px-5 py-4 text-[#071E36] shadow-sm">
-                    <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6827]">
-                      <ClipboardList size={15} />
-                      Perguntas de qualificação
+                  <section className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
+                    <div className="mb-4 flex items-center gap-3">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#C89B3C]/15 text-[#8B6827]">
+                        <ClipboardList size={18} />
+                      </span>
+                      <div>
+                        <h3 className="text-xl font-semibold text-[#071E36]">
+                          Roteiro de qualificação
+                        </h3>
+                        <p className="text-sm text-[#64736D]">
+                          A IA conversa naturalmente, mas segue este padrão.
+                        </p>
+                      </div>
                     </div>
-                    <ol className="grid gap-2 text-sm leading-6 text-[#102A27]">
-                      {perguntas.map((pergunta, index) => (
-                        <li key={pergunta}>
-                          <span className="font-semibold text-[#C89B3C]">
-                            {index + 1}.
-                          </span>{" "}
-                          {pergunta}
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
+
+                    <div className="grid gap-4 xl:grid-cols-2">
+                      <ListaScript
+                        titulo="Objetivo do script"
+                        itens={[scriptAtivo.objetivo]}
+                        destaque
+                      />
+                      <ListaScript
+                        titulo="Critérios de score"
+                        itens={scriptAtivo.criteriosScore}
+                      />
+                      <ListaScript
+                        titulo="Perguntas obrigatórias"
+                        itens={scriptAtivo.perguntasObrigatorias}
+                        destaque
+                      />
+                      <ListaScript
+                        titulo="Perguntas opcionais"
+                        itens={scriptAtivo.perguntasOpcionais}
+                      />
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-[#C89B3C]/30 bg-[#C89B3C]/10 px-4 py-3 text-sm">
+                      <p className="font-semibold text-[#071E36]">
+                        Condição de passagem de bastão
+                      </p>
+                      <p className="mt-1 leading-6 text-[#64736D]">
+                        {scriptAtivo.condicaoPassagemCorretor}
+                      </p>
+                    </div>
+                  </section>
 
                   <section className="rounded-[1.75rem] border border-[#C89B3C]/35 bg-white p-5 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <h3 className="text-xl font-semibold text-[#071E36]">
-                          Resumo simulado
+                          Briefing para o corretor
                         </h3>
                         <p className="mt-1 text-sm text-[#64736D]">
-                          Prévia do que seria entregue ao corretor.
+                          Prévia do handoff gerado ao final da qualificação.
                         </p>
                       </div>
                       <span
@@ -298,47 +407,61 @@ export default function SimuladorIaPage() {
                     <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
                       <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
                         <p className="font-semibold text-[#071E36]">
-                          Tipo de lead
+                          Resumo do lead
                         </p>
                         <p className="mt-1 text-[#64736D]">
-                          {labelTexto(tipoLead)}
+                          Lead {labelTexto(tipoLead)} vindo de {labelTexto(origem)}
+                          , canal {labelTexto(canal)}, com interesse inicial em{" "}
+                          {cidade || "cidade não informada"}.
                         </p>
                       </div>
                       <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
                         <p className="font-semibold text-[#071E36]">
-                          Dados coletados
-                        </p>
-                        <p className="mt-1 text-[#64736D]">
-                          Origem {labelTexto(origem)}, canal {labelTexto(canal)} e
-                          cidade {cidade || "não informada"}.
-                        </p>
-                      </div>
-                      <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
-                        <p className="font-semibold text-[#071E36]">
-                          Score simulado
+                          Score e temperatura
                         </p>
                         <p className="mt-1 flex items-center gap-2 text-[#64736D]">
                           <Thermometer size={16} className="text-[#C89B3C]" />
-                          {score}/100
+                          {score}/100 · {temperatura}
                         </p>
                       </div>
                       <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
                         <p className="font-semibold text-[#071E36]">
-                          Próxima ação
+                          Informações coletadas
                         </p>
                         <p className="mt-1 text-[#64736D]">
-                          {sugestaoProximaAcao(tipoLead)}
+                          Tipo de lead, origem, canal, cidade e intenção inicial
+                          simulada.
                         </p>
+                      </div>
+                      <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                        <p className="font-semibold text-[#071E36]">
+                          Lacunas pendentes
+                        </p>
+                        <ul className="mt-1 grid gap-1 text-[#64736D]">
+                          {lacunasPendentes.map((lacuna) => (
+                            <li key={lacuna}>• {lacuna}</li>
+                          ))}
+                        </ul>
                       </div>
                     </div>
 
-                    <div className="mt-4 rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3 text-sm">
-                      <p className="font-semibold text-[#071E36]">
-                        Sugestão de passagem para corretor
-                      </p>
-                      <p className="mt-1 leading-6 text-[#64736D]">
-                        {sugestaoPassagemCorretor(tipoLead)}
-                      </p>
+                    <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                      <div className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3 text-sm">
+                        <p className="font-semibold text-[#071E36]">
+                          Sugestão de próxima ação
+                        </p>
+                        <p className="mt-1 leading-6 text-[#64736D]">
+                          {sugestaoProximaAcao(tipoLead)}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3 text-sm">
+                        <p className="font-semibold text-[#071E36]">
+                          Sugestão de abordagem
+                        </p>
+                        <p className="mt-1 leading-6 text-[#64736D]">
+                          {sugestaoPassagemCorretor(tipoLead)}
+                        </p>
+                      </div>
                     </div>
                   </section>
                 </div>

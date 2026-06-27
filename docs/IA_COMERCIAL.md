@@ -150,6 +150,27 @@ Esse ambiente será usado para aperfeiçoar:
 O objetivo é testar e ajustar o comportamento da IA antes que ela converse com
 clientes reais pelo WhatsApp, Instagram, Site ou outros canais.
 
+## Scripts de Qualificação
+
+Cada tipo de lead terá um roteiro próprio de qualificação para orientar a IA
+Comercial sem transformar a conversa em um formulário rígido.
+
+Os scripts definem objetivo, perguntas obrigatórias, perguntas opcionais,
+critérios de score, condição de passagem para corretor e próxima ação sugerida.
+Com isso, a IA pode conversar de forma natural, acolhedora e consultiva, mas sem
+perder o padrão comercial da Terrazza.
+
+Os roteiros iniciais contemplam:
+
+- proprietário;
+- inquilino;
+- comprador;
+- vendedor;
+- corretor parceiro.
+
+Esses scripts serão usados no Simulador Interno antes de qualquer integração com
+WhatsApp, OpenAI, Vista ERP ou canais externos.
+
 ## Futuro
 
 A IA deverá consultar:
