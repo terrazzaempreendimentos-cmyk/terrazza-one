@@ -341,7 +341,22 @@ export function extrairInformacoes(
     texto.includes("credito") ||
     texto.includes("aprovado")
   ) {
-    informacoes.documentacao = "informada";
+    if (
+      contem(texto, [
+        "nao sei",
+        "nao tenho",
+        "ainda nao",
+        "falta documentacao",
+        "nao organizei",
+      ])
+    ) {
+      informacoes.documentacao = false;
+      informacoes.documentacaoObservacao = texto.includes("nao sei")
+        ? "cliente nao soube informar"
+        : null;
+    } else {
+      informacoes.documentacao = true;
+    }
   }
 
   return {
