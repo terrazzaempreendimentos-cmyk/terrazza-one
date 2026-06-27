@@ -184,11 +184,13 @@ function respostaNatural({
   proximaPergunta,
   podePassarCorretor,
   sugestao,
+  closingMessage,
 }: {
   informacoesExtraidas: ExtractedInfo;
   proximaPergunta: NextQuestion | null;
   podePassarCorretor: boolean;
   sugestao: string;
+  closingMessage?: string | null;
 }) {
   const confirmacao = resumoDoQueEntendeu(informacoesExtraidas);
   const transicoes = [
@@ -200,6 +202,8 @@ function respostaNatural({
   const index = Object.keys(informacoesExtraidas).length % transicoes.length;
 
   if (podePassarCorretor) {
+    if (closingMessage) return `${confirmacao} ${closingMessage}`;
+
     return `${confirmacao} ${transicoes[index]} Ja tenho base para preparar o atendimento com um especialista da Terrazza. Proximo passo sugerido: ${sugestao}`;
   }
 
@@ -248,6 +252,7 @@ export function processarTurno({
   const script = obterScriptQualificacao(tipoLead);
   const { qualificado, podePassarCorretor, motivoQualificacao } =
     avaliarQualificacao(contexto, uceResult.score);
+  const handoffQualificado = uceResult.handoff.canHandoff;
 
   return {
     contexto,
@@ -267,10 +272,13 @@ export function processarTurno({
     respostaIa: respostaNatural({
       informacoesExtraidas,
       proximaPergunta,
-      podePassarCorretor,
+      podePassarCorretor: handoffQualificado || podePassarCorretor,
       sugestao: script.proximaAcaoSugerida,
+      closingMessage: uceResult.closingMessage,
     }),
-    estadoCognitivo: definirEstadoCognitivo(contexto, uceResult.score),
+    estadoCognitivo: handoffQualificado
+      ? "pronto_para_corretor"
+      : definirEstadoCognitivo(contexto, uceResult.score),
     confiancaCampos: calcularConfiancaCampos(contexto, informacoesExtraidas),
     hipoteses: gerarHipoteses(contexto),
     inferenciasComerciais,
@@ -284,9 +292,13 @@ export function processarTurno({
     commercialStrategy: uceResult.commercialStrategy,
     commercialAwareness: uceResult.commercialAwareness,
     brokerMentorBriefing: uceResult.brokerMentorBriefing,
+    handoff: uceResult.handoff,
+    closingMessage: uceResult.closingMessage,
     temporalDebug: uceResult.temporalDebug,
-    qualificado,
-    motivoQualificacao,
-    podePassarCorretor,
+    qualificado: handoffQualificado || qualificado,
+    motivoQualificacao: handoffQualificado
+      ? uceResult.handoff.reason
+      : motivoQualificacao,
+    podePassarCorretor: handoffQualificado || podePassarCorretor,
   };
 }

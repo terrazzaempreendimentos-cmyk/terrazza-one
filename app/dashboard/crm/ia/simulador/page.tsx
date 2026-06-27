@@ -57,6 +57,7 @@ import {
   type UCEBrokerMentorBriefing,
   type UCECommercialAwareness,
   type UCECommercialStrategy,
+  type UCEHandoffDecision,
   type UCETemporalDebug,
 } from "../../../../../lib/uce";
 
@@ -209,6 +210,8 @@ export default function SimuladorIaPage() {
   const [temporalDebug, setTemporalDebug] = useState<UCETemporalDebug | null>(
     null,
   );
+  const [handoff, setHandoff] = useState<UCEHandoffDecision | null>(null);
+  const [closingMessage, setClosingMessage] = useState<string | null>(null);
   const fimChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -246,12 +249,25 @@ export default function SimuladorIaPage() {
     [contexto],
   );
   const estadoCognitivo = useMemo(
-    () => definirEstadoCognitivo(contexto, scoreMotor.score),
-    [contexto, scoreMotor.score],
+    () =>
+      handoff?.canHandoff
+        ? "pronto_para_corretor"
+        : definirEstadoCognitivo(contexto, scoreMotor.score),
+    [contexto, handoff?.canHandoff, scoreMotor.score],
   );
   const qualificacao = useMemo(
-    () => avaliarQualificacao(contexto, scoreMotor.score),
-    [contexto, scoreMotor.score],
+    () => {
+      const resultado = avaliarQualificacao(contexto, scoreMotor.score);
+
+      if (!handoff?.canHandoff) return resultado;
+
+      return {
+        qualificado: true,
+        podePassarCorretor: true,
+        motivoQualificacao: handoff.reason,
+      };
+    },
+    [contexto, handoff, scoreMotor.score],
   );
   const confiancaCampos = useMemo(
     () =>
@@ -279,6 +295,48 @@ export default function SimuladorIaPage() {
       scriptAtivo,
       inferenciasComerciais,
       leituraComercial,
+    ],
+  );
+  const textoPassagemCorretor = useMemo(
+    () =>
+      [
+        "Lead qualificado pela IA Comercial.",
+        `Nome: nao informado`,
+        `Objetivo: ${contexto.objetivo ?? "nao informado"}`,
+        `Cidade/Bairro: ${[contexto.cidade, contexto.bairro]
+          .filter(Boolean)
+          .join(" / ") || "nao informado"}`,
+        `Imovel desejado: ${contexto.tipoImovel ?? "nao informado"}`,
+        `Valor: ${contexto.valor ?? "nao informado"}`,
+        `Quartos: ${contexto.quartos ?? "nao informado"}`,
+        `Pet: ${
+          contexto.pet === null ? "nao informado" : contexto.pet ? "sim" : "nao"
+        }`,
+        `Urgencia/Prazo: ${contexto.urgencia ?? "nao informado"} / ${
+          contexto.prazoMudanca ?? "sem prazo"
+        }`,
+        `Score: ${scoreMotor.score}/100`,
+        `Temperatura: ${scoreMotor.temperatura}`,
+        `Estrategia comercial: ${
+          commercialStrategy?.name ?? "nao definida"
+        }`,
+        `Alertas comerciais: ${
+          leituraComercial?.leituraComercial ??
+          brokerMentorBriefing?.riskAlerts.join(", ") ??
+          "sem alertas relevantes"
+        }`,
+        `Proxima melhor acao: ${
+          commercialStrategy?.nextBestAction ?? scriptAtivo.proximaAcaoSugerida
+        }`,
+      ].join("\n"),
+    [
+      brokerMentorBriefing,
+      commercialStrategy,
+      contexto,
+      leituraComercial,
+      scoreMotor.score,
+      scoreMotor.temperatura,
+      scriptAtivo.proximaAcaoSugerida,
     ],
   );
 
@@ -320,6 +378,8 @@ export default function SimuladorIaPage() {
     setCommercialAwareness(null);
     setBrokerMentorBriefing(null);
     setTemporalDebug(null);
+    setHandoff(null);
+    setClosingMessage(null);
   }
 
   function reiniciarSimulacao() {
@@ -333,6 +393,8 @@ export default function SimuladorIaPage() {
     setCommercialAwareness(null);
     setBrokerMentorBriefing(null);
     setTemporalDebug(null);
+    setHandoff(null);
+    setClosingMessage(null);
     setContexto(
       contextoConfigurado({
         tipoLead,
@@ -374,6 +436,8 @@ export default function SimuladorIaPage() {
     setCommercialAwareness(resultado.commercialAwareness);
     setBrokerMentorBriefing(resultado.brokerMentorBriefing);
     setTemporalDebug(resultado.temporalDebug);
+    setHandoff(resultado.handoff);
+    setClosingMessage(resultado.closingMessage);
     setMensagem("");
     window.requestAnimationFrame(() => textareaRef.current?.focus());
   }
@@ -433,8 +497,16 @@ export default function SimuladorIaPage() {
               <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6827]">
                 Estado atual
               </span>
-              <strong className="mt-1 block text-[#071E36]">
-                {estadoLabel(estadoCognitivo)}
+              <strong
+                className={
+                  estadoCognitivo === "pronto_para_corretor"
+                    ? "mt-1 inline-flex rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-emerald-700 ring-1 ring-emerald-100"
+                    : "mt-1 block text-[#071E36]"
+                }
+              >
+                {estadoCognitivo === "pronto_para_corretor"
+                  ? "PRONTO PARA CORRETOR"
+                  : estadoLabel(estadoCognitivo)}
               </strong>
             </div>
           </div>
@@ -747,6 +819,57 @@ export default function SimuladorIaPage() {
                       </div>
                     </div>
                   </section>
+
+                  {handoff?.canHandoff ? (
+                    <section className="rounded-[1.75rem] border border-emerald-200 bg-emerald-50 p-5 shadow-sm">
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                          <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">
+                            Handoff pronto
+                          </span>
+                          <h3 className="mt-4 text-xl font-semibold text-[#071E36]">
+                            Atendimento qualificado para corretor
+                          </h3>
+                          <p className="mt-1 text-sm leading-6 text-[#64736D]">
+                            {handoff.reason}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 ring-1 ring-emerald-100">
+                          {handoff.handoffType}
+                        </span>
+                      </div>
+
+                      <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
+                        <div className="rounded-2xl bg-white px-4 py-3">
+                          <p className="font-semibold text-[#071E36]">
+                            Campos essenciais coletados
+                          </p>
+                          <p className="mt-1 leading-6 text-[#64736D]">
+                            {camposPreenchidosMotor.join(", ")}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-white px-4 py-3">
+                          <p className="font-semibold text-[#071E36]">
+                            Campos opcionais pendentes
+                          </p>
+                          <p className="mt-1 leading-6 text-[#64736D]">
+                            {handoff.optionalMissingFields.length > 0
+                              ? handoff.optionalMissingFields.join(", ")
+                              : "Sem pendencias opcionais relevantes"}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-white px-4 py-3 md:col-span-2">
+                          <p className="font-semibold text-[#071E36]">
+                            Mensagem final da IA
+                          </p>
+                          <p className="mt-1 leading-6 text-[#64736D]">
+                            {closingMessage ??
+                              "Atendimento qualificado e pronto para passagem."}
+                          </p>
+                        </div>
+                      </div>
+                    </section>
+                  ) : null}
 
                   <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
                     <div className="rounded-[1.75rem] border border-[#C89B3C]/35 bg-[#071E36] p-5 text-white shadow-sm">
@@ -1329,6 +1452,14 @@ export default function SimuladorIaPage() {
                               {scriptAtivo.proximaAcaoSugerida}
                             </p>
                           </div>
+                          <div className="rounded-2xl border border-[#C89B3C]/25 bg-[#C89B3C]/10 px-4 py-3 md:col-span-2">
+                            <p className="font-semibold text-[#E1B866]">
+                              Texto pronto para corretor copiar
+                            </p>
+                            <p className="mt-2 whitespace-pre-line leading-6 text-white/80">
+                              {textoPassagemCorretor}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     ) : null}
@@ -1370,8 +1501,10 @@ export default function SimuladorIaPage() {
                           Proxima pergunta
                         </p>
                         <p className="mt-1 leading-6 text-white/75">
-                          {proximaPergunta?.texto ||
-                            "Sem proxima pergunta essencial."}
+                          {handoff?.canHandoff
+                            ? "Atendimento qualificado. Nenhuma nova pergunta essencial."
+                            : proximaPergunta?.texto ||
+                              "Sem proxima pergunta essencial."}
                         </p>
                       </div>
                       <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">

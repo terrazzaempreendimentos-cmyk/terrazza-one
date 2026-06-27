@@ -11,7 +11,11 @@ import {
   generateBrokerMentorBriefing,
   selectCommercialStrategy,
 } from "../commercial";
-import { getNextSmartQuestion } from "../flow";
+import {
+  generateClosingMessage,
+  getNextSmartQuestion,
+  shouldHandoff,
+} from "../flow";
 import { generateHypotheses } from "../inference";
 import { interpretContextualAnswer } from "../interpreters/contextual";
 import { interpretTemporalExpression } from "../interpreters/temporal";
@@ -273,8 +277,8 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       { role: "user", content: input.message, createdAt: new Date().toISOString() },
     ],
   };
-  const nextQuestion = getNextSmartQuestion(contextBeforeQuestion);
-  const context: UCEContext = {
+  let nextQuestion = getNextSmartQuestion(contextBeforeQuestion);
+  let context: UCEContext = {
     ...contextBeforeQuestion,
     activeQuestion: nextQuestion,
     lastQuestionField: nextQuestion?.field ?? null,
@@ -302,8 +306,26 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     score,
     temperature,
   });
+  const handoff = shouldHandoff(context, score, missing, hypotheses);
+  const closingMessage = handoff.canHandoff
+    ? generateClosingMessage(context, briefing, commercialAwareness)
+    : null;
+
+  if (handoff.canHandoff) {
+    nextQuestion = null;
+    context = {
+      ...context,
+      activeQuestion: null,
+      lastQuestionField: null,
+      metadata: {
+        ...context.metadata,
+        handoffReady: true,
+      },
+    };
+  }
+
   const status =
-    missing.length === 0 && score >= 75
+    handoff.canHandoff
       ? "ready_for_handoff"
       : missing.length <= 1 || score >= 65
         ? "ready_for_briefing"
@@ -325,6 +347,8 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     temperature,
     hypotheses,
     briefing,
+    handoff,
+    closingMessage,
     temporalDebug,
     commercialStrategy,
     commercialAwareness,

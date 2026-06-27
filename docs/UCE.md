@@ -138,3 +138,36 @@ Cenarios iniciais:
 
 Futuramente, a academia podera comparar uma simulacao real com o comportamento
 esperado e sugerir melhorias.
+
+## Fechamento e Handoff
+
+A UCE tambem precisa saber quando parar de perguntar. A partir da Sprint
+UCE-09.3, o motor avalia se ja existem informacoes suficientes para preparar a
+passagem humana.
+
+O handoff pode acontecer quando ha, no minimo:
+
+- objetivo;
+- cidade ou bairro;
+- tipo de imovel;
+- valor;
+- quartos, quando aplicavel;
+- pet, quando aplicavel;
+- urgencia ou prazo;
+- score acima de 75.
+
+Quando esses criterios sao atendidos, o `processUCE` nao gera nova pergunta. Ele
+marca o atendimento como pronto para corretor, define o tipo de especialista,
+gera uma mensagem final natural para o cliente e prepara o resumo de passagem.
+
+Tipos iniciais de handoff:
+
+- corretor;
+- especialista de locacao;
+- especialista de administracao;
+- especialista de venda;
+- atendimento humano.
+
+Essa camada evita que a IA continue perguntando depois de ja ter qualificado o
+lead. O objetivo e transformar a conversa em um atendimento completo, com
+fechamento elegante e passagem clara para a equipe humana da Terrazza.

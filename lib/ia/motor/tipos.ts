@@ -7,6 +7,7 @@ import type {
   UCEBrokerMentorBriefing,
   UCECommercialAwareness,
   UCECommercialStrategy,
+  UCEHandoffDecision,
   UCETemporalDebug,
 } from "../../uce";
 
@@ -139,6 +140,8 @@ export type MotorTurnResult = {
   commercialStrategy: UCECommercialStrategy;
   commercialAwareness: UCECommercialAwareness;
   brokerMentorBriefing: UCEBrokerMentorBriefing;
+  handoff: UCEHandoffDecision;
+  closingMessage: string | null;
   temporalDebug: UCETemporalDebug;
   qualificado: boolean;
   motivoQualificacao: string;

@@ -57,6 +57,21 @@ export type UCEBriefing = {
   pendingFields: string[];
 };
 
+export type UCEHandoffType =
+  | "corretor"
+  | "especialista_locacao"
+  | "especialista_administracao"
+  | "especialista_venda"
+  | "atendimento_humano";
+
+export type UCEHandoffDecision = {
+  canHandoff: boolean;
+  reason: string;
+  handoffType: UCEHandoffType;
+  missingCriticalFields: string[];
+  optionalMissingFields: string[];
+};
+
 export type UCECommercialStrategy = {
   id:
     | "modo_consultivo"
@@ -163,6 +178,8 @@ export type UCEProcessResult = {
   temperature: UCETemperature;
   hypotheses: UCEHypothesis[];
   briefing: UCEBriefing;
+  handoff: UCEHandoffDecision;
+  closingMessage: string | null;
   temporalDebug: UCETemporalDebug;
   commercialStrategy: UCECommercialStrategy;
   commercialAwareness: UCECommercialAwareness;

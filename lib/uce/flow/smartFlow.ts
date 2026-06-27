@@ -26,6 +26,10 @@ function isFilled(value: unknown) {
 export function getNextSmartQuestion(context: UCEContext) {
   const questions = context.domain === "real_estate" ? realEstateQuestions : realEstateQuestions;
 
+  if (context.metadata.handoffReady === true) {
+    return null;
+  }
+
   if (
     context.fields.urgencia === "indefinida" &&
     !isFilled(context.fields.prazoMudanca)
