@@ -231,6 +231,46 @@ Esse fluxo permite treinar o comportamento comercial da IA antes de qualquer
 integracao externa. A regra permanece: o Motor Cognitivo decide o fluxo, e a
 OpenAI, em sprint futura, apenas transformara essa decisao em linguagem natural.
 
+## Simulador Avancado
+
+O Simulador Avancado prepara a IA Comercial para uma futura integracao real com
+OpenAI, WhatsApp, Vista ERP e demais canais, sem depender ainda de nenhuma API
+externa.
+
+Nesta etapa, o Motor Cognitivo passa a exibir:
+
+- estado cognitivo da conversa;
+- progresso da qualificacao;
+- confianca por campo;
+- hipoteses comerciais;
+- condicao de qualificacao completa;
+- possibilidade de passagem para corretor;
+- card de passagem de bastao simulada.
+
+Os estados cognitivos previstos sao:
+
+- identificando_intencao;
+- qualificando_perfil;
+- coletando_detalhes;
+- preparando_briefing;
+- pronto_para_corretor.
+
+A confianca por campo indica se informacoes como cidade, bairro, tipo de imovel,
+valor, objetivo e urgencia foram preenchidas com boa seguranca, inferidas pelo
+fluxo ou ainda estao ausentes.
+
+As hipoteses comerciais ajudam a IA a interpretar o atendimento antes de falar
+com um modelo externo. Exemplos: lead de locacao, lead de compra, perfil
+familiar, alta urgencia, potencial de administracao, necessidade de financiamento
+e lead de alto padrao.
+
+A passagem de bastao simulada gera um card interno com briefing, score,
+temperatura, campos coletados, campos pendentes, hipotese principal e sugestao de
+abordagem para o corretor humano.
+
+O objetivo desta sprint e testar fluxo, memoria, lacunas, score, briefing e
+handoff antes de integrar OpenAI e WhatsApp.
+
 ## Futuro
 
 A IA deverá consultar:

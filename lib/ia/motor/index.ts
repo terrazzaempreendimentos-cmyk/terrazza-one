@@ -7,3 +7,6 @@ export * from "./score";
 export * from "./briefing";
 export * from "./extracao";
 export * from "./turno";
+export * from "./confianca";
+export * from "./hipoteses";
+export * from "./estado";

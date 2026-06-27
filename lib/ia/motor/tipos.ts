@@ -3,6 +3,13 @@ import type { TipoLeadSimulador } from "../fluxos";
 
 export type LeadTemperature = "frio" | "morno" | "quente";
 
+export type EstadoCognitivo =
+  | "identificando_intencao"
+  | "qualificando_perfil"
+  | "coletando_detalhes"
+  | "preparando_briefing"
+  | "pronto_para_corretor";
+
 export type LeadContext = {
   tipoLead: TipoLeadSimulador | null;
   cidade: string | null;
@@ -70,6 +77,21 @@ export type ConversationTurn = {
 
 export type ExtractedInfo = Partial<LeadContext>;
 
+export type CampoConfianca = {
+  campo: keyof LeadContext;
+  label: string;
+  valor: string;
+  confianca: number;
+  origem: "informado" | "inferido" | "vazio";
+};
+
+export type HipoteseComercial = {
+  chave: string;
+  titulo: string;
+  descricao: string;
+  confianca: number;
+};
+
 export type MotorTurnResult = {
   contexto: LeadContext;
   informacoesExtraidas: ExtractedInfo;
@@ -79,4 +101,10 @@ export type MotorTurnResult = {
   temperatura: LeadTemperature;
   briefing: string;
   respostaIa: string;
+  estadoCognitivo: EstadoCognitivo;
+  confiancaCampos: CampoConfianca[];
+  hipoteses: HipoteseComercial[];
+  qualificado: boolean;
+  motivoQualificacao: string;
+  podePassarCorretor: boolean;
 };

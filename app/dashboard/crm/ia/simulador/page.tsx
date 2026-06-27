@@ -4,7 +4,10 @@ import { FormEvent, KeyboardEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import {
   Bot,
+  Brain,
+  CheckCircle2,
   FileText,
+  Handshake,
   MessageCircle,
   Play,
   RotateCcw,
@@ -21,15 +24,22 @@ import {
 import { obterScriptQualificacao } from "../../../../../lib/ia/scriptsQualificacao";
 import {
   atualizarContexto,
+  avaliarQualificacao,
+  calcularConfiancaCampos,
   calcularScore,
   camposPendentes,
   camposPreenchidos,
   criarContextoInicial,
+  definirEstadoCognitivo,
   descobrirProximaPergunta,
   gerarBriefing,
+  gerarHipoteses,
   processarTurno,
+  progressoEstado,
   resumoContexto,
+  type CampoConfianca,
   type ChatMessage,
+  type EstadoCognitivo,
   type LeadContext,
 } from "../../../../../lib/ia/motor";
 
@@ -52,8 +62,37 @@ const origens = [
 
 const canais = ["whatsapp", "site", "instagram", "facebook"];
 
+const estados: EstadoCognitivo[] = [
+  "identificando_intencao",
+  "qualificando_perfil",
+  "coletando_detalhes",
+  "preparando_briefing",
+  "pronto_para_corretor",
+];
+
+const camposResumo: Array<CampoConfianca["campo"]> = [
+  "cidade",
+  "bairro",
+  "tipoImovel",
+  "valor",
+  "objetivo",
+  "urgencia",
+];
+
 function labelTexto(valor: string) {
   return valor.replaceAll("_", " ");
+}
+
+function estadoLabel(estado: EstadoCognitivo) {
+  const labels: Record<EstadoCognitivo, string> = {
+    identificando_intencao: "Identificando intencao",
+    qualificando_perfil: "Qualificando perfil",
+    coletando_detalhes: "Coletando detalhes",
+    preparando_briefing: "Preparando briefing",
+    pronto_para_corretor: "Pronto para corretor",
+  };
+
+  return labels[estado];
 }
 
 function temperaturaClassName(temperatura: string) {
@@ -89,10 +128,38 @@ function contextoConfigurado({
   return atualizarContexto(criarContextoInicial(), {
     tipoLead,
     cidade: cidade || null,
-    objetivo: `Qualificar lead ${labelTexto(tipoLead)}`,
     origem,
     canal,
   });
+}
+
+function BarraConfianca({ item }: { item: CampoConfianca }) {
+  const cor =
+    item.confianca >= 85
+      ? "bg-emerald-500"
+      : item.confianca >= 60
+        ? "bg-[#C89B3C]"
+        : "bg-slate-300";
+
+  return (
+    <div className="rounded-2xl border border-[#E8DDCB] bg-white px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="text-sm font-semibold text-[#071E36]">{item.label}</p>
+          <p className="mt-0.5 text-xs text-[#64736D]">{item.valor}</p>
+        </div>
+        <span className="text-sm font-bold text-[#071E36]">
+          {item.confianca}%
+        </span>
+      </div>
+      <div className="mt-3 h-2 overflow-hidden rounded-full bg-[#F1E8DA]">
+        <div
+          className={`h-full rounded-full transition-all duration-300 ${cor}`}
+          style={{ width: `${item.confianca}%` }}
+        />
+      </div>
+    </div>
+  );
 }
 
 export default function SimuladorIaPage() {
@@ -112,6 +179,7 @@ export default function SimuladorIaPage() {
     }),
   );
   const [briefingVisivel, setBriefingVisivel] = useState(false);
+  const [passagemVisivel, setPassagemVisivel] = useState(false);
 
   const scriptAtivo = useMemo(
     () => obterScriptQualificacao(tipoLead),
@@ -138,6 +206,23 @@ export default function SimuladorIaPage() {
     () => descobrirProximaPergunta(contexto),
     [contexto],
   );
+  const estadoCognitivo = useMemo(
+    () => definirEstadoCognitivo(contexto, scoreMotor.score),
+    [contexto, scoreMotor.score],
+  );
+  const qualificacao = useMemo(
+    () => avaliarQualificacao(contexto, scoreMotor.score),
+    [contexto, scoreMotor.score],
+  );
+  const confiancaCampos = useMemo(
+    () =>
+      calcularConfiancaCampos(contexto).filter((item) =>
+        camposResumo.includes(item.campo),
+      ),
+    [contexto],
+  );
+  const hipoteses = useMemo(() => gerarHipoteses(contexto), [contexto]);
+  const hipotesePrincipal = hipoteses[0];
   const briefingMotor = useMemo(
     () =>
       gerarBriefing({
@@ -171,6 +256,7 @@ export default function SimuladorIaPage() {
     setSimulacaoIniciada(true);
     setMensagem("");
     setBriefingVisivel(false);
+    setPassagemVisivel(false);
   }
 
   function reiniciarSimulacao() {
@@ -178,6 +264,7 @@ export default function SimuladorIaPage() {
     setMensagens([]);
     setMensagem("");
     setBriefingVisivel(false);
+    setPassagemVisivel(false);
     setContexto(
       contextoConfigurado({
         tipoLead,
@@ -222,8 +309,14 @@ export default function SimuladorIaPage() {
     }
   }
 
+  function simularPassagemBastao() {
+    setBriefingVisivel(true);
+    setPassagemVisivel(true);
+  }
+
   const score = scoreMotor.score;
   const temperatura = scoreMotor.temperatura;
+  const progresso = progressoEstado(estadoCognitivo);
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -249,17 +342,18 @@ export default function SimuladorIaPage() {
                   Simulador da IA Comercial
                 </h1>
                 <p className="mt-2 max-w-3xl text-sm leading-6 text-[#64736D]">
-                  Teste conversas por turnos antes de conectar a IA ao WhatsApp.
+                  Valide fluxo, memoria, lacunas, score, briefing e passagem de
+                  bastao antes das integracoes reais.
                 </p>
               </div>
             </div>
 
             <div className="rounded-2xl border border-[#E8DDCB] bg-[#F7F3ED] px-4 py-3 text-sm text-[#64736D]">
               <span className="block text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6827]">
-                Ambiente
+                Estado atual
               </span>
               <strong className="mt-1 block text-[#071E36]">
-                Conversa por turnos
+                {estadoLabel(estadoCognitivo)}
               </strong>
             </div>
           </div>
@@ -359,6 +453,15 @@ export default function SimuladorIaPage() {
                 >
                   Reiniciar simulacao
                   <RotateCcw size={16} />
+                </button>
+                <button
+                  type="button"
+                  onClick={simularPassagemBastao}
+                  disabled={!simulacaoIniciada}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#C89B3C]/35 bg-[#C89B3C]/15 px-5 py-3 text-sm font-semibold text-[#8B6827] transition hover:bg-[#C89B3C]/20 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Simular passagem de bastao
+                  <Handshake size={16} />
                 </button>
               </div>
             </form>
@@ -479,6 +582,123 @@ export default function SimuladorIaPage() {
                     ))}
                   </div>
 
+                  <section className="rounded-[1.75rem] border border-[#071E36]/10 bg-white p-5 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-[#071E36] text-[#E1B866]">
+                          <Brain size={18} />
+                        </span>
+                        <div>
+                          <h3 className="text-xl font-semibold text-[#071E36]">
+                            Estado Cognitivo
+                          </h3>
+                          <p className="text-sm text-[#64736D]">
+                            {qualificacao.motivoQualificacao}
+                          </p>
+                        </div>
+                      </div>
+                      <span
+                        className={
+                          qualificacao.podePassarCorretor
+                            ? "rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 ring-1 ring-emerald-100"
+                            : "rounded-full bg-amber-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-amber-700 ring-1 ring-amber-100"
+                        }
+                      >
+                        {qualificacao.podePassarCorretor
+                          ? "Pode passar"
+                          : "Ainda qualificando"}
+                      </span>
+                    </div>
+
+                    <div className="mt-5">
+                      <div className="flex items-center justify-between text-sm">
+                        <strong className="text-[#071E36]">
+                          {estadoLabel(estadoCognitivo)}
+                        </strong>
+                        <span className="text-[#64736D]">{progresso}%</span>
+                      </div>
+                      <div className="mt-3 h-3 overflow-hidden rounded-full bg-[#F1E8DA]">
+                        <div
+                          className="h-full rounded-full bg-[#C89B3C] transition-all duration-300"
+                          style={{ width: `${progresso}%` }}
+                        />
+                      </div>
+                      <div className="mt-3 grid gap-2 sm:grid-cols-5">
+                        {estados.map((estado) => (
+                          <div
+                            key={estado}
+                            className={
+                              estado === estadoCognitivo
+                                ? "rounded-xl border border-[#C89B3C]/45 bg-[#C89B3C]/10 px-3 py-2 text-xs font-semibold text-[#8B6827]"
+                                : "rounded-xl border border-[#E8DDCB] bg-[#F7F3ED] px-3 py-2 text-xs text-[#64736D]"
+                            }
+                          >
+                            {estadoLabel(estado)}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </section>
+
+                  <section className="grid gap-5 lg:grid-cols-2">
+                    <div className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <h3 className="text-xl font-semibold text-[#071E36]">
+                            Confianca por campo
+                          </h3>
+                          <p className="mt-1 text-sm text-[#64736D]">
+                            Campos essenciais monitorados pelo motor.
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-5 grid gap-3">
+                        {confiancaCampos.map((item) => (
+                          <BarraConfianca key={item.campo} item={item} />
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
+                      <h3 className="text-xl font-semibold text-[#071E36]">
+                        Hipoteses da IA
+                      </h3>
+                      <p className="mt-1 text-sm text-[#64736D]">
+                        Leituras comerciais geradas apenas por regras simples.
+                      </p>
+
+                      <div className="mt-5 grid gap-3">
+                        {hipoteses.length > 0 ? (
+                          hipoteses.map((hipotese) => (
+                            <div
+                              key={hipotese.chave}
+                              className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3"
+                            >
+                              <div className="flex items-start justify-between gap-3">
+                                <div>
+                                  <p className="font-semibold text-[#071E36]">
+                                    {hipotese.titulo}
+                                  </p>
+                                  <p className="mt-1 text-sm leading-6 text-[#64736D]">
+                                    {hipotese.descricao}
+                                  </p>
+                                </div>
+                                <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-xs font-bold text-[#8B6827]">
+                                  {hipotese.confianca}%
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="rounded-2xl border border-dashed border-[#E8DDCB] bg-[#F7F3ED] px-4 py-6 text-sm text-[#64736D]">
+                            Ainda nao ha sinais suficientes para formar uma
+                            hipotese comercial.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+
                   <section className="rounded-[1.75rem] border border-[#C89B3C]/35 bg-white p-5 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
@@ -528,6 +748,77 @@ export default function SimuladorIaPage() {
                         <p className="mt-2 whitespace-pre-line leading-6 text-[#64736D]">
                           {briefingMotor}
                         </p>
+                      </div>
+                    ) : null}
+
+                    {passagemVisivel ? (
+                      <div className="mt-4 rounded-[1.5rem] border border-[#C89B3C]/40 bg-[#071E36] p-5 text-white">
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-white/10 text-[#E1B866]">
+                            <CheckCircle2 size={18} />
+                          </span>
+                          <div>
+                            <h4 className="font-semibold">
+                              Passagem de bastao simulada
+                            </h4>
+                            <p className="text-sm text-white/60">
+                              Card de handoff preparado para corretor humano.
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                            <p className="font-semibold text-[#E1B866]">
+                              Score
+                            </p>
+                            <p className="mt-1 text-2xl font-bold">{score}/100</p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                            <p className="font-semibold text-[#E1B866]">
+                              Temperatura
+                            </p>
+                            <p className="mt-1 text-2xl font-bold">
+                              {temperatura}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                            <p className="font-semibold text-[#E1B866]">
+                              Campos coletados
+                            </p>
+                            <p className="mt-1 leading-6 text-white/75">
+                              {camposPreenchidosMotor.join(", ")}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                            <p className="font-semibold text-[#E1B866]">
+                              Campos pendentes
+                            </p>
+                            <p className="mt-1 leading-6 text-white/75">
+                              {camposPendentesMotor.length > 0
+                                ? camposPendentesMotor.join(", ")
+                                : "Sem pendencias essenciais"}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 md:col-span-2">
+                            <p className="font-semibold text-[#E1B866]">
+                              Hipotese principal
+                            </p>
+                            <p className="mt-1 leading-6 text-white/75">
+                              {hipotesePrincipal
+                                ? `${hipotesePrincipal.titulo} (${hipotesePrincipal.confianca}%) - ${hipotesePrincipal.descricao}`
+                                : "Sem hipotese principal ainda."}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 md:col-span-2">
+                            <p className="font-semibold text-[#E1B866]">
+                              Sugestao de abordagem
+                            </p>
+                            <p className="mt-1 leading-6 text-white/75">
+                              {scriptAtivo.proximaAcaoSugerida}
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     ) : null}
                   </section>
@@ -594,54 +885,6 @@ export default function SimuladorIaPage() {
                         <p className="font-semibold text-[#E1B866]">Valor</p>
                         <p className="mt-1 text-white/75">
                           {contexto.valor || "Nao informado"}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 md:col-span-2">
-                        <p className="font-semibold text-[#E1B866]">Objetivo</p>
-                        <p className="mt-1 leading-6 text-white/75">
-                          {contexto.objetivo || "Nao informado"}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 grid gap-3 lg:grid-cols-2">
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
-                        <p className="font-semibold text-[#E1B866]">
-                          Campos preenchidos
-                        </p>
-                        <p className="mt-2 leading-6 text-white/75">
-                          {camposPreenchidosMotor.length > 0
-                            ? camposPreenchidosMotor.join(", ")
-                            : "Nenhum campo preenchido"}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
-                        <p className="font-semibold text-[#E1B866]">
-                          Campos pendentes
-                        </p>
-                        <p className="mt-2 leading-6 text-white/75">
-                          {camposPendentesMotor.length > 0
-                            ? camposPendentesMotor.join(", ")
-                            : "Sem pendencias essenciais"}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
-                        <p className="font-semibold text-[#E1B866]">
-                          Proxima decisao
-                        </p>
-                        <p className="mt-2 leading-6 text-white/75">
-                          {proximaPergunta?.texto ||
-                            "Preparar passagem para especialista."}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
-                        <p className="font-semibold text-[#E1B866]">
-                          Objetivo atual
-                        </p>
-                        <p className="mt-2 leading-6 text-white/75">
-                          {proximaPergunta
-                            ? `Coletar ${proximaPergunta.campo}.`
-                            : "Preparar briefing final."}
                         </p>
                       </div>
                     </div>

@@ -1,30 +1,55 @@
 import type { TipoLeadSimulador } from "../fluxos";
 import { obterScriptQualificacao } from "../scriptsQualificacao";
 import { gerarBriefing } from "./briefing";
+import { calcularConfiancaCampos } from "./confianca";
+import { avaliarQualificacao, definirEstadoCognitivo } from "./estado";
 import { extrairInformacoes } from "./extracao";
+import { gerarHipoteses } from "./hipoteses";
 import { atualizarContexto, camposPendentes } from "./memoria";
 import { descobrirProximaPergunta } from "./perguntas";
 import { calcularScore } from "./score";
-import type { LeadContext, MotorTurnResult } from "./tipos";
+import type { ExtractedInfo, LeadContext, MotorTurnResult } from "./tipos";
+
+function resumoDoQueEntendeu(informacoes: ExtractedInfo) {
+  const partes = [
+    informacoes.cidade ? `cidade ${informacoes.cidade}` : null,
+    informacoes.bairro ? `bairro ${informacoes.bairro}` : null,
+    informacoes.tipoImovel ? `imovel do tipo ${informacoes.tipoImovel}` : null,
+    informacoes.quartos ? `${informacoes.quartos} quarto(s)` : null,
+    informacoes.valor ? `faixa de valor ${informacoes.valor}` : null,
+    informacoes.objetivo ? `objetivo de ${informacoes.objetivo}` : null,
+    informacoes.urgencia ? `prazo ${informacoes.urgencia}` : null,
+  ].filter(Boolean);
+
+  if (partes.length === 0) {
+    return "Entendi. Vou organizar isso com cuidado para nao perder o contexto.";
+  }
+
+  return `Perfeito, entendi ${partes.join(", ")}.`;
+}
 
 function respostaNatural({
   proximaPergunta,
   podePassar,
   script,
+  informacoesExtraidas,
 }: {
   proximaPergunta: ReturnType<typeof descobrirProximaPergunta>;
   podePassar: boolean;
   script: ReturnType<typeof obterScriptQualificacao>;
+  informacoesExtraidas: ExtractedInfo;
 }) {
+  const confirmacao = resumoDoQueEntendeu(informacoesExtraidas);
+
   if (podePassar) {
-    return `Perfeito. Ja tenho as informacoes principais para preparar seu atendimento com um especialista da Terrazza. Vou organizar o briefing e indicar o proximo passo: ${script.proximaAcaoSugerida}`;
+    return `${confirmacao} Ja tenho as informacoes principais para preparar seu atendimento com um especialista da Terrazza. Vou organizar o briefing e indicar o proximo passo: ${script.proximaAcaoSugerida}`;
   }
 
   if (proximaPergunta) {
-    return `Otimo, entendi. Para te orientar melhor, ${proximaPergunta.texto.toLowerCase()}`;
+    return `${confirmacao} Para eu filtrar melhor e te orientar com mais precisao, ${proximaPergunta.texto.toLowerCase()}`;
   }
 
-  return "Perfeito. Vou consolidar essas informacoes e preparar o melhor encaminhamento comercial.";
+  return `${confirmacao} Vou consolidar essas informacoes e preparar o melhor encaminhamento comercial.`;
 }
 
 export function processarTurno({
@@ -58,7 +83,11 @@ export function processarTurno({
   const proximaPergunta = descobrirProximaPergunta(contexto);
   const { score, temperatura } = calcularScore(contexto);
   const script = obterScriptQualificacao(tipoLead);
-  const podePassar = pendentes.length <= 1;
+  const { qualificado, podePassarCorretor, motivoQualificacao } =
+    avaliarQualificacao(contexto, score);
+  const estadoCognitivo = definirEstadoCognitivo(contexto, score);
+  const confiancaCampos = calcularConfiancaCampos(contexto, informacoesExtraidas);
+  const hipoteses = gerarHipoteses(contexto);
   const briefing = gerarBriefing({
     contexto,
     score,
@@ -74,10 +103,17 @@ export function processarTurno({
     score,
     temperatura,
     briefing,
+    estadoCognitivo,
+    confiancaCampos,
+    hipoteses,
+    qualificado,
+    motivoQualificacao,
+    podePassarCorretor,
     respostaIa: respostaNatural({
       proximaPergunta,
-      podePassar,
+      podePassar: podePassarCorretor,
       script,
+      informacoesExtraidas,
     }),
   };
 }
