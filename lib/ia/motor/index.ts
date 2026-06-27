@@ -11,3 +11,4 @@ export * from "./confianca";
 export * from "./hipoteses";
 export * from "./estado";
 export * from "./inferencia";
+export * from "../../uce/core";

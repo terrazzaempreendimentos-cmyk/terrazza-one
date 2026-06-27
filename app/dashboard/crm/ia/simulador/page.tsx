@@ -42,7 +42,6 @@ import {
   gerarBriefing,
   gerarHipoteses,
   gerarInferenciasComerciais,
-  processarTurno,
   progressoEstado,
   resumoContexto,
   type CampoConfianca,
@@ -50,6 +49,7 @@ import {
   type EstadoCognitivo,
   type LeadContext,
 } from "../../../../../lib/ia/motor";
+import { processarTurno } from "../../../../../lib/ia/motor/adapter";
 import { selecionarPersona } from "../../../../../lib/ia/personas";
 import type { RespostaComercial } from "../../../../../lib/ia/comercial";
 

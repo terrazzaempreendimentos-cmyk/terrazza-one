@@ -390,6 +390,36 @@ No simulador, essa camada aparece como "Leitura Comercial" e como "Alertas
 Comerciais" dentro do briefing. O objetivo e formar uma IA com metodologia
 comercial propria da Terrazza, sem depender de OpenAI nesta fase.
 
+## UCE — Unita Cognitive Engine
+
+A IA Comercial passa a ter uma fundacao cognitiva chamada UCE. Ela organiza o
+processamento em camadas independentes: interpretacao contextual, leitura
+temporal, memoria, correcoes, fluxo inteligente, inferencias comerciais, score e
+briefing.
+
+Nesta fase, a UCE ainda nao chama OpenAI e nao integra WhatsApp ou Vista. Ela
+serve para validar a arquitetura, manter compatibilidade com o motor legado e
+preparar o simulador para conversas mais inteligentes.
+
+O fluxo atual e:
+
+Cliente responde  
+↓  
+UCE interpreta contexto e tempo  
+↓  
+UCE atualiza campos e memoria  
+↓  
+UCE decide a proxima pergunta  
+↓  
+UCE gera hipoteses comerciais  
+↓  
+UCE recalcula score e temperatura  
+↓  
+UCE entrega briefing ao adapter legado
+
+O adapter em `lib/ia/motor/adapter.ts` permite que o simulador continue usando
+os tipos atuais enquanto o processamento passa pela nova fundacao.
+
 ## Futuro
 
 A IA deverá consultar:
