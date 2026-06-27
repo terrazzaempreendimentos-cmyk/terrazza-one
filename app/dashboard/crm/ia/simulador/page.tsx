@@ -15,17 +15,27 @@ import {
 } from "lucide-react";
 
 import {
-  calcularScoreSimulado,
   gerarMensagemInicial,
   sugestaoPassagemCorretor,
   sugestaoProximaAcao,
-  temperaturaPorScore,
   type TipoLeadSimulador,
 } from "../../../../../lib/ia/fluxos";
 import {
   obterLacunasPendentes,
   obterScriptQualificacao,
 } from "../../../../../lib/ia/scriptsQualificacao";
+import {
+  atualizarContexto,
+  calcularScore,
+  camposPendentes,
+  camposPreenchidos,
+  criarContextoInicial,
+  decidir,
+  gerarBriefing,
+  resumoContexto,
+  type ConversationMemory,
+  type LeadContext,
+} from "../../../../../lib/ia/motor";
 
 const tiposLead: Array<{ label: string; value: TipoLeadSimulador }> = [
   { label: "Proprietário", value: "proprietario" },
@@ -102,15 +112,70 @@ export default function SimuladorIaPage() {
     () => obterScriptQualificacao(tipoLead),
     [tipoLead],
   );
-  const score = useMemo(
-    () => calcularScoreSimulado({ tipoLead, origem, cidade, canal }),
+
+  const contexto = useMemo<LeadContext>(
+    () =>
+      atualizarContexto(criarContextoInicial(), {
+        tipoLead,
+        cidade: cidade || null,
+        objetivo: `Qualificar lead ${labelTexto(tipoLead)}`,
+        origem,
+        canal,
+      }),
     [canal, cidade, origem, tipoLead],
+  );
+
+  const memoria = useMemo<ConversationMemory>(
+    () => ({
+      contexto,
+      historico: [
+        `Origem selecionada: ${labelTexto(origem)}`,
+        `Canal selecionado: ${labelTexto(canal)}`,
+        `Cidade informada: ${cidade || "não informada"}`,
+      ],
+    }),
+    [canal, cidade, contexto, origem],
+  );
+
+  const decisaoMotor = useMemo(
+    () => decidir(contexto, memoria, scriptAtivo),
+    [contexto, memoria, scriptAtivo],
+  );
+
+  const scoreMotor = useMemo(() => calcularScore(contexto), [contexto]);
+
+  const briefingMotor = useMemo(
+    () =>
+      gerarBriefing({
+        contexto,
+        score: scoreMotor.score,
+        temperatura: scoreMotor.temperatura,
+        sugestao: scriptAtivo.proximaAcaoSugerida,
+      }),
+    [contexto, scoreMotor.score, scoreMotor.temperatura, scriptAtivo],
   );
   const lacunasPendentes = useMemo(
     () => obterLacunasPendentes(tipoLead, cidade),
     [cidade, tipoLead],
   );
-  const temperatura = temperaturaPorScore(score);
+  const camposPreenchidosMotor = useMemo(
+    () => camposPreenchidos(contexto),
+    [contexto],
+  );
+  const camposPendentesMotor = useMemo(
+    () =>
+      camposPendentes(contexto, [
+        "tipoLead",
+        "cidade",
+        "bairro",
+        "tipoImovel",
+        "valor",
+        "objetivo",
+      ]),
+    [contexto],
+  );
+  const score = scoreMotor.score;
+  const temperatura = scoreMotor.temperatura;
   const mensagemInicial = gerarMensagemInicial(tipoLead, origem);
 
   function iniciarSimulacao(event: FormEvent<HTMLFormElement>) {
@@ -462,6 +527,141 @@ export default function SimuladorIaPage() {
                           {sugestaoPassagemCorretor(tipoLead)}
                         </p>
                       </div>
+                    </div>
+                  </section>
+
+                  <section className="rounded-[1.75rem] border border-[#071E36]/10 bg-[#071E36] p-5 text-white shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <span className="rounded-full border border-[#C89B3C]/35 bg-[#C89B3C]/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#E1B866]">
+                          Ferramenta de treinamento
+                        </span>
+                        <h3 className="mt-3 text-xl font-semibold">
+                          Como a IA está pensando
+                        </h3>
+                        <p className="mt-1 text-sm text-white/60">
+                          Estado cognitivo do motor antes de qualquer OpenAI.
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] ring-1 ${temperaturaClassName(
+                          temperatura,
+                        )}`}
+                      >
+                        {temperatura}
+                      </span>
+                    </div>
+
+                    <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">
+                          Estado atual
+                        </p>
+                        <p className="mt-1 leading-6 text-white/75">
+                          {resumoContexto(contexto)}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">
+                          Próxima pergunta
+                        </p>
+                        <p className="mt-1 leading-6 text-white/75">
+                          {decisaoMotor.pergunta?.texto ||
+                            "Sem próxima pergunta essencial."}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">Tipo Lead</p>
+                        <p className="mt-1 text-white/75">
+                          {labelTexto(contexto.tipoLead || "não informado")}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">Cidade</p>
+                        <p className="mt-1 text-white/75">
+                          {contexto.cidade || "Não informada"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">Bairro</p>
+                        <p className="mt-1 text-white/75">
+                          {contexto.bairro || "Não informado"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">Valor</p>
+                        <p className="mt-1 text-white/75">
+                          {contexto.valor || "Não informado"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 md:col-span-2">
+                        <p className="font-semibold text-[#E1B866]">Objetivo</p>
+                        <p className="mt-1 leading-6 text-white/75">
+                          {contexto.objetivo || "Não informado"}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 grid gap-3 lg:grid-cols-2">
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
+                        <p className="font-semibold text-[#E1B866]">
+                          Campos preenchidos
+                        </p>
+                        <p className="mt-2 leading-6 text-white/75">
+                          {camposPreenchidosMotor.length > 0
+                            ? camposPreenchidosMotor.join(", ")
+                            : "Nenhum campo preenchido"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
+                        <p className="font-semibold text-[#E1B866]">
+                          Campos pendentes
+                        </p>
+                        <p className="mt-2 leading-6 text-white/75">
+                          {camposPendentesMotor.length > 0
+                            ? camposPendentesMotor.join(", ")
+                            : "Sem pendências essenciais"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
+                        <p className="font-semibold text-[#E1B866]">
+                          Próxima decisão
+                        </p>
+                        <p className="mt-2 leading-6 text-white/75">
+                          {decisaoMotor.proximoPasso}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
+                        <p className="font-semibold text-[#E1B866]">
+                          Objetivo atual
+                        </p>
+                        <p className="mt-2 leading-6 text-white/75">
+                          {decisaoMotor.objetivoAtual}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
+                        <p className="font-semibold text-[#E1B866]">Score</p>
+                        <p className="mt-2 text-2xl font-bold text-white">
+                          {score}/100
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 text-sm">
+                        <p className="font-semibold text-[#E1B866]">
+                          Temperatura
+                        </p>
+                        <p className="mt-2 text-2xl font-bold text-white">
+                          {temperatura}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-[#C89B3C]/25 bg-[#C89B3C]/10 px-4 py-3 text-sm">
+                      <p className="font-semibold text-[#E1B866]">
+                        Briefing gerado pelo motor
+                      </p>
+                      <p className="mt-2 whitespace-pre-line leading-6 text-white/75">
+                        {briefingMotor}
+                      </p>
                     </div>
                   </section>
                 </div>

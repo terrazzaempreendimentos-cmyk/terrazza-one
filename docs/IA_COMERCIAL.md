@@ -171,6 +171,45 @@ Os roteiros iniciais contemplam:
 Esses scripts serão usados no Simulador Interno antes de qualquer integração com
 WhatsApp, OpenAI, Vista ERP ou canais externos.
 
+# Motor Cognitivo
+
+O Motor Cognitivo é o início do cérebro operacional da IA Comercial da Terrazza.
+Ele define contexto, memória, perguntas, decisões, score e briefing antes de
+qualquer modelo de linguagem ser acionado.
+
+A OpenAI não toma decisões.
+
+Quem toma decisões é o Motor Cognitivo da Terrazza. O GPT, quando for conectado
+em sprint futura, deverá apenas transformar as decisões do motor em linguagem
+natural, respeitando o tom de voz, o script comercial e as regras internas da
+Terrazza.
+
+Toda futura integração deverá conversar primeiro com o Motor Cognitivo.
+
+Fluxo definitivo:
+
+Cliente  
+↓  
+Motor Cognitivo  
+↓  
+Base Conhecimento  
+↓  
+Imóveis  
+↓  
+CRM  
+↓  
+Agenda  
+↓  
+Timeline  
+↓  
+Roleta  
+↓  
+OpenAI  
+↓  
+Resposta
+
+Nunca permitir que OpenAI decida o fluxo da conversa.
+
 ## Futuro
 
 A IA deverá consultar:
