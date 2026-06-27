@@ -20,17 +20,17 @@ export function gerarMensagemInicial(
 
   switch (tipoLead) {
     case "proprietario":
-      return `Olá, tudo bem? Sou a IA Comercial da Terrazza. Vi que seu contato veio por ${origemTexto}. Vou te ajudar a entender como podemos administrar ou captar seu imóvel para locação com segurança, posicionamento correto e acompanhamento profissional.`;
+      return `Ola, tudo bem? Sou a IA Comercial da Terrazza. Vi que seu contato veio por ${origemTexto}. Vou te ajudar a entender como podemos administrar ou captar seu imovel para locacao com seguranca, posicionamento correto e acompanhamento profissional.`;
     case "inquilino":
-      return `Olá, tudo bem? Sou a IA Comercial da Terrazza. Vou te ajudar a organizar sua busca por imóvel para locação e entender o que faz sentido para o seu momento.`;
+      return "Ola, tudo bem? Sou a IA Comercial da Terrazza. Vou te ajudar a organizar sua busca por imovel para locacao e entender o que faz sentido para o seu momento.";
     case "comprador":
-      return `Olá, tudo bem? Sou a IA Comercial da Terrazza. Vou entender seu objetivo de compra para orientar os próximos passos com clareza, segurança e foco nas melhores oportunidades.`;
+      return "Ola, tudo bem? Sou a IA Comercial da Terrazza. Vou entender seu objetivo de compra para orientar os proximos passos com clareza, seguranca e foco nas melhores oportunidades.";
     case "vendedor":
-      return `Olá, tudo bem? Sou a IA Comercial da Terrazza. Vou entender o imóvel que você deseja vender, sua expectativa e o melhor caminho comercial para uma avaliação inicial.`;
+      return "Ola, tudo bem? Sou a IA Comercial da Terrazza. Vou entender o imovel que voce deseja vender, sua expectativa e o melhor caminho comercial para uma avaliacao inicial.";
     case "corretor_parceiro":
-      return `Olá, tudo bem? Sou a IA Comercial da Terrazza. Vou entender se você possui algum imóvel ou cliente para indicação, parceria, administração ou locação.`;
+      return "Ola, tudo bem? Sou a IA Comercial da Terrazza. Vou entender se voce possui algum imovel ou cliente para indicacao, parceria, administracao ou locacao.";
     default:
-      return "Olá, tudo bem? Sou a IA Comercial da Terrazza. Vou te ajudar a organizar as informações para encaminhar o atendimento da melhor forma.";
+      return "Ola, tudo bem? Sou a IA Comercial da Terrazza. Vou te ajudar a organizar as informacoes para encaminhar o atendimento da melhor forma.";
   }
 }
 
@@ -38,53 +38,53 @@ export function gerarPerguntasQualificacao(tipoLead: TipoLeadSimulador) {
   switch (tipoLead) {
     case "proprietario":
       return [
-        "O imóvel fica em qual cidade e bairro?",
-        "Ele está vazio, ocupado ou ainda em preparação?",
-        "Você pretende apenas alugar ou também deseja administração completa?",
-        "Qual valor de aluguel você imagina para esse imóvel?",
-        "O imóvel possui condomínio, IPTU ou alguma taxa relevante?",
-        "Você já tem fotos, documentação e chaves disponíveis para avaliação?",
+        "O imovel fica em qual cidade e bairro?",
+        "Ele esta vazio, ocupado ou ainda em preparacao?",
+        "Voce pretende apenas alugar ou tambem deseja administracao completa?",
+        "Qual valor de aluguel voce imagina para esse imovel?",
+        "O imovel possui condominio, IPTU ou alguma taxa relevante?",
+        "Voce ja tem fotos, documentacao e chaves disponiveis para avaliacao?",
       ];
     case "inquilino":
       return [
-        "Qual cidade você procura?",
-        "Tem algum bairro de preferência?",
-        "Qual faixa de aluguel seria confortável?",
-        "Quantos quartos você precisa?",
-        "Você possui pet?",
-        "Qual o prazo ideal para mudança?",
+        "Qual cidade voce procura?",
+        "Tem algum bairro de preferencia?",
+        "Qual faixa de aluguel seria confortavel?",
+        "Quantos quartos voce precisa?",
+        "Voce possui pet?",
+        "Qual o prazo ideal para mudanca?",
       ];
     case "comprador":
       return [
-        "Qual cidade você deseja comprar?",
-        "Tem bairros de preferência?",
+        "Qual cidade voce deseja comprar?",
+        "Tem bairros de preferencia?",
         "Qual valor aproximado pretende investir?",
         "A compra seria com financiamento?",
-        "Você pretende usar FGTS?",
-        "Qual sua urgência para comprar?",
+        "Voce pretende usar FGTS?",
+        "Qual sua urgencia para comprar?",
       ];
     case "vendedor":
       return [
-        "O imóvel que deseja vender fica em qual cidade e bairro?",
-        "Qual tipo de imóvel é?",
-        "Qual valor você imagina para venda?",
-        "O imóvel está ocupado ou disponível?",
-        "Você já possui documentação atualizada?",
+        "O imovel que deseja vender fica em qual cidade e bairro?",
+        "Qual tipo de imovel e?",
+        "Qual valor voce imagina para venda?",
+        "O imovel esta ocupado ou disponivel?",
+        "Voce ja possui documentacao atualizada?",
         "Qual o prazo desejado para venda?",
       ];
     case "corretor_parceiro":
       return [
-        "Você possui imóvel para indicar para administração ou locação?",
-        "O imóvel fica em qual cidade e bairro?",
-        "O proprietário já autorizou o contato?",
-        "Qual é o perfil do imóvel?",
-        "Existe alguma condição comercial combinada?",
+        "Voce possui imovel para indicar para administracao ou locacao?",
+        "O imovel fica em qual cidade e bairro?",
+        "O proprietario ja autorizou o contato?",
+        "Qual e o perfil do imovel?",
+        "Existe alguma condicao comercial combinada?",
       ];
     default:
       return [
-        "Qual é seu principal objetivo?",
+        "Qual e seu principal objetivo?",
         "Em qual cidade deseja atendimento?",
-        "Qual prazo você tem em mente?",
+        "Qual prazo voce tem em mente?",
       ];
   }
 }
@@ -114,15 +114,15 @@ export function temperaturaPorScore(score: number) {
 export function sugestaoProximaAcao(tipoLead: TipoLeadSimulador) {
   switch (tipoLead) {
     case "proprietario":
-      return "Agendar avaliação comercial do imóvel e solicitar dados básicos para pré-cadastro.";
+      return "Agendar avaliacao comercial do imovel e solicitar dados basicos para pre-cadastro.";
     case "inquilino":
-      return "Enviar opções compatíveis quando houver estoque aderente e criar tarefa de follow-up.";
+      return "Enviar opcoes compativeis quando houver estoque aderente e criar tarefa de follow-up.";
     case "comprador":
       return "Validar faixa de investimento, forma de pagamento e disponibilidade para atendimento consultivo.";
     case "vendedor":
-      return "Coletar dados do imóvel e encaminhar para avaliação de preço e estratégia comercial.";
+      return "Coletar dados do imovel e encaminhar para avaliacao de preco e estrategia comercial.";
     case "corretor_parceiro":
-      return "Entender a indicação, validar autorização e direcionar para responsável por parcerias.";
+      return "Entender a indicacao, validar autorizacao e direcionar para responsavel por parcerias.";
     default:
       return "Encaminhar para triagem comercial.";
   }
@@ -131,15 +131,15 @@ export function sugestaoProximaAcao(tipoLead: TipoLeadSimulador) {
 export function sugestaoPassagemCorretor(tipoLead: TipoLeadSimulador) {
   switch (tipoLead) {
     case "proprietario":
-      return "Passar para corretor com foco em captação e administração de imóveis.";
+      return "Passar para corretor com foco em captacao e administracao de imoveis.";
     case "inquilino":
-      return "Passar para corretor de locação com briefing de cidade, bairro, valor e urgência.";
+      return "Passar para corretor de locacao com briefing de cidade, bairro, valor e urgencia.";
     case "comprador":
-      return "Passar para corretor de vendas com briefing financeiro e região desejada.";
+      return "Passar para corretor de vendas com briefing financeiro e regiao desejada.";
     case "vendedor":
-      return "Passar para corretor de vendas/captação para avaliação do imóvel.";
+      return "Passar para corretor de vendas/captacao para avaliacao do imovel.";
     case "corretor_parceiro":
-      return "Passar para responsável por relacionamento com parceiros.";
+      return "Passar para responsavel por relacionamento com parceiros.";
     default:
       return "Passar para equipe comercial da Terrazza.";
   }

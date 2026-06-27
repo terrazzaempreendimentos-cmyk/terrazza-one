@@ -1,6 +1,6 @@
-import type { ConversationMemory, LeadContext, MotorScript } from "./tipos";
 import { camposPendentes } from "./memoria";
 import { descobrirProximaPergunta } from "./perguntas";
+import type { ConversationMemory, LeadContext, MotorScript } from "./tipos";
 
 const camposEssenciais: Array<keyof LeadContext> = [
   "tipoLead",
@@ -23,11 +23,11 @@ export function decidir(
   return {
     pergunta,
     objetivoAtual: pergunta
-      ? `Coletar informação sobre ${pergunta.campo}.`
-      : "Preparar passagem de bastão para corretor.",
+      ? `Coletar informacao sobre ${pergunta.campo}.`
+      : "Preparar passagem de bastao para corretor.",
     proximoPasso: podePassarParaCorretor
       ? script.proximaAcaoSugerida
-      : pergunta?.texto ?? "Consolidar informações do lead.",
+      : pergunta?.texto ?? "Consolidar informacoes do lead.",
     podePassarParaCorretor,
     informacoesFaltantes,
     memoria,

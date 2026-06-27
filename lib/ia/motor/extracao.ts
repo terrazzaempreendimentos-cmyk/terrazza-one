@@ -1,0 +1,145 @@
+import type { ExtractedInfo, LeadContext } from "./tipos";
+
+function normalizar(texto: string) {
+  return texto
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function extrairValor(texto: string) {
+  const valorComMil = texto.match(
+    /(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+|\d+)\s*(mil)?/i,
+  );
+
+  if (!valorComMil) return null;
+
+  const numero = Number(valorComMil[1].replaceAll(".", ""));
+  const multiplicador = valorComMil[2] ? 1000 : 1;
+
+  return numero * multiplicador;
+}
+
+const cidades: Record<string, string> = {
+  maceio: "Maceio",
+  aracaju: "Aracaju",
+  recife: "Recife",
+  "joao pessoa": "Joao Pessoa",
+  salvador: "Salvador",
+};
+
+const bairros: Record<string, string> = {
+  "ponta verde": "Ponta Verde",
+  jatiuca: "Jatiuca",
+  pajucara: "Pajucara",
+  farol: "Farol",
+  gruta: "Gruta",
+  "stella maris": "Stella Maris",
+  jardins: "Jardins",
+  atalaia: "Atalaia",
+  farolandia: "Farolandia",
+};
+
+const tiposImovel = [
+  "apartamento",
+  "casa",
+  "sala",
+  "terreno",
+  "lote",
+  "comercial",
+];
+
+export function extrairInformacoes(
+  mensagem: string,
+  contextoAtual: LeadContext,
+): ExtractedInfo {
+  const texto = normalizar(mensagem);
+  const informacoes: ExtractedInfo = {};
+
+  const cidade = Object.keys(cidades).find((item) => texto.includes(item));
+  if (cidade) informacoes.cidade = cidades[cidade];
+
+  const bairro = Object.keys(bairros).find((item) => texto.includes(item));
+  if (bairro) informacoes.bairro = bairros[bairro];
+
+  const tipoImovel = tiposImovel.find((item) => texto.includes(item));
+  if (tipoImovel) informacoes.tipoImovel = tipoImovel;
+
+  const quartos = texto.match(/(\d+)\s*quarto/);
+  if (quartos) informacoes.quartos = Number(quartos[1]);
+
+  const banheiros = texto.match(/(\d+)\s*banheiro/);
+  if (banheiros) informacoes.banheiros = Number(banheiros[1]);
+
+  const valor = extrairValor(mensagem);
+  if (valor) informacoes.valor = valor;
+
+  if (
+    texto.includes("tenho pet") ||
+    texto.includes("cachorro") ||
+    texto.includes("gato")
+  ) {
+    informacoes.pet = true;
+  }
+
+  if (texto.includes("nao tenho pet")) {
+    informacoes.pet = false;
+  }
+
+  if (texto.includes("financiamento") || texto.includes("financiado")) {
+    informacoes.financiamento = true;
+  }
+
+  if (texto.includes("a vista")) {
+    informacoes.financiamento = false;
+  }
+
+  if (texto.includes("fgts")) {
+    informacoes.fgts = true;
+  }
+
+  const urgencias = [
+    "imediato",
+    "urgente",
+    "este mes",
+    "30 dias",
+    "60 dias",
+    "sem pressa",
+  ];
+  const urgencia = urgencias.find((item) => texto.includes(item));
+  if (urgencia) informacoes.urgencia = urgencia;
+
+  const objetivos = [
+    "comprar",
+    "alugar",
+    "vender",
+    "administrar",
+    "anunciar",
+    "locar",
+  ];
+  const objetivo = objetivos.find((item) => texto.includes(item));
+  if (objetivo) informacoes.objetivo = objetivo;
+
+  if (
+    texto.includes("30 dias") ||
+    texto.includes("60 dias") ||
+    texto.includes("este mes")
+  ) {
+    informacoes.prazoMudanca = informacoes.urgencia ?? "prazo informado";
+  }
+
+  if (
+    texto.includes("documentacao") ||
+    texto.includes("credito") ||
+    texto.includes("aprovado")
+  ) {
+    informacoes.documentacao = "informada";
+  }
+
+  return {
+    ...informacoes,
+    tipoLead: contextoAtual.tipoLead,
+    origem: contextoAtual.origem,
+    canal: contextoAtual.canal,
+  };
+}

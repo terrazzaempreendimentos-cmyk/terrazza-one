@@ -46,11 +46,11 @@ export function resumoContexto(contexto: LeadContext) {
     contexto.tipoLead ? `Tipo de lead: ${contexto.tipoLead}` : null,
     contexto.cidade ? `Cidade: ${contexto.cidade}` : null,
     contexto.bairro ? `Bairro: ${contexto.bairro}` : null,
-    contexto.tipoImovel ? `Tipo de imóvel: ${contexto.tipoImovel}` : null,
+    contexto.tipoImovel ? `Tipo de imovel: ${contexto.tipoImovel}` : null,
     contexto.valor ? `Valor: ${contexto.valor}` : null,
     contexto.objetivo ? `Objetivo: ${contexto.objetivo}` : null,
-    contexto.urgencia ? `Urgência: ${contexto.urgencia}` : null,
+    contexto.urgencia ? `Urgencia: ${contexto.urgencia}` : null,
   ].filter(Boolean);
 
-  return partes.length > 0 ? partes.join(" · ") : "Contexto ainda vazio.";
+  return partes.length > 0 ? partes.join(" | ") : "Contexto ainda vazio.";
 }

@@ -5,3 +5,5 @@ export * from "./perguntas";
 export * from "./decisao";
 export * from "./score";
 export * from "./briefing";
+export * from "./extracao";
+export * from "./turno";

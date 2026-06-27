@@ -210,6 +210,27 @@ Resposta
 
 Nunca permitir que OpenAI decida o fluxo da conversa.
 
+## Conversa por Turnos
+
+O Motor Cognitivo agora consegue simular uma conversa real por turnos dentro do
+Simulador Interno da IA Comercial.
+
+Nesta fase, sem OpenAI e sem WhatsApp, o motor ja consegue:
+
+- interpretar respostas simples do usuario;
+- extrair cidade, bairro, tipo de imovel, valor, quartos, pet, financiamento,
+  FGTS, urgencia e objetivo;
+- atualizar o contexto do lead a cada mensagem;
+- identificar lacunas pendentes;
+- decidir a proxima pergunta;
+- recalcular score e temperatura;
+- gerar briefing progressivo para o corretor;
+- simular uma resposta consultiva, acolhedora e profissional.
+
+Esse fluxo permite treinar o comportamento comercial da IA antes de qualquer
+integracao externa. A regra permanece: o Motor Cognitivo decide o fluxo, e a
+OpenAI, em sprint futura, apenas transformara essa decisao em linguagem natural.
+
 ## Futuro
 
 A IA deverá consultar:

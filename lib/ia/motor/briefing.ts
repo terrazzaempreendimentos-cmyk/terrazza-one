@@ -1,9 +1,9 @@
-import type { LeadContext, LeadTemperature } from "./tipos";
 import { camposPendentes } from "./memoria";
+import type { LeadContext, LeadTemperature } from "./tipos";
 
 function valorTexto(valor: unknown) {
-  if (valor === null || valor === undefined || valor === "") return "Não informado";
-  if (typeof valor === "boolean") return valor ? "Sim" : "Não";
+  if (valor === null || valor === undefined || valor === "") return "Nao informado";
+  if (typeof valor === "boolean") return valor ? "Sim" : "Nao";
 
   return String(valor);
 }
@@ -30,15 +30,15 @@ export function gerarBriefing({
     `Cliente ${contexto.tipoLead ?? "sem tipo definido"}.`,
     `Cidade: ${valorTexto(contexto.cidade)}`,
     `Bairro: ${valorTexto(contexto.bairro)}`,
-    `Tipo de imóvel: ${valorTexto(contexto.tipoImovel)}`,
+    `Tipo de imovel: ${valorTexto(contexto.tipoImovel)}`,
     `Valor: ${valorTexto(contexto.valor)}`,
     `Pet: ${valorTexto(contexto.pet)}`,
-    `Mudança: ${valorTexto(contexto.prazoMudanca)}`,
+    `Mudanca: ${valorTexto(contexto.prazoMudanca)}`,
     `Temperatura: ${temperatura}`,
     `Score: ${score}`,
-    `Pendências: ${
-      pendencias.length > 0 ? pendencias.join(", ") : "Sem pendências essenciais"
+    `Pendencias: ${
+      pendencias.length > 0 ? pendencias.join(", ") : "Sem pendencias essenciais"
     }`,
-    `Sugestão: ${sugestao}`,
+    `Sugestao: ${sugestao}`,
   ].join("\n");
 }

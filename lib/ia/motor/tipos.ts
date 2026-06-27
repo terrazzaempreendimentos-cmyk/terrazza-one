@@ -54,3 +54,29 @@ export type MotorResponse = {
 };
 
 export type MotorScript = ScriptQualificacao;
+
+export type ChatMessage = {
+  id: string;
+  autor: "ia" | "usuario";
+  texto: string;
+};
+
+export type ConversationTurn = {
+  mensagemUsuario: string;
+  contextoAntes: LeadContext;
+  contextoDepois: LeadContext;
+  respostaIa: string;
+};
+
+export type ExtractedInfo = Partial<LeadContext>;
+
+export type MotorTurnResult = {
+  contexto: LeadContext;
+  informacoesExtraidas: ExtractedInfo;
+  camposPendentes: Array<keyof LeadContext>;
+  proximaPergunta: NextQuestion | null;
+  score: number;
+  temperatura: LeadTemperature;
+  briefing: string;
+  respostaIa: string;
+};

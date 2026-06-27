@@ -1,56 +1,56 @@
-import type { LeadContext, NextQuestion } from "./tipos";
 import { possuiInformacao } from "./memoria";
+import type { LeadContext, NextQuestion } from "./tipos";
 
 const ordemPerguntas: NextQuestion[] = [
   {
     campo: "cidade",
-    texto: "Em qual cidade você deseja atendimento?",
-    motivo: "Cidade ainda não preenchida.",
+    texto: "Em qual cidade voce deseja atendimento?",
+    motivo: "Cidade ainda nao preenchida.",
   },
   {
     campo: "bairro",
-    texto: "Tem algum bairro ou região de preferência?",
-    motivo: "Bairro ainda não preenchido.",
+    texto: "Tem algum bairro ou regiao de preferencia?",
+    motivo: "Bairro ainda nao preenchido.",
   },
   {
     campo: "tipoImovel",
-    texto: "Qual tipo de imóvel faz mais sentido para você?",
-    motivo: "Tipo do imóvel ainda não preenchido.",
+    texto: "Qual tipo de imovel faz mais sentido para voce?",
+    motivo: "Tipo do imovel ainda nao preenchido.",
   },
   {
     campo: "valor",
-    texto: "Qual faixa de valor você tem em mente?",
-    motivo: "Faixa de valor ainda não preenchida.",
+    texto: "Qual faixa de valor voce tem em mente?",
+    motivo: "Faixa de valor ainda nao preenchida.",
   },
   {
     campo: "objetivo",
-    texto: "Qual é seu principal objetivo neste atendimento?",
-    motivo: "Objetivo comercial ainda não preenchido.",
+    texto: "Qual e seu principal objetivo neste atendimento?",
+    motivo: "Objetivo comercial ainda nao preenchido.",
   },
   {
     campo: "urgencia",
-    texto: "Existe alguma urgência ou prazo importante?",
-    motivo: "Urgência ainda não preenchida.",
+    texto: "Existe alguma urgencia ou prazo importante?",
+    motivo: "Urgencia ainda nao preenchida.",
   },
   {
     campo: "pet",
-    texto: "Você possui pet?",
-    motivo: "Informação sobre pet ainda não preenchida.",
+    texto: "Voce possui pet?",
+    motivo: "Informacao sobre pet ainda nao preenchida.",
   },
   {
     campo: "financiamento",
-    texto: "Você pretende usar financiamento?",
-    motivo: "Financiamento ainda não informado.",
+    texto: "Voce pretende usar financiamento?",
+    motivo: "Financiamento ainda nao informado.",
   },
   {
     campo: "fgts",
-    texto: "Você pretende usar FGTS?",
-    motivo: "FGTS ainda não informado.",
+    texto: "Voce pretende usar FGTS?",
+    motivo: "FGTS ainda nao informado.",
   },
   {
     campo: "documentacao",
-    texto: "Você já possui documentação ou crédito organizado?",
-    motivo: "Documentação ainda não informada.",
+    texto: "Voce ja possui documentacao ou credito organizado?",
+    motivo: "Documentacao ainda nao informada.",
   },
 ];
 
