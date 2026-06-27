@@ -7,6 +7,7 @@ import type {
   UCEBrokerMentorBriefing,
   UCECommercialAwareness,
   UCECommercialStrategy,
+  UCETemporalDebug,
 } from "../../uce";
 
 export type LeadTemperature = "frio" | "morno" | "quente";
@@ -137,6 +138,7 @@ export type MotorTurnResult = {
   commercialStrategy: UCECommercialStrategy;
   commercialAwareness: UCECommercialAwareness;
   brokerMentorBriefing: UCEBrokerMentorBriefing;
+  temporalDebug: UCETemporalDebug;
   qualificado: boolean;
   motivoQualificacao: string;
   podePassarCorretor: boolean;

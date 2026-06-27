@@ -26,6 +26,15 @@ export type UCEFieldConfidence = {
   reason: string;
 };
 
+export type UCETemporalDebug = {
+  activeQuestionField: string | null;
+  filledField: string | null;
+  savedValue: unknown;
+  confidence: number;
+  decisionReason: string;
+  recognizedExpression: string | null;
+};
+
 export type UCEHypothesis = {
   key: string;
   title: string;
@@ -154,6 +163,7 @@ export type UCEProcessResult = {
   temperature: UCETemperature;
   hypotheses: UCEHypothesis[];
   briefing: UCEBriefing;
+  temporalDebug: UCETemporalDebug;
   commercialStrategy: UCECommercialStrategy;
   commercialAwareness: UCECommercialAwareness;
   brokerMentorBriefing: UCEBrokerMentorBriefing;

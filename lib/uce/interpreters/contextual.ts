@@ -54,12 +54,17 @@ export function interpretContextualAnswer(input: {
 
   if (field === "urgencia") {
     const temporal = interpretTemporalExpression(input.text);
-    if (temporal.urgency !== "indefinida") {
+    if (temporal.confidence >= 90 || temporal.asksForSpecificDeadline) {
       return {
         field,
         value: temporal.urgency,
         confidence: temporal.confidence,
         reason: temporal.reason,
+        metadata: {
+          deadlineText: temporal.deadlineText,
+          recognizedExpression: temporal.recognizedExpression,
+          asksForSpecificDeadline: temporal.asksForSpecificDeadline,
+        },
       };
     }
   }

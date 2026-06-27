@@ -278,6 +278,7 @@ export function processarTurno({
     commercialStrategy: uceResult.commercialStrategy,
     commercialAwareness: uceResult.commercialAwareness,
     brokerMentorBriefing: uceResult.brokerMentorBriefing,
+    temporalDebug: uceResult.temporalDebug,
     qualificado,
     motivoQualificacao,
     podePassarCorretor,

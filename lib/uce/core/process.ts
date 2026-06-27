@@ -3,6 +3,7 @@ import type {
   UCEFieldConfidence,
   UCEProcessInput,
   UCEProcessResult,
+  UCETemporalDebug,
 } from "./types";
 import { generateUCEBriefing } from "../briefing";
 import {
@@ -152,6 +153,15 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
   const fields = { ...input.context.fields };
   const interpretedFields: UCEFieldConfidence[] = [];
   const correction = detectCorrection(input.message);
+  let temporalDebug: UCETemporalDebug = {
+    activeQuestionField:
+      input.context.activeQuestion?.field ?? input.context.lastQuestionField,
+    filledField: null,
+    savedValue: null,
+    confidence: 0,
+    decisionReason: "Nenhuma decisao temporal aplicada neste turno.",
+    recognizedExpression: null,
+  };
 
   if (correction.targetField) {
     fields[correction.targetField] = correction.newValue;
@@ -171,6 +181,31 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
   });
   if (contextual.field) {
     fields[contextual.field] = contextual.value;
+    const metadata =
+      "metadata" in contextual
+        ? (contextual.metadata as {
+            deadlineText?: string | null;
+            recognizedExpression?: string | null;
+            asksForSpecificDeadline?: boolean;
+          })
+        : null;
+
+    if (contextual.field === "urgencia") {
+      if (metadata?.deadlineText) {
+        fields.prazoMudanca = metadata.deadlineText;
+      }
+
+      temporalDebug = {
+        activeQuestionField:
+          input.context.activeQuestion?.field ?? input.context.lastQuestionField,
+        filledField: "urgencia",
+        savedValue: contextual.value,
+        confidence: contextual.confidence,
+        decisionReason: contextual.reason,
+        recognizedExpression: metadata?.recognizedExpression ?? null,
+      };
+    }
+
     interpretedFields.push(
       fieldConfidence(
         contextual.field,
@@ -179,12 +214,33 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
         contextual.reason,
       ),
     );
+
+    if (contextual.field === "urgencia" && metadata?.deadlineText) {
+      interpretedFields.push(
+        fieldConfidence(
+          "prazoMudanca",
+          metadata.deadlineText,
+          contextual.confidence,
+          "Prazo textual preservado pela resposta contextual de urgencia.",
+        ),
+      );
+    }
   }
 
   const temporal = interpretTemporalExpression(input.message);
-  if (temporal.urgency !== "indefinida") {
+  const contextualHandledUrgency = contextual.field === "urgencia";
+  if (!contextualHandledUrgency && temporal.urgency !== "indefinida") {
     fields.urgencia = temporal.urgency;
     fields.prazoMudanca = temporal.deadlineText;
+    temporalDebug = {
+      activeQuestionField:
+        input.context.activeQuestion?.field ?? input.context.lastQuestionField,
+      filledField: "urgencia",
+      savedValue: temporal.urgency,
+      confidence: temporal.confidence,
+      decisionReason: temporal.reason,
+      recognizedExpression: temporal.recognizedExpression,
+    };
     interpretedFields.push(
       fieldConfidence("urgencia", temporal.urgency, temporal.confidence, temporal.reason),
       fieldConfidence(
@@ -264,6 +320,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     temperature,
     hypotheses,
     briefing,
+    temporalDebug,
     commercialStrategy,
     commercialAwareness,
     brokerMentorBriefing,

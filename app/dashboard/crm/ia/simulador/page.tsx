@@ -57,6 +57,7 @@ import {
   type UCEBrokerMentorBriefing,
   type UCECommercialAwareness,
   type UCECommercialStrategy,
+  type UCETemporalDebug,
 } from "../../../../../lib/uce";
 
 const tiposLead: Array<{ label: string; value: TipoLeadSimulador }> = [
@@ -204,6 +205,9 @@ export default function SimuladorIaPage() {
     useState<UCECommercialAwareness | null>(null);
   const [brokerMentorBriefing, setBrokerMentorBriefing] =
     useState<UCEBrokerMentorBriefing | null>(null);
+  const [temporalDebug, setTemporalDebug] = useState<UCETemporalDebug | null>(
+    null,
+  );
   const fimChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -314,6 +318,7 @@ export default function SimuladorIaPage() {
     setCommercialStrategy(null);
     setCommercialAwareness(null);
     setBrokerMentorBriefing(null);
+    setTemporalDebug(null);
   }
 
   function reiniciarSimulacao() {
@@ -326,6 +331,7 @@ export default function SimuladorIaPage() {
     setCommercialStrategy(null);
     setCommercialAwareness(null);
     setBrokerMentorBriefing(null);
+    setTemporalDebug(null);
     setContexto(
       contextoConfigurado({
         tipoLead,
@@ -366,6 +372,7 @@ export default function SimuladorIaPage() {
     setCommercialStrategy(resultado.commercialStrategy);
     setCommercialAwareness(resultado.commercialAwareness);
     setBrokerMentorBriefing(resultado.brokerMentorBriefing);
+    setTemporalDebug(resultado.temporalDebug);
     setMensagem("");
     window.requestAnimationFrame(() => textareaRef.current?.focus());
   }
@@ -1413,6 +1420,42 @@ export default function SimuladorIaPage() {
                         <p className="mt-1 text-white/75">
                           {contexto.prazoMudanca || "Nao informado"}
                         </p>
+                      </div>
+                      <div className="rounded-2xl border border-[#C89B3C]/25 bg-[#C89B3C]/10 px-4 py-3 md:col-span-2">
+                        <p className="font-semibold text-[#E1B866]">
+                          Debug temporal / urgencia
+                        </p>
+                        <div className="mt-2 grid gap-2 leading-6 text-white/75 sm:grid-cols-2">
+                          <p>
+                            Pergunta ativa:{" "}
+                            {temporalDebug?.activeQuestionField ??
+                              contexto.ultimaPerguntaCampo ??
+                              "nenhuma"}
+                          </p>
+                          <p>
+                            Campo preenchido:{" "}
+                            {temporalDebug?.filledField ?? "nenhum"}
+                          </p>
+                          <p>
+                            Valor salvo:{" "}
+                            {temporalDebug?.savedValue !== null &&
+                            temporalDebug?.savedValue !== undefined
+                              ? String(temporalDebug.savedValue)
+                              : "nenhum"}
+                          </p>
+                          <p>
+                            Confidence: {temporalDebug?.confidence ?? 0}%
+                          </p>
+                          <p>
+                            Expressao reconhecida:{" "}
+                            {temporalDebug?.recognizedExpression ?? "nenhuma"}
+                          </p>
+                          <p className="sm:col-span-2">
+                            Motivo:{" "}
+                            {temporalDebug?.decisionReason ??
+                              "Aguardando uma resposta temporal do usuario."}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </section>

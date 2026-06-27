@@ -26,5 +26,16 @@ function isFilled(value: unknown) {
 export function getNextSmartQuestion(context: UCEContext) {
   const questions = context.domain === "real_estate" ? realEstateQuestions : realEstateQuestions;
 
+  if (
+    context.fields.urgencia === "indefinida" &&
+    !isFilled(context.fields.prazoMudanca)
+  ) {
+    return {
+      field: "urgencia",
+      text: "Perfeito. Qual seria o prazo ideal? Pode ser uma data, um mes ou uma quantidade de dias.",
+      reason: "Usuario confirmou urgencia, mas ainda falta prazo especifico.",
+    };
+  }
+
   return questions.find((question) => !isFilled(context.fields[question.field])) ?? null;
 }
