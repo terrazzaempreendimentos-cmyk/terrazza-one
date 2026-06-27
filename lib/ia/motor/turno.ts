@@ -5,9 +5,11 @@ import { calcularConfiancaCampos } from "./confianca";
 import { avaliarQualificacao, definirEstadoCognitivo } from "./estado";
 import { extrairInformacoes } from "./extracao";
 import { gerarHipoteses } from "./hipoteses";
+import { gerarInferenciasComerciais } from "./inferencia";
 import { atualizarContexto, camposPendentes } from "./memoria";
 import { descobrirProximaPergunta } from "./perguntas";
 import { calcularScore } from "./score";
+import { selecionarPersona } from "../personas";
 import type { ExtractedInfo, LeadContext, MotorTurnResult } from "./tipos";
 
 function resumoDoQueEntendeu(informacoes: ExtractedInfo) {
@@ -104,7 +106,12 @@ export function processarTurno({
   const contextoComPergunta = atualizarContexto(contexto, {
     ultimaPerguntaCampo: proximaPergunta?.campo ?? null,
   });
-  const { score, temperatura } = calcularScore(contexto);
+  const inferenciasComerciais = gerarInferenciasComerciais(contextoComPergunta);
+  const personaAtiva = selecionarPersona(contextoComPergunta);
+  const { score, temperatura } = calcularScore(
+    contextoComPergunta,
+    inferenciasComerciais,
+  );
   const script = obterScriptQualificacao(tipoLead);
   const { qualificado, podePassarCorretor, motivoQualificacao } =
     avaliarQualificacao(contexto, score);
@@ -119,6 +126,7 @@ export function processarTurno({
     score,
     temperatura,
     sugestao: script.proximaAcaoSugerida,
+    hipotesesComerciais: inferenciasComerciais,
   });
 
   return {
@@ -132,6 +140,8 @@ export function processarTurno({
     estadoCognitivo,
     confiancaCampos,
     hipoteses,
+    inferenciasComerciais,
+    personaAtiva,
     qualificado,
     motivoQualificacao,
     podePassarCorretor,

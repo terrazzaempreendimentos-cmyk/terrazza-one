@@ -41,6 +41,7 @@ import {
   descobrirProximaPergunta,
   gerarBriefing,
   gerarHipoteses,
+  gerarInferenciasComerciais,
   processarTurno,
   progressoEstado,
   resumoContexto,
@@ -49,6 +50,7 @@ import {
   type EstadoCognitivo,
   type LeadContext,
 } from "../../../../../lib/ia/motor";
+import { selecionarPersona } from "../../../../../lib/ia/personas";
 
 const tiposLead: Array<{ label: string; value: TipoLeadSimulador }> = [
   { label: "Proprietario", value: "proprietario" },
@@ -194,7 +196,15 @@ export default function SimuladorIaPage() {
     () => obterScriptQualificacao(tipoLead),
     [tipoLead],
   );
-  const scoreMotor = useMemo(() => calcularScore(contexto), [contexto]);
+  const inferenciasComerciais = useMemo(
+    () => gerarInferenciasComerciais(contexto),
+    [contexto],
+  );
+  const personaAtiva = useMemo(() => selecionarPersona(contexto), [contexto]);
+  const scoreMotor = useMemo(
+    () => calcularScore(contexto, inferenciasComerciais),
+    [contexto, inferenciasComerciais],
+  );
   const camposPreenchidosMotor = useMemo(
     () => camposPreenchidos(contexto),
     [contexto],
@@ -239,8 +249,15 @@ export default function SimuladorIaPage() {
         score: scoreMotor.score,
         temperatura: scoreMotor.temperatura,
         sugestao: scriptAtivo.proximaAcaoSugerida,
+        hipotesesComerciais: inferenciasComerciais,
       }),
-    [contexto, scoreMotor.score, scoreMotor.temperatura, scriptAtivo],
+    [
+      contexto,
+      scoreMotor.score,
+      scoreMotor.temperatura,
+      scriptAtivo,
+      inferenciasComerciais,
+    ],
   );
 
   useEffect(() => {
@@ -687,6 +704,84 @@ export default function SimuladorIaPage() {
                     </div>
                   </section>
 
+                  <section className="grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+                    <div className="rounded-[1.75rem] border border-[#C89B3C]/35 bg-[#071E36] p-5 text-white shadow-sm">
+                      <span className="rounded-full border border-[#C89B3C]/35 bg-[#C89B3C]/15 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-[#E1B866]">
+                        Persona ativa
+                      </span>
+                      <h3 className="mt-4 text-2xl font-semibold">
+                        {personaAtiva.nome}
+                      </h3>
+                      <p className="mt-2 text-sm leading-6 text-white/70">
+                        {personaAtiva.descricao}
+                      </p>
+
+                      <div className="mt-5 grid gap-3 text-sm">
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                          <p className="font-semibold text-[#E1B866]">Estilo</p>
+                          <p className="mt-1 text-white/75">
+                            {personaAtiva.estilo}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                          <p className="font-semibold text-[#E1B866]">
+                            Prioridades
+                          </p>
+                          <p className="mt-1 leading-6 text-white/75">
+                            {personaAtiva.prioridades.join(", ")}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                          <p className="font-semibold text-[#E1B866]">Tom</p>
+                          <p className="mt-1 text-white/75">{personaAtiva.tom}</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
+                      <h3 className="text-xl font-semibold text-[#071E36]">
+                        Motor de inferencia comercial
+                      </h3>
+                      <p className="mt-1 text-sm text-[#64736D]">
+                        Hipoteses probabilisticas para treinar o raciocinio da IA.
+                      </p>
+
+                      <div className="mt-5 grid gap-3">
+                        {inferenciasComerciais.length > 0 ? (
+                          inferenciasComerciais.map((hipotese) => (
+                            <div
+                              key={`${hipotese.categoria}-${hipotese.titulo}`}
+                              className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3"
+                            >
+                              <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <p className="font-semibold text-[#071E36]">
+                                      {hipotese.titulo}
+                                    </p>
+                                    <span className="rounded-full bg-[#071E36]/5 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#64736D]">
+                                      {hipotese.categoria}
+                                    </span>
+                                  </div>
+                                  <p className="mt-1 text-sm leading-6 text-[#64736D]">
+                                    {hipotese.descricao}
+                                  </p>
+                                </div>
+                                <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-xs font-bold text-[#8B6827]">
+                                  {hipotese.confianca}%
+                                </span>
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className="rounded-2xl border border-dashed border-[#E8DDCB] bg-[#F7F3ED] px-4 py-6 text-sm text-[#64736D]">
+                            Ainda nao ha inferencias comerciais suficientes.
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </section>
+
                   <section className="grid gap-5 lg:grid-cols-2">
                     <div className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
                       <div className="flex items-center justify-between gap-3">
@@ -859,6 +954,24 @@ export default function SimuladorIaPage() {
                           </div>
                           <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 md:col-span-2">
                             <p className="font-semibold text-[#E1B866]">
+                              Inferencia comercial principal
+                            </p>
+                            <p className="mt-1 leading-6 text-white/75">
+                              {inferenciasComerciais[0]
+                                ? `${inferenciasComerciais[0].titulo} (${inferenciasComerciais[0].confianca}%) - ${inferenciasComerciais[0].descricao}`
+                                : "Sem inferencia principal ainda."}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 md:col-span-2">
+                            <p className="font-semibold text-[#E1B866]">
+                              Persona recomendada
+                            </p>
+                            <p className="mt-1 leading-6 text-white/75">
+                              {personaAtiva.nome} - {personaAtiva.tom}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3 md:col-span-2">
+                            <p className="font-semibold text-[#E1B866]">
                               Sugestao de abordagem
                             </p>
                             <p className="mt-1 leading-6 text-white/75">
@@ -908,6 +1021,22 @@ export default function SimuladorIaPage() {
                         <p className="mt-1 leading-6 text-white/75">
                           {proximaPergunta?.texto ||
                             "Sem proxima pergunta essencial."}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">
+                          Persona ativa
+                        </p>
+                        <p className="mt-1 text-white/75">{personaAtiva.nome}</p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">
+                          Raciocinio
+                        </p>
+                        <p className="mt-1 leading-6 text-white/75">
+                          {inferenciasComerciais[0]
+                            ? `${inferenciasComerciais[0].titulo}: ${inferenciasComerciais[0].descricao}`
+                            : "Aguardando mais sinais para gerar inferencia comercial."}
                         </p>
                       </div>
                       <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">

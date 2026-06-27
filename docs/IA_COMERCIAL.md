@@ -271,6 +271,92 @@ abordagem para o corretor humano.
 O objetivo desta sprint e testar fluxo, memoria, lacunas, score, briefing e
 handoff antes de integrar OpenAI e WhatsApp.
 
+## Motor de Inferencia Comercial
+
+O Motor de Inferencia Comercial analisa o contexto completo da conversa e gera
+hipoteses comerciais probabilisticas, como faria um corretor experiente durante a
+qualificacao.
+
+Essas hipoteses nunca substituem informacoes reais fornecidas pelo cliente. Elas
+servem para enriquecer o atendimento, orientar perguntas melhores e preparar um
+briefing mais inteligente para o corretor humano.
+
+Exemplos de inferencias iniciais:
+
+- casa pode indicar provavel familia;
+- apartamento pode indicar perfil urbano;
+- tres ou mais quartos aumentam a chance de perfil familiar;
+- casa com pet pode indicar necessidade de quintal;
+- valor acima de 5 mil pode indicar alto padrao;
+- objetivo de administracao indica grande potencial de captacao;
+- objetivo de compra indica cliente comprador;
+- objetivo de locacao indica cliente locatario.
+
+## Personas Comerciais
+
+A IA Comercial passa a selecionar uma persona operacional conforme os sinais do
+lead. A persona nao muda os dados do cliente; ela muda o angulo comercial da
+qualificacao.
+
+Personas iniciais:
+
+- Corretor Senior;
+- Especialista Locacao;
+- Especialista Administracao;
+- Especialista Alto Padrao;
+- Especialista Investidor;
+- Especialista Primeiro Imovel.
+
+Regras iniciais de selecao:
+
+- lead proprietario direciona para Especialista Administracao;
+- lead inquilino direciona para Especialista Locacao;
+- compra direciona para Especialista Primeiro Imovel;
+- investidor direciona para Especialista Investidor;
+- valor alto direciona para Especialista Alto Padrao.
+
+## Hipoteses
+
+As hipoteses possuem titulo, descricao, confianca e categoria. As categorias
+iniciais sao:
+
+- familia;
+- perfilFinanceiro;
+- administracao;
+- compra;
+- locacao;
+- investidor;
+- urgencia;
+- perfilImovel.
+
+Quando uma hipotese tiver alta confianca, ela pode contribuir com bonus no score
+comercial, sempre de forma limitada e sem substituir respostas reais.
+
+## Fluxo Cognitivo
+
+Fluxo atual do simulador:
+
+Cliente responde  
+↓  
+Motor extrai informacoes reais  
+↓  
+Motor atualiza contexto  
+↓  
+Motor gera inferencias comerciais  
+↓  
+Motor seleciona persona  
+↓  
+Motor recalcula score  
+↓  
+Motor decide proxima pergunta  
+↓  
+Motor atualiza briefing  
+↓  
+Simulador exibe raciocinio, persona e hipoteses
+
+Esse fluxo transforma o simulador em uma academia de treinamento da IA Comercial,
+antes de qualquer integracao com OpenAI, WhatsApp ou Vista ERP.
+
 ## Futuro
 
 A IA deverá consultar:

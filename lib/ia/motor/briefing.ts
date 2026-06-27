@@ -1,4 +1,5 @@
 import { camposPendentes } from "./memoria";
+import type { HipoteseIA } from "./inferencia";
 import type { LeadContext, LeadTemperature } from "./tipos";
 
 function valorTexto(valor: unknown) {
@@ -13,11 +14,13 @@ export function gerarBriefing({
   score,
   temperatura,
   sugestao,
+  hipotesesComerciais = [],
 }: {
   contexto: LeadContext;
   score: number;
   temperatura: LeadTemperature;
   sugestao: string;
+  hipotesesComerciais?: HipoteseIA[];
 }) {
   const pendencias = camposPendentes(contexto, [
     "bairro",
@@ -36,6 +39,15 @@ export function gerarBriefing({
     `Mudanca: ${valorTexto(contexto.prazoMudanca)}`,
     `Temperatura: ${temperatura}`,
     `Score: ${score}`,
+    "Hipoteses Comerciais:",
+    hipotesesComerciais.length > 0
+      ? hipotesesComerciais
+          .map(
+            (hipotese) =>
+              `- ${hipotese.titulo} (${hipotese.confianca}%): ${hipotese.descricao}`,
+          )
+          .join("\n")
+      : "- Sem hipoteses comerciais relevantes ainda.",
     `Pendencias: ${
       pendencias.length > 0 ? pendencias.join(", ") : "Sem pendencias essenciais"
     }`,

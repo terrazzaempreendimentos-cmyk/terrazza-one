@@ -10,3 +10,4 @@ export * from "./turno";
 export * from "./confianca";
 export * from "./hipoteses";
 export * from "./estado";
+export * from "./inferencia";

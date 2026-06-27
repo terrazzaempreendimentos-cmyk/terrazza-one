@@ -1,5 +1,7 @@
 import type { LeadContext, LeadTemperature } from "./tipos";
+import type { HipoteseIA } from "./inferencia";
 import { possuiInformacao } from "./memoria";
+import { contarHipotesesConfirmadas } from "./inferencia";
 
 function cidadePrioritaria(cidade: string | null) {
   return cidade?.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") ===
@@ -26,7 +28,7 @@ export function temperaturaPorScoreMotor(score: number): LeadTemperature {
   return "frio";
 }
 
-export function calcularScore(contexto: LeadContext) {
+export function calcularScore(contexto: LeadContext, hipoteses: HipoteseIA[] = []) {
   let score = 0;
 
   if (cidadePrioritaria(contexto.cidade)) score += 10;
@@ -37,6 +39,7 @@ export function calcularScore(contexto: LeadContext) {
   if (possuiInformacao(contexto, "financiamento")) score += 10;
   if (possuiInformacao(contexto, "prazoMudanca")) score += 10;
   if (possuiInformacao(contexto, "documentacao")) score += 15;
+  score += contarHipotesesConfirmadas(hipoteses) * 5;
 
   const scoreFinal = Math.min(score, 100);
 

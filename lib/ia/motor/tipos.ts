@@ -1,5 +1,7 @@
 import type { ScriptQualificacao } from "../scriptsQualificacao";
 import type { TipoLeadSimulador } from "../fluxos";
+import type { PersonaComercial } from "../personas/Base";
+import type { HipoteseIA } from "./inferencia";
 
 export type LeadTemperature = "frio" | "morno" | "quente";
 
@@ -118,6 +120,8 @@ export type MotorTurnResult = {
   estadoCognitivo: EstadoCognitivo;
   confiancaCampos: CampoConfianca[];
   hipoteses: HipoteseComercial[];
+  inferenciasComerciais: HipoteseIA[];
+  personaAtiva: PersonaComercial;
   qualificado: boolean;
   motivoQualificacao: string;
   podePassarCorretor: boolean;
