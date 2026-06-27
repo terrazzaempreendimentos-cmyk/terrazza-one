@@ -69,6 +69,54 @@ export function interpretContextualAnswer(input: {
     }
   }
 
+  if (field === "documentacao") {
+    if (
+      has(text, [
+        "sim",
+        "tenho",
+        "tenho sim",
+        "tenho documentacao",
+        "documentos ok",
+        "credito aprovado",
+        "renda comprovada",
+        "ficha ok",
+      ])
+    ) {
+      return {
+        field,
+        value: true,
+        confidence: 96,
+        reason: "Resposta positiva para documentacao.",
+      };
+    }
+
+    if (
+      has(text, [
+        "nao",
+        "nao tenho",
+        "ainda nao",
+        "estou providenciando",
+        "falta documentacao",
+        "nao organizei",
+        "nao sei",
+      ])
+    ) {
+      return {
+        field,
+        value: false,
+        confidence: 96,
+        reason: text.includes("nao sei")
+          ? "Cliente nao soube informar a documentacao."
+          : "Resposta negativa para documentacao.",
+        metadata: {
+          documentacaoObservacao: text.includes("nao sei")
+            ? "cliente nao soube informar"
+            : null,
+        },
+      };
+    }
+  }
+
   if (field === "financiamento") {
     if (has(text, ["sim", "financiado", "financiamento"])) {
       return { field, value: true, confidence: 90, reason: "Financiamento confirmado." };

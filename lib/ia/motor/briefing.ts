@@ -44,6 +44,8 @@ export function gerarBriefing({
     `Valor: ${valorTexto(contexto.valor)}`,
     `Pet: ${valorTexto(contexto.pet)}`,
     `Mudanca: ${valorTexto(contexto.prazoMudanca)}`,
+    `Documentacao: ${valorTexto(contexto.documentacao)}`,
+    `Observacao documentacao: ${valorTexto(contexto.documentacaoObservacao)}`,
     `Temperatura: ${temperatura}`,
     `Score: ${score}`,
     "Hipoteses Comerciais:",

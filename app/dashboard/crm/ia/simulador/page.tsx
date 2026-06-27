@@ -94,6 +94,7 @@ const camposResumo: Array<CampoConfianca["campo"]> = [
   "valor",
   "objetivo",
   "urgencia",
+  "documentacao",
 ];
 
 function labelTexto(valor: string) {
@@ -1419,6 +1420,50 @@ export default function SimuladorIaPage() {
                         </p>
                         <p className="mt-1 text-white/75">
                           {contexto.prazoMudanca || "Nao informado"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">
+                          Urgencia
+                        </p>
+                        <p className="mt-1 text-white/75">
+                          {contexto.urgencia || "Nao informada"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">
+                          Documentacao
+                        </p>
+                        <p className="mt-1 text-white/75">
+                          {contexto.documentacao === null
+                            ? "Nao informada"
+                            : contexto.documentacao
+                              ? "Sim"
+                              : "Nao"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">
+                          Observacao documentacao
+                        </p>
+                        <p className="mt-1 text-white/75">
+                          {contexto.documentacaoObservacao || "Sem observacao"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">
+                          Active question
+                        </p>
+                        <p className="mt-1 text-white/75">
+                          {proximaPergunta?.campo || "nenhuma"}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">
+                          Last question field
+                        </p>
+                        <p className="mt-1 text-white/75">
+                          {contexto.ultimaPerguntaCampo || "nenhum"}
                         </p>
                       </div>
                       <div className="rounded-2xl border border-[#C89B3C]/25 bg-[#C89B3C]/10 px-4 py-3 md:col-span-2">

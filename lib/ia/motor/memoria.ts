@@ -50,6 +50,9 @@ export function resumoContexto(contexto: LeadContext) {
     contexto.valor ? `Valor: ${contexto.valor}` : null,
     contexto.objetivo ? `Objetivo: ${contexto.objetivo}` : null,
     contexto.urgencia ? `Urgencia: ${contexto.urgencia}` : null,
+    contexto.documentacao !== null
+      ? `Documentacao: ${contexto.documentacao ? "sim" : "nao"}`
+      : null,
   ].filter(Boolean);
 
   return partes.length > 0 ? partes.join(" | ") : "Contexto ainda vazio.";

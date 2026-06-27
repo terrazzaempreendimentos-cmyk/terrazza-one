@@ -48,7 +48,8 @@ export type LeadContext = {
   origem: string | null;
   canal: string | null;
   prazoMudanca: string | null;
-  documentacao: string | null;
+  documentacao: boolean | null;
+  documentacaoObservacao: string | null;
   ultimaPerguntaCampo: CampoPergunta | null;
 };
 

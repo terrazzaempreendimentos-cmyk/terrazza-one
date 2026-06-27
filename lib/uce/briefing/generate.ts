@@ -18,6 +18,7 @@ function publicFields(context: UCEContext) {
     urgencia: context.fields.urgencia,
     prazoMudanca: context.fields.prazoMudanca,
     documentacao: context.fields.documentacao,
+    documentacaoObservacao: context.fields.documentacaoObservacao,
   };
 }
 

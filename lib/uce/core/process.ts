@@ -17,6 +17,7 @@ import { interpretContextualAnswer } from "../interpreters/contextual";
 import { interpretTemporalExpression } from "../interpreters/temporal";
 import { detectCorrection } from "../memory";
 import { calculateUCEScore } from "../score";
+import { detectarBairro, detectarCidade } from "../domain";
 
 const requiredFields = [
   "objetivo",
@@ -27,6 +28,7 @@ const requiredFields = [
   "quartos",
   "pet",
   "urgencia",
+  "documentacao",
 ];
 
 function normalize(text: string) {
@@ -79,30 +81,11 @@ function parseGeneralRealEstateFields(message: string) {
     fields.objetivo = "compra";
   }
 
-  const cities = [
-    ["maceio", "Maceio"],
-    ["aracaju", "Aracaju"],
-    ["recife", "Recife"],
-    ["joao pessoa", "Joao Pessoa"],
-    ["salvador", "Salvador"],
-  ];
-  const bairros = [
-    ["ponta verde", "Ponta Verde"],
-    ["jatiuca", "Jatiuca"],
-    ["pajucara", "Pajucara"],
-    ["farol", "Farol"],
-    ["gruta", "Gruta"],
-    ["stella maris", "Stella Maris"],
-    ["jardins", "Jardins"],
-    ["atalaia", "Atalaia"],
-    ["farolandia", "Farolandia"],
-  ];
+  const city = detectarCidade(message);
+  if (city) fields.cidade = city;
 
-  const city = cities.find(([key]) => text.includes(key));
-  if (city) fields.cidade = city[1];
-
-  const bairro = bairros.find(([key]) => text.includes(key));
-  if (bairro) fields.bairro = bairro[1];
+  const bairro = detectarBairro(message);
+  if (bairro) fields.bairro = bairro;
 
   if (has(text, ["apartamento", "apto"])) fields.tipoImovel = "apartamento";
   if (has(text, ["casa"])) fields.tipoImovel = "casa";
@@ -187,6 +170,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
             deadlineText?: string | null;
             recognizedExpression?: string | null;
             asksForSpecificDeadline?: boolean;
+            documentacaoObservacao?: string | null;
           })
         : null;
 
@@ -204,6 +188,10 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
         decisionReason: contextual.reason,
         recognizedExpression: metadata?.recognizedExpression ?? null,
       };
+    }
+
+    if (contextual.field === "documentacao" && metadata?.documentacaoObservacao) {
+      fields.documentacaoObservacao = metadata.documentacaoObservacao;
     }
 
     interpretedFields.push(
@@ -225,11 +213,28 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
         ),
       );
     }
+
+    if (contextual.field === "documentacao" && metadata?.documentacaoObservacao) {
+      interpretedFields.push(
+        fieldConfidence(
+          "documentacaoObservacao",
+          metadata.documentacaoObservacao,
+          contextual.confidence,
+          "Observacao preservada a partir da resposta de documentacao.",
+        ),
+      );
+    }
   }
 
   const temporal = interpretTemporalExpression(input.message);
   const contextualHandledUrgency = contextual.field === "urgencia";
-  if (!contextualHandledUrgency && temporal.urgency !== "indefinida") {
+  const contextualHandledAnotherField =
+    Boolean(contextual.field) && contextual.field !== "urgencia";
+  if (
+    !contextualHandledUrgency &&
+    !contextualHandledAnotherField &&
+    (temporal.urgency !== "indefinida" || temporal.asksForSpecificDeadline)
+  ) {
     fields.urgencia = temporal.urgency;
     fields.prazoMudanca = temporal.deadlineText;
     temporalDebug = {

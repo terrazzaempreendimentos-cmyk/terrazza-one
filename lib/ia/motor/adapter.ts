@@ -30,6 +30,7 @@ const camposLegados: Array<keyof LeadContext> = [
   "objetivo",
   "prazoMudanca",
   "documentacao",
+  "documentacaoObservacao",
 ];
 
 function leadContextToUCE({
@@ -109,7 +110,12 @@ function uceToLeadContext({
     urgencia: (uceContext.fields.urgencia as string | null) ?? null,
     objetivo: (uceContext.fields.objetivo as string | null) ?? null,
     prazoMudanca: (uceContext.fields.prazoMudanca as string | null) ?? null,
-    documentacao: (uceContext.fields.documentacao as string | null) ?? null,
+    documentacao:
+      typeof uceContext.fields.documentacao === "boolean"
+        ? uceContext.fields.documentacao
+        : contextoAtual.documentacao,
+    documentacaoObservacao:
+      (uceContext.fields.documentacaoObservacao as string | null) ?? null,
     ultimaPerguntaCampo: (uceContext.lastQuestionField as CampoPergunta | null) ?? null,
   };
 }

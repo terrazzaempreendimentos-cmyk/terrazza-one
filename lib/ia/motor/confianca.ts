@@ -10,6 +10,7 @@ const camposMonitorados: Array<{ campo: keyof LeadContext; label: string }> = [
   { campo: "financiamento", label: "Financiamento" },
   { campo: "urgencia", label: "Urgencia" },
   { campo: "objetivo", label: "Objetivo" },
+  { campo: "documentacao", label: "Documentacao" },
 ];
 
 function valorTexto(valor: LeadContext[keyof LeadContext]) {

@@ -18,6 +18,7 @@ export function criarContextoInicial(): LeadContext {
     canal: null,
     prazoMudanca: null,
     documentacao: null,
+    documentacaoObservacao: null,
     ultimaPerguntaCampo: null,
   };
 }
