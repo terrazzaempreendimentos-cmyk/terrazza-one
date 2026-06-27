@@ -88,6 +88,34 @@ devem receber maior atenção operacional no futuro uso pela IA Comercial.
 Esses campos preparam a futura recuperação de conhecimento interno da Terrazza,
 mas ainda não implementam embeddings, RAG ou consulta automática pela IA.
 
+## IA Comercial MVP
+
+Nesta fase, a IA Comercial ainda não utiliza OpenAI, streaming, embeddings ou
+RAG real. O módulo funciona como MVP operacional para validar o fluxo principal
+antes da conexão com o motor de IA definitivo.
+
+O MVP consulta os registros ativos da tabela `ia_conhecimento` e gera uma
+resposta simulada com base em categoria, título e palavras-chave dos conteúdos
+cadastrados. Quando encontra conteúdos relacionados, lista até três referências
+internas para orientar o atendimento. Quando não encontra, informa que ainda não
+há conteúdo interno suficiente sobre o tema.
+
+Cada interação é registrada em `ia_conversas`, mantendo histórico da pergunta do
+usuário e da resposta simulada da IA. Também é criado um evento na `timeline`
+com origem `ia_comercial`, sem bloquear a conversa caso o registro da timeline
+falhe.
+
+O objetivo desta etapa é validar:
+
+- uso da Base de Conhecimento;
+- histórico de conversas;
+- registro arquitetural na Timeline;
+- experiência de chat interno;
+- preparação para futura integração com OpenAI.
+
+OpenAI, WhatsApp, Vista ERP, embeddings e RAG real serão conectados em sprints
+futuras.
+
 ## Ferramentas
 
 As ferramentas serão funções internas que a IA poderá chamar futuramente.
