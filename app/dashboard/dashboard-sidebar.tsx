@@ -19,6 +19,7 @@ import {
   KeyRound,
   LayoutDashboard,
   LineChart,
+  MessageSquareText,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -54,6 +55,11 @@ const menuGroups = [
       { label: "Leads", href: "/dashboard/crm/leads", icon: UsersRound },
       { label: "Kanban", href: "/dashboard/crm/kanban", icon: BarChart3 },
       { label: "🤖 IA Comercial", href: "/dashboard/crm/ia", icon: Bot },
+      {
+        label: "Simulador IA",
+        href: "/dashboard/crm/ia/simulador",
+        icon: MessageSquareText,
+      },
       {
         label: "Base de Conhecimento",
         href: "/dashboard/crm/ia/conhecimento",
