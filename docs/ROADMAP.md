@@ -54,7 +54,7 @@ Planejada
 
 Roleta Inteligente
 
-Planejada
+Em desenvolvimento
 
 ## Sprint 09
 

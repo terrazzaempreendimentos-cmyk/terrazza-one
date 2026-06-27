@@ -60,6 +60,7 @@ const menuGroups = [
         icon: BookOpen,
       },
       { label: "Agenda Inteligente", href: "/dashboard/crm/agenda", icon: ClipboardCheck },
+      { label: "Roleta Inteligente", href: "/dashboard/crm/roleta", icon: Sparkles },
       { label: "Corretores", href: "/dashboard/crm/corretores", icon: ShieldCheck },
     ],
   },
