@@ -21,6 +21,7 @@ export type CampoPergunta =
   | "quartos"
   | "financiamento"
   | "fgts";
+  | "documentacao"
 
 export type LeadContext = {
   tipoLead: TipoLeadSimulador | null;
