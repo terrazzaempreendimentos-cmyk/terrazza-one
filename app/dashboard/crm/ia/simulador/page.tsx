@@ -260,6 +260,9 @@ export default function SimuladorIaPage() {
       canal,
     });
     const perguntaInicial = descobrirProximaPergunta(contextoInicial);
+    const contextoComPerguntaInicial = atualizarContexto(contextoInicial, {
+      ultimaPerguntaCampo: perguntaInicial?.campo ?? null,
+    });
     const textoInicial = [
       gerarMensagemInicial(tipoLead, origem),
       perguntaInicial ? perguntaInicial.texto : null,
@@ -267,7 +270,7 @@ export default function SimuladorIaPage() {
       .filter(Boolean)
       .join("\n\n");
 
-    setContexto(contextoInicial);
+    setContexto(contextoComPerguntaInicial);
     setMensagens([novaMensagem("ia", textoInicial)]);
     setSimulacaoIniciada(true);
     setMensagem("");

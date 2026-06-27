@@ -36,8 +36,8 @@ export function camposPendentes(
 }
 
 export function camposPreenchidos(contexto: LeadContext) {
-  return (Object.keys(contexto) as Array<keyof LeadContext>).filter((campo) =>
-    possuiInformacao(contexto, campo),
+  return (Object.keys(contexto) as Array<keyof LeadContext>).filter(
+    (campo) => campo !== "ultimaPerguntaCampo" && possuiInformacao(contexto, campo),
   );
 }
 

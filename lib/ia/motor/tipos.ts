@@ -10,6 +10,18 @@ export type EstadoCognitivo =
   | "preparando_briefing"
   | "pronto_para_corretor";
 
+export type CampoPergunta =
+  | "cidade"
+  | "bairro"
+  | "tipoImovel"
+  | "valor"
+  | "pet"
+  | "urgencia"
+  | "objetivo"
+  | "quartos"
+  | "financiamento"
+  | "fgts";
+
 export type LeadContext = {
   tipoLead: TipoLeadSimulador | null;
   cidade: string | null;
@@ -27,6 +39,7 @@ export type LeadContext = {
   canal: string | null;
   prazoMudanca: string | null;
   documentacao: string | null;
+  ultimaPerguntaCampo: CampoPergunta | null;
 };
 
 export type ConversationMemory = {
@@ -40,7 +53,7 @@ export type ConversationState = {
 };
 
 export type NextQuestion = {
-  campo: keyof LeadContext;
+  campo: CampoPergunta;
   texto: string;
   motivo: string;
 };

@@ -17,6 +17,11 @@ function resumoDoQueEntendeu(informacoes: ExtractedInfo) {
     informacoes.tipoImovel ? `imovel do tipo ${informacoes.tipoImovel}` : null,
     informacoes.quartos ? `${informacoes.quartos} quarto(s)` : null,
     informacoes.valor ? `faixa de valor ${informacoes.valor}` : null,
+    Object.prototype.hasOwnProperty.call(informacoes, "pet")
+      ? informacoes.pet
+        ? "pet registrado"
+        : "sem pet registrado"
+      : null,
     informacoes.objetivo ? `objetivo de ${informacoes.objetivo}` : null,
     informacoes.urgencia ? `prazo ${informacoes.urgencia}` : null,
   ].filter(Boolean);
@@ -96,22 +101,28 @@ export function processarTurno({
     "objetivo",
   ]);
   const proximaPergunta = descobrirProximaPergunta(contexto);
+  const contextoComPergunta = atualizarContexto(contexto, {
+    ultimaPerguntaCampo: proximaPergunta?.campo ?? null,
+  });
   const { score, temperatura } = calcularScore(contexto);
   const script = obterScriptQualificacao(tipoLead);
   const { qualificado, podePassarCorretor, motivoQualificacao } =
     avaliarQualificacao(contexto, score);
-  const estadoCognitivo = definirEstadoCognitivo(contexto, score);
-  const confiancaCampos = calcularConfiancaCampos(contexto, informacoesExtraidas);
-  const hipoteses = gerarHipoteses(contexto);
+  const estadoCognitivo = definirEstadoCognitivo(contextoComPergunta, score);
+  const confiancaCampos = calcularConfiancaCampos(
+    contextoComPergunta,
+    informacoesExtraidas,
+  );
+  const hipoteses = gerarHipoteses(contextoComPergunta);
   const briefing = gerarBriefing({
-    contexto,
+    contexto: contextoComPergunta,
     score,
     temperatura,
     sugestao: script.proximaAcaoSugerida,
   });
 
   return {
-    contexto,
+    contexto: contextoComPergunta,
     informacoesExtraidas,
     camposPendentes: pendentes,
     proximaPergunta,
@@ -129,7 +140,7 @@ export function processarTurno({
       podePassar: podePassarCorretor,
       script,
       informacoesExtraidas,
-      contexto,
+      contexto: contextoComPergunta,
     }),
   };
 }

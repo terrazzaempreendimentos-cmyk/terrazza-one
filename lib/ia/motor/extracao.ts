@@ -72,12 +72,82 @@ const objetivos: Array<{ termos: string[]; valor: NonNullable<LeadContext["objet
   },
 ];
 
+function contem(texto: string, termos: string[]) {
+  return termos.some((termo) => texto.includes(termo));
+}
+
+function extrairPorUltimaPergunta(
+  texto: string,
+  campo: LeadContext["ultimaPerguntaCampo"],
+): ExtractedInfo {
+  const informacoes: ExtractedInfo = {};
+
+  if (campo === "pet") {
+    if (contem(texto, ["sim", "tenho", "tenho pet", "cachorro", "gato"])) {
+      informacoes.pet = true;
+    }
+
+    if (
+      contem(texto, ["nao", "nao tenho", "sem pet"]) ||
+      texto.trim() === "n"
+    ) {
+      informacoes.pet = false;
+    }
+  }
+
+  if (campo === "urgencia") {
+    if (contem(texto, ["urgente", "imediato", "agora", "este mes", "30 dias"])) {
+      informacoes.urgencia = "alta";
+    }
+
+    if (contem(texto, ["60 dias", "2 meses"])) {
+      informacoes.urgencia = "media";
+    }
+
+    if (contem(texto, ["sem pressa", "nao tenho pressa", "posso esperar"])) {
+      informacoes.urgencia = "baixa";
+    }
+  }
+
+  if (campo === "financiamento") {
+    if (contem(texto, ["sim", "financiado", "vou financiar"])) {
+      informacoes.financiamento = true;
+    }
+
+    if (contem(texto, ["nao", "a vista"])) {
+      informacoes.financiamento = false;
+    }
+  }
+
+  if (campo === "fgts") {
+    if (contem(texto, ["sim", "tenho", "vou usar"])) {
+      informacoes.fgts = true;
+    }
+
+    if (contem(texto, ["nao", "nao tenho"])) {
+      informacoes.fgts = false;
+    }
+  }
+
+  if (campo === "quartos") {
+    if (contem(texto, ["1", "um", "1 quarto"])) informacoes.quartos = 1;
+    if (contem(texto, ["2", "dois", "2 quartos"])) informacoes.quartos = 2;
+    if (contem(texto, ["3", "tres", "3 quartos"])) informacoes.quartos = 3;
+    if (contem(texto, ["4", "quatro", "4 quartos"])) informacoes.quartos = 4;
+  }
+
+  return informacoes;
+}
+
 export function extrairInformacoes(
   mensagem: string,
   contextoAtual: LeadContext,
 ): ExtractedInfo {
   const texto = normalizar(mensagem);
-  const informacoes: ExtractedInfo = {};
+  const informacoes: ExtractedInfo = extrairPorUltimaPergunta(
+    texto,
+    contextoAtual.ultimaPerguntaCampo,
+  );
 
   const cidade = Object.keys(cidades).find((item) => texto.includes(item));
   if (cidade) informacoes.cidade = cidades[cidade];
@@ -98,26 +168,36 @@ export function extrairInformacoes(
   if (valor) informacoes.valor = valor;
 
   if (
-    texto.includes("tenho pet") ||
-    texto.includes("cachorro") ||
-    texto.includes("gato")
+    !Object.prototype.hasOwnProperty.call(informacoes, "pet") &&
+    (texto.includes("tenho pet") ||
+      texto.includes("cachorro") ||
+      texto.includes("gato"))
   ) {
     informacoes.pet = true;
   }
 
-  if (texto.includes("nao tenho pet")) {
+  if (
+    !Object.prototype.hasOwnProperty.call(informacoes, "pet") &&
+    texto.includes("nao tenho pet")
+  ) {
     informacoes.pet = false;
   }
 
-  if (texto.includes("financiamento") || texto.includes("financiado")) {
+  if (
+    !Object.prototype.hasOwnProperty.call(informacoes, "financiamento") &&
+    (texto.includes("financiamento") || texto.includes("financiado"))
+  ) {
     informacoes.financiamento = true;
   }
 
-  if (texto.includes("a vista")) {
+  if (
+    !Object.prototype.hasOwnProperty.call(informacoes, "financiamento") &&
+    texto.includes("a vista")
+  ) {
     informacoes.financiamento = false;
   }
 
-  if (texto.includes("fgts")) {
+  if (!Object.prototype.hasOwnProperty.call(informacoes, "fgts") && texto.includes("fgts")) {
     informacoes.fgts = true;
   }
 
@@ -130,7 +210,7 @@ export function extrairInformacoes(
     "sem pressa",
   ];
   const urgencia = urgencias.find((item) => texto.includes(item));
-  if (urgencia) informacoes.urgencia = urgencia;
+  if (!informacoes.urgencia && urgencia) informacoes.urgencia = urgencia;
 
   const objetivo = objetivos.find((item) =>
     item.termos.some((termo) => texto.includes(termo)),

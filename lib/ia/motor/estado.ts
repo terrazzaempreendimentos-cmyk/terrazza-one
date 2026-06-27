@@ -9,8 +9,17 @@ const camposEssenciais: Array<keyof LeadContext> = [
   "objetivo",
 ];
 
+function camposEssenciaisPorContexto(contexto: LeadContext) {
+  if (contexto.tipoLead === "inquilino" || contexto.objetivo === "locacao") {
+    return [...camposEssenciais, "pet" as keyof LeadContext];
+  }
+
+  return camposEssenciais;
+}
+
 export function avaliarQualificacao(contexto: LeadContext, score: number) {
-  const pendentes = camposPendentes(contexto, camposEssenciais);
+  const campos = camposEssenciaisPorContexto(contexto);
+  const pendentes = camposPendentes(contexto, campos);
   const camposEssenciaisPreenchidos = pendentes.length === 0;
   const qualificado = score >= 75 && camposEssenciaisPreenchidos;
 
@@ -29,8 +38,9 @@ export function definirEstadoCognitivo(
   contexto: LeadContext,
   score: number,
 ): EstadoCognitivo {
-  const pendentes = camposPendentes(contexto, camposEssenciais);
-  const preenchidos = camposEssenciais.length - pendentes.length;
+  const campos = camposEssenciaisPorContexto(contexto);
+  const pendentes = camposPendentes(contexto, campos);
+  const preenchidos = campos.length - pendentes.length;
 
   if (!contexto.objetivo) return "identificando_intencao";
   if (preenchidos <= 2) return "qualificando_perfil";

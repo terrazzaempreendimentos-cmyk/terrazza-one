@@ -29,6 +29,11 @@ const perguntasBase: Record<string, NextQuestion> = {
     texto: "Qual faixa de valor voce tem em mente?",
     motivo: "Faixa de valor ainda nao preenchida.",
   },
+  quartos: {
+    campo: "quartos",
+    texto: "Quantos quartos voce precisa?",
+    motivo: "Quantidade de quartos ainda nao preenchida.",
+  },
   urgencia: {
     campo: "urgencia",
     texto: "Existe alguma urgencia ou prazo importante?",
@@ -64,6 +69,7 @@ function perguntasPorContexto(contexto: LeadContext) {
       perguntasBase.cidade,
       perguntasBase.bairro,
       perguntasBase.tipoImovel,
+      perguntasBase.quartos,
       perguntasBase.valor,
       perguntasBase.financiamento,
       perguntasBase.fgts,
@@ -77,6 +83,7 @@ function perguntasPorContexto(contexto: LeadContext) {
       perguntasBase.cidade,
       perguntasBase.bairro,
       perguntasBase.tipoImovel,
+      perguntasBase.quartos,
       perguntasBase.valor,
       perguntasBase.pet,
       perguntasBase.urgencia,

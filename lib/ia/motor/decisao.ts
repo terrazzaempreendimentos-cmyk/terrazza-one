@@ -2,7 +2,7 @@ import { camposPendentes } from "./memoria";
 import { descobrirProximaPergunta } from "./perguntas";
 import type { ConversationMemory, LeadContext, MotorScript } from "./tipos";
 
-const camposEssenciais: Array<keyof LeadContext> = [
+const camposEssenciaisBase: Array<keyof LeadContext> = [
   "tipoLead",
   "cidade",
   "bairro",
@@ -11,13 +11,24 @@ const camposEssenciais: Array<keyof LeadContext> = [
   "objetivo",
 ];
 
+function camposEssenciaisPorContexto(contexto: LeadContext) {
+  if (contexto.tipoLead === "inquilino" || contexto.objetivo === "locacao") {
+    return [...camposEssenciaisBase, "pet" as keyof LeadContext];
+  }
+
+  return camposEssenciaisBase;
+}
+
 export function decidir(
   contexto: LeadContext,
   memoria: ConversationMemory,
   script: MotorScript,
 ) {
   const pergunta = descobrirProximaPergunta(contexto);
-  const informacoesFaltantes = camposPendentes(contexto, camposEssenciais);
+  const informacoesFaltantes = camposPendentes(
+    contexto,
+    camposEssenciaisPorContexto(contexto),
+  );
   const camposEssenciaisPreenchidos = informacoesFaltantes.length === 0;
   const podePassarParaCorretor =
     camposEssenciaisPreenchidos || informacoesFaltantes.length <= 1;
