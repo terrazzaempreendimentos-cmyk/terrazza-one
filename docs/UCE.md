@@ -15,6 +15,7 @@ Criar um motor modular capaz de interpretar respostas curtas, preservar contexto
 - `lib/uce/inference`: regras de hipoteses comerciais.
 - `lib/uce/score`: score e temperatura.
 - `lib/uce/briefing`: briefing estruturado.
+- `lib/uce/knowledge`: base proprietaria de conhecimento consultavel.
 - `lib/uce/domain`: dominios suportados.
 - `lib/uce/specialists`: arquitetura de especialistas comerciais.
 - `lib/uce/personas` e `lib/uce/commercial`: fundacoes comerciais auxiliares.
@@ -85,6 +86,81 @@ proprietario, financiamento em locacao e valor de aluguel para comprador.
 No simulador, o especialista ativo aparece de forma explicita para validar o
 roteamento da conversa, como "Especialista Comprador", "Especialista Locacao",
 "Especialista Administracao", "Especialista Venda" ou "Especialista Captacao".
+
+## Knowledge Engine
+
+O Knowledge Engine e a fundacao de conhecimento proprietario da UCE. A OpenAI,
+quando for conectada em sprint futura, nao deve guardar nem decidir o
+conhecimento da Terrazza. O papel dela sera apenas transformar em linguagem
+natural as decisoes e os dados selecionados pelo motor.
+
+A UCE passa a ter uma camada propria para consultar informacoes institucionais,
+comerciais, territoriais, juridicas, financeiras, scripts, objecoes, garantias,
+documentacao, bairros, imoveis e FAQ. Nesta fundacao inicial, a base fica em
+`lib/uce/knowledge/repository.ts` como uma lista estatica exportavel, ainda sem
+banco e sem integracoes externas.
+
+O fluxo previsto e:
+
+Especialista ativo  
+Ã¢â€ â€œ  
+Consulta ao Knowledge Engine  
+Ã¢â€ â€œ  
+Resultados filtrados por dominio, categoria, tags e texto  
+Ã¢â€ â€œ  
+Ranking por categoria, tag, titulo, conteudo e prioridade  
+Ã¢â€ â€œ  
+Texto formatado para futura resposta assistida
+
+Cada especialista deve consultar apenas as bases relevantes ao seu objetivo. Um
+especialista de locacao, por exemplo, pode usar garantias, documentacao e FAQ de
+locacao; um especialista de venda pode priorizar avaliacao comercial, objecoes e
+scripts de proprietario.
+
+Futuramente, essa camada podera trocar o reposititorio estatico por Supabase,
+embeddings e RAG, mantendo o contrato central da UCE para Terrazza, Unita e
+outros produtos.
+
+## Knowledge Territorial
+
+A primeira base territorial do Knowledge Engine cobre Maceio e cidades
+estrategicas de Alagoas. Ela fica em `lib/uce/knowledge/territorial` e organiza
+informacoes comerciais sobre bairros e cidades para apoiar roteiros,
+qualificacao, briefing e handoff.
+
+Cada bairro ou cidade registra:
+
+- nome;
+- cidade;
+- estado;
+- perfil territorial;
+- tags;
+- uso comercial recomendado;
+- observacoes;
+- nivel de demanda;
+- perfil de publico;
+- usos adequados, como locacao, venda, administracao, temporada e investimento.
+
+A base inicial inclui bairros de Maceio como Ponta Verde, Pajucara, Jatiuca,
+Farol, Gruta de Lourdes, Mangabeiras, Cruz das Almas, Jacarecica, Guaxuma,
+Ipioca, Benedito Bentes, Serraria, Antares, Tabuleiro do Martins, Jacintinho,
+Barro Duro e demais bairros mapeados na Sprint UCE-12.2.
+
+Tambem inclui cidades de Alagoas relevantes para operacao imobiliaria e
+turistica: Maceio, Marechal Deodoro, Barra de Sao Miguel, Paripueira, Maragogi,
+Japaratinga, Sao Miguel dos Milagres, Porto de Pedras, Penedo e Arapiraca.
+
+Funcoes principais:
+
+- `buscarBairroMaceio(nome)`;
+- `buscarCidadeAlagoas(nome)`;
+- `obterPerfilTerritorial(nome)`;
+- `sugerirUsoComercialPorLocal(local)`.
+
+O modulo `lib/uce/domain/realEstate/locations.ts` passa a usar essa base para
+detectar bairros e cidades conhecidos. Assim, os especialistas podem consultar
+o perfil territorial sem depender de OpenAI, banco ou integracoes externas nesta
+fase.
 
 ## Compatibilidade
 
