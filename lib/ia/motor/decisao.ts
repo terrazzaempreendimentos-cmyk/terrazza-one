@@ -18,13 +18,17 @@ export function decidir(
 ) {
   const pergunta = descobrirProximaPergunta(contexto);
   const informacoesFaltantes = camposPendentes(contexto, camposEssenciais);
-  const podePassarParaCorretor = informacoesFaltantes.length <= 1;
+  const camposEssenciaisPreenchidos = informacoesFaltantes.length === 0;
+  const podePassarParaCorretor =
+    camposEssenciaisPreenchidos || informacoesFaltantes.length <= 1;
 
   return {
     pergunta,
-    objetivoAtual: pergunta
-      ? `Coletar informacao sobre ${pergunta.campo}.`
-      : "Preparar passagem de bastao para corretor.",
+    objetivoAtual: camposEssenciaisPreenchidos
+      ? "Preparar briefing e passagem de bastao para corretor."
+      : pergunta
+        ? `Coletar informacao sobre ${pergunta.campo}.`
+        : "Preparar passagem de bastao para corretor.",
     proximoPasso: podePassarParaCorretor
       ? script.proximaAcaoSugerida
       : pergunta?.texto ?? "Consolidar informacoes do lead.",

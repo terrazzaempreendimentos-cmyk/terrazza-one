@@ -9,7 +9,10 @@ function possuiObjetivo(contexto: LeadContext, termos: string[]) {
 export function gerarHipoteses(contexto: LeadContext): HipoteseComercial[] {
   const hipoteses: HipoteseComercial[] = [];
 
-  if (possuiObjetivo(contexto, ["alugar", "locar"]) || contexto.tipoLead === "inquilino") {
+  if (
+    possuiObjetivo(contexto, ["alugar", "locar", "locacao"]) ||
+    contexto.tipoLead === "inquilino"
+  ) {
     hipoteses.push({
       chave: "lead_locacao",
       titulo: "Lead de locacao",
@@ -18,7 +21,10 @@ export function gerarHipoteses(contexto: LeadContext): HipoteseComercial[] {
     });
   }
 
-  if (possuiObjetivo(contexto, ["comprar"]) || contexto.tipoLead === "comprador") {
+  if (
+    possuiObjetivo(contexto, ["comprar", "compra"]) ||
+    contexto.tipoLead === "comprador"
+  ) {
     hipoteses.push({
       chave: "lead_compra",
       titulo: "Lead de compra",
@@ -51,7 +57,15 @@ export function gerarHipoteses(contexto: LeadContext): HipoteseComercial[] {
 
   if (
     contexto.tipoLead === "proprietario" ||
-    possuiObjetivo(contexto, ["administrar", "anunciar", "locar"])
+    possuiObjetivo(contexto, [
+      "administrar",
+      "administracao",
+      "anunciar",
+      "captar",
+      "captacao",
+      "locar",
+      "locacao",
+    ])
   ) {
     hipoteses.push({
       chave: "potencial_administracao",

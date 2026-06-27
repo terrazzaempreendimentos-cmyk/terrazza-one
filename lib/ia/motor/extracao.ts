@@ -49,6 +49,29 @@ const tiposImovel = [
   "comercial",
 ];
 
+const objetivos: Array<{ termos: string[]; valor: NonNullable<LeadContext["objetivo"]> }> = [
+  {
+    termos: ["alugar", "aluguel", "locacao", "locar"],
+    valor: "locacao",
+  },
+  {
+    termos: ["administrar", "administracao"],
+    valor: "administracao",
+  },
+  {
+    termos: ["anunciar", "captar", "captacao"],
+    valor: "captacao",
+  },
+  {
+    termos: ["vender", "venda"],
+    valor: "venda",
+  },
+  {
+    termos: ["comprar", "compra"],
+    valor: "compra",
+  },
+];
+
 export function extrairInformacoes(
   mensagem: string,
   contextoAtual: LeadContext,
@@ -109,16 +132,10 @@ export function extrairInformacoes(
   const urgencia = urgencias.find((item) => texto.includes(item));
   if (urgencia) informacoes.urgencia = urgencia;
 
-  const objetivos = [
-    "comprar",
-    "alugar",
-    "vender",
-    "administrar",
-    "anunciar",
-    "locar",
-  ];
-  const objetivo = objetivos.find((item) => texto.includes(item));
-  if (objetivo) informacoes.objetivo = objetivo;
+  const objetivo = objetivos.find((item) =>
+    item.termos.some((termo) => texto.includes(termo)),
+  );
+  if (objetivo) informacoes.objetivo = objetivo.valor;
 
   if (
     texto.includes("30 dias") ||

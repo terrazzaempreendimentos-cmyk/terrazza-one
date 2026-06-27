@@ -33,20 +33,35 @@ function respostaNatural({
   podePassar,
   script,
   informacoesExtraidas,
+  contexto,
 }: {
   proximaPergunta: ReturnType<typeof descobrirProximaPergunta>;
   podePassar: boolean;
   script: ReturnType<typeof obterScriptQualificacao>;
   informacoesExtraidas: ExtractedInfo;
+  contexto: LeadContext;
 }) {
   const confirmacao = resumoDoQueEntendeu(informacoesExtraidas);
+  const aberturas = [
+    "Perfeito, entendi.",
+    "Otimo, isso ja ajuda bastante.",
+    "Excelente, com essas informacoes ja consigo avancar.",
+    "Agora so preciso confirmar mais um ponto.",
+  ];
+  const indice =
+    (contexto.cidade ? 1 : 0) +
+    (contexto.bairro ? 1 : 0) +
+    (contexto.tipoImovel ? 1 : 0) +
+    (contexto.valor ? 1 : 0) +
+    (contexto.objetivo ? 1 : 0);
+  const abertura = aberturas[indice % aberturas.length];
 
   if (podePassar) {
-    return `${confirmacao} Ja tenho as informacoes principais para preparar seu atendimento com um especialista da Terrazza. Vou organizar o briefing e indicar o proximo passo: ${script.proximaAcaoSugerida}`;
+    return `${confirmacao} ${abertura} Ja tenho as informacoes principais para preparar seu atendimento com um especialista da Terrazza. Vou organizar o briefing e indicar o proximo passo: ${script.proximaAcaoSugerida}`;
   }
 
   if (proximaPergunta) {
-    return `${confirmacao} Para eu filtrar melhor e te orientar com mais precisao, ${proximaPergunta.texto.toLowerCase()}`;
+    return `${confirmacao} ${abertura} ${proximaPergunta.texto}`;
   }
 
   return `${confirmacao} Vou consolidar essas informacoes e preparar o melhor encaminhamento comercial.`;
@@ -114,6 +129,7 @@ export function processarTurno({
       podePassar: podePassarCorretor,
       script,
       informacoesExtraidas,
+      contexto,
     }),
   };
 }

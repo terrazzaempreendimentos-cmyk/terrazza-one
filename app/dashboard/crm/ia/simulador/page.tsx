@@ -1,6 +1,13 @@
 "use client";
 
-import { FormEvent, KeyboardEvent, useMemo, useState } from "react";
+import {
+  FormEvent,
+  KeyboardEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import Link from "next/link";
 import {
   Bot,
@@ -180,6 +187,8 @@ export default function SimuladorIaPage() {
   );
   const [briefingVisivel, setBriefingVisivel] = useState(false);
   const [passagemVisivel, setPassagemVisivel] = useState(false);
+  const fimChatRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const scriptAtivo = useMemo(
     () => obterScriptQualificacao(tipoLead),
@@ -233,6 +242,13 @@ export default function SimuladorIaPage() {
       }),
     [contexto, scoreMotor.score, scoreMotor.temperatura, scriptAtivo],
   );
+
+  useEffect(() => {
+    if (!simulacaoIniciada) return;
+
+    fimChatRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    textareaRef.current?.focus();
+  }, [mensagens, simulacaoIniciada]);
 
   function iniciarSimulacao(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -295,6 +311,7 @@ export default function SimuladorIaPage() {
     ]);
     setContexto(resultado.contexto);
     setMensagem("");
+    window.requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
   function enviarFormulario(event: FormEvent<HTMLFormElement>) {
@@ -580,7 +597,34 @@ export default function SimuladorIaPage() {
                         </p>
                       </div>
                     ))}
+                    <div ref={fimChatRef} />
                   </div>
+
+                  <form
+                    onSubmit={enviarFormulario}
+                    className="sticky bottom-0 z-10 rounded-[1.75rem] border border-[#E8DDCB] bg-white/95 p-3 shadow-lg shadow-[#071E36]/10 backdrop-blur"
+                  >
+                    <div className="flex flex-col gap-3 rounded-[1.5rem] border border-[#E8DDCB] bg-[#F7F3ED] p-3 sm:flex-row sm:items-end">
+                      <textarea
+                        ref={textareaRef}
+                        value={mensagem}
+                        onChange={(event) => setMensagem(event.target.value)}
+                        onKeyDown={enviarComEnter}
+                        disabled={!simulacaoIniciada}
+                        rows={2}
+                        placeholder="Responda como cliente. Enter envia, Shift+Enter quebra linha..."
+                        className="min-h-16 flex-1 resize-none rounded-2xl border border-transparent bg-white px-4 py-3 text-sm text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C] disabled:cursor-not-allowed disabled:bg-white/60"
+                      />
+                      <button
+                        type="submit"
+                        disabled={!simulacaoIniciada || !mensagem.trim()}
+                        className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A] disabled:cursor-not-allowed disabled:bg-[#071E36]/40"
+                      >
+                        Enviar
+                        <Send size={16} />
+                      </button>
+                    </div>
+                  </form>
 
                   <section className="rounded-[1.75rem] border border-[#071E36]/10 bg-white p-5 shadow-sm">
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -893,34 +937,6 @@ export default function SimuladorIaPage() {
               )}
             </div>
 
-            <form
-              onSubmit={enviarFormulario}
-              className="border-t border-[#E8DDCB] bg-white p-4"
-            >
-              <div className="flex flex-col gap-3 rounded-[1.5rem] border border-[#E8DDCB] bg-[#F7F3ED] p-3 sm:flex-row sm:items-end">
-                <textarea
-                  value={mensagem}
-                  onChange={(event) => setMensagem(event.target.value)}
-                  onKeyDown={enviarComEnter}
-                  disabled={!simulacaoIniciada}
-                  rows={2}
-                  placeholder={
-                    simulacaoIniciada
-                      ? "Responda como cliente. Enter envia, Shift+Enter quebra linha..."
-                      : "Inicie a simulacao para conversar..."
-                  }
-                  className="min-h-16 flex-1 resize-none rounded-2xl border border-transparent bg-white px-4 py-3 text-sm text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C] disabled:cursor-not-allowed disabled:bg-white/60"
-                />
-                <button
-                  type="submit"
-                  disabled={!simulacaoIniciada || !mensagem.trim()}
-                  className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A] disabled:cursor-not-allowed disabled:bg-[#071E36]/40"
-                >
-                  Enviar
-                  <Send size={16} />
-                </button>
-              </div>
-            </form>
           </div>
         </section>
       </div>
