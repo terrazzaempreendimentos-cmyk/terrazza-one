@@ -934,6 +934,14 @@ export default function SimuladorIaPage() {
                           {contexto.valor || "Nao informado"}
                         </p>
                       </div>
+                      <div className="rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3">
+                        <p className="font-semibold text-[#E1B866]">
+                          Prazo de mudanca
+                        </p>
+                        <p className="mt-1 text-white/75">
+                          {contexto.prazoMudanca || "Nao informado"}
+                        </p>
+                      </div>
                     </div>
                   </section>
                 </div>

@@ -76,6 +76,36 @@ function contem(texto: string, termos: string[]) {
   return termos.some((termo) => texto.includes(termo));
 }
 
+function extrairPrazoMudanca(texto: string) {
+  const prazos = [
+    "antes de julho",
+    "antes do fim do mes",
+    "ate julho",
+    "em julho",
+    "julho",
+    "ainda este mes",
+    "este mes",
+    "15 dias",
+    "20 dias",
+    "30 dias",
+    "45 dias",
+    "60 dias",
+    "dois meses",
+    "2 meses",
+    "proximo mes",
+    "mes que vem",
+    "quanto antes",
+    "preciso mudar logo",
+    "sem pressa",
+    "nao tenho pressa",
+    "posso esperar",
+    "estou pesquisando",
+    "so pesquisando",
+  ];
+
+  return prazos.find((prazo) => texto.includes(prazo)) ?? null;
+}
+
 function extrairPorUltimaPergunta(
   texto: string,
   campo: LeadContext["ultimaPerguntaCampo"],
@@ -96,17 +126,53 @@ function extrairPorUltimaPergunta(
   }
 
   if (campo === "urgencia") {
-    if (contem(texto, ["urgente", "imediato", "agora", "este mes", "30 dias"])) {
+    const urgenciaAlta = contem(texto, [
+      "urgente",
+      "imediato",
+      "agora",
+      "este mes",
+      "ainda este mes",
+      "antes de julho",
+      "antes do fim do mes",
+      "ate julho",
+      "em julho",
+      "julho",
+      "15 dias",
+      "20 dias",
+      "30 dias",
+      "preciso mudar logo",
+      "quanto antes",
+    ]);
+    const urgenciaMedia = contem(texto, [
+      "45 dias",
+      "60 dias",
+      "dois meses",
+      "2 meses",
+      "proximo mes",
+      "mes que vem",
+    ]);
+    const urgenciaBaixa = contem(texto, [
+      "sem pressa",
+      "nao tenho pressa",
+      "posso esperar",
+      "estou pesquisando",
+      "so pesquisando",
+    ]);
+
+    if (urgenciaAlta) {
       informacoes.urgencia = "alta";
     }
 
-    if (contem(texto, ["60 dias", "2 meses"])) {
+    if (urgenciaMedia) {
       informacoes.urgencia = "media";
     }
 
-    if (contem(texto, ["sem pressa", "nao tenho pressa", "posso esperar"])) {
+    if (urgenciaBaixa) {
       informacoes.urgencia = "baixa";
     }
+
+    const prazoMudanca = extrairPrazoMudanca(texto);
+    if (prazoMudanca) informacoes.prazoMudanca = prazoMudanca;
   }
 
   if (campo === "financiamento") {
@@ -205,12 +271,54 @@ export function extrairInformacoes(
     "imediato",
     "urgente",
     "este mes",
+    "ainda este mes",
+    "antes de julho",
+    "antes do fim do mes",
+    "ate julho",
+    "em julho",
+    "julho",
+    "15 dias",
+    "20 dias",
     "30 dias",
+    "45 dias",
     "60 dias",
+    "dois meses",
+    "2 meses",
+    "proximo mes",
+    "mes que vem",
     "sem pressa",
+    "nao tenho pressa",
+    "posso esperar",
+    "estou pesquisando",
+    "so pesquisando",
   ];
   const urgencia = urgencias.find((item) => texto.includes(item));
-  if (!informacoes.urgencia && urgencia) informacoes.urgencia = urgencia;
+  if (!informacoes.urgencia && urgencia) {
+    if (
+      contem(texto, [
+        "45 dias",
+        "60 dias",
+        "dois meses",
+        "2 meses",
+        "proximo mes",
+        "mes que vem",
+      ])
+    ) {
+      informacoes.urgencia = "media";
+    } else if (
+      contem(texto, [
+        "sem pressa",
+        "nao tenho pressa",
+        "posso esperar",
+        "estou pesquisando",
+        "so pesquisando",
+      ])
+    ) {
+      informacoes.urgencia = "baixa";
+    } else {
+      informacoes.urgencia = "alta";
+    }
+  }
 
   const objetivo = objetivos.find((item) =>
     item.termos.some((termo) => texto.includes(termo)),
@@ -224,6 +332,9 @@ export function extrairInformacoes(
   ) {
     informacoes.prazoMudanca = informacoes.urgencia ?? "prazo informado";
   }
+
+  const prazoMudanca = extrairPrazoMudanca(texto);
+  if (prazoMudanca) informacoes.prazoMudanca = prazoMudanca;
 
   if (
     texto.includes("documentacao") ||
