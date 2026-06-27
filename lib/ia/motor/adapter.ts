@@ -301,6 +301,7 @@ export function processarTurno({
     brokerMentorBriefing: uceResult.brokerMentorBriefing,
     handoff: uceResult.handoff,
     closingMessage: uceResult.closingMessage,
+    conversationStatus: uceResult.conversationStatus,
     temporalDebug: uceResult.temporalDebug,
     qualificado: handoffQualificado || qualificado,
     motivoQualificacao: handoffQualificado

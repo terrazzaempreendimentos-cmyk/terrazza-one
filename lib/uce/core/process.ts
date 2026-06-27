@@ -12,8 +12,9 @@ import {
   selectCommercialStrategy,
 } from "../commercial";
 import {
-  generateClosingMessage,
+  generateDeterministicFinalMessage,
   getNextSmartQuestion,
+  isQualifiedForHandoff,
   shouldHandoff,
 } from "../flow";
 import { generateHypotheses } from "../inference";
@@ -185,8 +186,12 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     });
     const schedulingIntent = normalize(input.message).includes("agendar");
     const closingMessage = schedulingIntent
-      ? "Perfeito. Esse atendimento ja esta pronto para ser encaminhado. O proximo passo sera o especialista confirmar disponibilidade e combinar o agendamento."
-      : generateClosingMessage(context, briefing, commercialAwareness);
+      ? "Esse atendimento ja esta pronto para encaminhamento. O proximo passo e o especialista confirmar disponibilidade e seguir com o atendimento."
+      : generateDeterministicFinalMessage(
+          context,
+          context.leadType,
+          context.fields.objetivo as string | null,
+        );
 
     return {
       context,
@@ -209,6 +214,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
         optionalMissingFields: missing,
       },
       closingMessage,
+      conversationStatus: "encerrado",
       temporalDebug,
       commercialStrategy,
       commercialAwareness,
@@ -343,15 +349,28 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       { role: "user", content: input.message, createdAt: new Date().toISOString() },
     ],
   };
-  let nextQuestion = getNextSmartQuestion(contextBeforeQuestion);
+  const preliminaryMissing = pendingFields(contextBeforeQuestion);
+  const hypotheses = generateHypotheses(contextBeforeQuestion);
+  const { score, temperature } = calculateUCEScore(
+    contextBeforeQuestion,
+    hypotheses,
+  );
+  const qualified = isQualifiedForHandoff(
+    contextBeforeQuestion,
+    score,
+    contextBeforeQuestion.leadType,
+  );
+  let nextQuestion = qualified ? null : getNextSmartQuestion(contextBeforeQuestion);
   let context: UCEContext = {
     ...contextBeforeQuestion,
     activeQuestion: nextQuestion,
     lastQuestionField: nextQuestion?.field ?? null,
+    metadata: {
+      ...contextBeforeQuestion.metadata,
+      handoffReady: qualified || contextBeforeQuestion.metadata.handoffReady === true,
+    },
   };
   const missing = pendingFields(context);
-  const hypotheses = generateHypotheses(context);
-  const { score, temperature } = calculateUCEScore(context, hypotheses);
   const commercialStrategy = selectCommercialStrategy(context, hypotheses);
   const commercialAwareness = evaluateCommercialAwareness(
     context,
@@ -372,12 +391,18 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     score,
     temperature,
   });
-  const handoff = shouldHandoff(context, score, missing, hypotheses);
-  const closingMessage = handoff.canHandoff
-    ? generateClosingMessage(context, briefing, commercialAwareness)
+  const handoff = qualified
+    ? shouldHandoff(context, score, preliminaryMissing, hypotheses)
+    : shouldHandoff(context, score, missing, hypotheses);
+  const closingMessage = qualified
+    ? generateDeterministicFinalMessage(
+        context,
+        context.leadType,
+        context.fields.objetivo as string | null,
+      )
     : null;
 
-  if (handoff.canHandoff) {
+  if (qualified) {
     nextQuestion = null;
     context = {
       ...context,
@@ -390,8 +415,13 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     };
   }
 
+  const conversationStatus = qualified
+    ? "handoff_pronto"
+    : handoff.canHandoff
+      ? "qualificado"
+      : "coletando";
   const status =
-    handoff.canHandoff
+    qualified
       ? "ready_for_handoff"
       : missing.length <= 1 || score >= 65
         ? "ready_for_briefing"
@@ -415,6 +445,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     briefing,
     handoff,
     closingMessage,
+    conversationStatus,
     temporalDebug,
     commercialStrategy,
     commercialAwareness,

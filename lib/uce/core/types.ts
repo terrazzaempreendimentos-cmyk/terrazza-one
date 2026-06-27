@@ -50,6 +50,12 @@ export type UCEDecision = {
   reason: string;
 };
 
+export type UCEConversationStatus =
+  | "coletando"
+  | "qualificado"
+  | "handoff_pronto"
+  | "encerrado";
+
 export type UCEBriefing = {
   summary: string;
   fields: Record<string, unknown>;
@@ -180,6 +186,7 @@ export type UCEProcessResult = {
   briefing: UCEBriefing;
   handoff: UCEHandoffDecision;
   closingMessage: string | null;
+  conversationStatus: UCEConversationStatus;
   temporalDebug: UCETemporalDebug;
   commercialStrategy: UCECommercialStrategy;
   commercialAwareness: UCECommercialAwareness;

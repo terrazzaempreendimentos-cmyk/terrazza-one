@@ -57,6 +57,7 @@ import {
   type UCEBrokerMentorBriefing,
   type UCECommercialAwareness,
   type UCECommercialStrategy,
+  type UCEConversationStatus,
   type UCEHandoffDecision,
   type UCETemporalDebug,
 } from "../../../../../lib/uce";
@@ -212,6 +213,8 @@ export default function SimuladorIaPage() {
   );
   const [handoff, setHandoff] = useState<UCEHandoffDecision | null>(null);
   const [closingMessage, setClosingMessage] = useState<string | null>(null);
+  const [conversationStatus, setConversationStatus] =
+    useState<UCEConversationStatus>("coletando");
   const fimChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -245,8 +248,13 @@ export default function SimuladorIaPage() {
     [contexto],
   );
   const proximaPergunta = useMemo(
-    () => descobrirProximaPergunta(contexto),
-    [contexto],
+    () =>
+      conversationStatus === "handoff_pronto" ||
+      conversationStatus === "encerrado" ||
+      handoff?.canHandoff
+        ? null
+        : descobrirProximaPergunta(contexto),
+    [contexto, conversationStatus, handoff?.canHandoff],
   );
   const estadoCognitivo = useMemo(
     () =>
@@ -380,6 +388,7 @@ export default function SimuladorIaPage() {
     setTemporalDebug(null);
     setHandoff(null);
     setClosingMessage(null);
+    setConversationStatus("coletando");
   }
 
   function reiniciarSimulacao() {
@@ -395,6 +404,7 @@ export default function SimuladorIaPage() {
     setTemporalDebug(null);
     setHandoff(null);
     setClosingMessage(null);
+    setConversationStatus("coletando");
     setContexto(
       contextoConfigurado({
         tipoLead,
@@ -438,6 +448,7 @@ export default function SimuladorIaPage() {
     setTemporalDebug(resultado.temporalDebug);
     setHandoff(resultado.handoff);
     setClosingMessage(resultado.closingMessage);
+    setConversationStatus(resultado.conversationStatus);
     setMensagem("");
     window.requestAnimationFrame(() => textareaRef.current?.focus());
   }
@@ -788,6 +799,15 @@ export default function SimuladorIaPage() {
                           ? "Pode passar"
                           : "Ainda qualificando"}
                       </span>
+                    </div>
+
+                    <div className="mt-5 rounded-2xl border border-[#E8DDCB] bg-[#F7F3ED] px-4 py-3 text-sm">
+                      <p className="font-semibold text-[#071E36]">
+                        Conversation status
+                      </p>
+                      <p className="mt-1 text-[#64736D]">
+                        {conversationStatus}
+                      </p>
                     </div>
 
                     <div className="mt-5">

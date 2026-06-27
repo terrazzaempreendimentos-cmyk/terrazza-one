@@ -28,9 +28,11 @@ export function calculateUCEScore(
   let score = 0;
 
   if (normalize(context.fields.cidade) === "maceio") score += 10;
+  if (hasValue(context.fields.bairro)) score += 10;
   if (hasValue(context.fields.valor)) score += 10;
   if (hasValue(context.fields.objetivo)) score += 15;
   if (hasValue(context.fields.tipoImovel)) score += 10;
+  if (hasValue(context.fields.pet)) score += 5;
   if (hasValue(context.fields.financiamento)) score += 10;
   if (hasValue(context.fields.prazoMudanca)) score += 10;
   if (hasValue(context.fields.documentacao)) score += 15;
