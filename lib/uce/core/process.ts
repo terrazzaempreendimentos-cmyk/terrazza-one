@@ -150,6 +150,72 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     recognizedExpression: null,
   };
 
+  if (input.context.metadata.handoffReady === true) {
+    const context: UCEContext = {
+      ...input.context,
+      activeQuestion: null,
+      lastQuestionField: null,
+      memory: [
+        ...input.context.memory,
+        { role: "user", content: input.message, createdAt: new Date().toISOString() },
+      ],
+    };
+    const missing = pendingFields(context);
+    const hypotheses = generateHypotheses(context);
+    const { score, temperature } = calculateUCEScore(context, hypotheses);
+    const commercialStrategy = selectCommercialStrategy(context, hypotheses);
+    const commercialAwareness = evaluateCommercialAwareness(
+      context,
+      score,
+      hypotheses,
+      commercialStrategy,
+    );
+    const brokerMentorBriefing = generateBrokerMentorBriefing(
+      context,
+      hypotheses,
+      commercialStrategy,
+      commercialAwareness,
+    );
+    const briefing = generateUCEBriefing({
+      context,
+      hypotheses,
+      pendingFields: missing,
+      score,
+      temperature,
+    });
+    const schedulingIntent = normalize(input.message).includes("agendar");
+    const closingMessage = schedulingIntent
+      ? "Perfeito. Esse atendimento ja esta pronto para ser encaminhado. O proximo passo sera o especialista confirmar disponibilidade e combinar o agendamento."
+      : generateClosingMessage(context, briefing, commercialAwareness);
+
+    return {
+      context,
+      interpretedFields,
+      correction,
+      decision: {
+        nextQuestion: null,
+        status: "ready_for_handoff",
+        reason: "Atendimento ja qualificado; novas mensagens nao reabrem o fluxo.",
+      },
+      score,
+      temperature,
+      hypotheses,
+      briefing,
+      handoff: {
+        canHandoff: true,
+        reason: "Atendimento ja estava pronto para passagem humana.",
+        handoffType: "corretor",
+        missingCriticalFields: [],
+        optionalMissingFields: missing,
+      },
+      closingMessage,
+      temporalDebug,
+      commercialStrategy,
+      commercialAwareness,
+      brokerMentorBriefing,
+    };
+  }
+
   if (correction.targetField) {
     fields[correction.targetField] = correction.newValue;
     interpretedFields.push(

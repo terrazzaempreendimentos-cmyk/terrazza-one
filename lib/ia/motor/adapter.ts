@@ -67,6 +67,7 @@ function leadContextToUCE({
       : null,
     metadata: {
       legacyContext: contexto,
+      handoffReady: contexto.handoffReady,
     },
   };
 }
@@ -116,6 +117,8 @@ function uceToLeadContext({
         : contextoAtual.documentacao,
     documentacaoObservacao:
       (uceContext.fields.documentacaoObservacao as string | null) ?? null,
+    handoffReady:
+      uceContext.metadata.handoffReady === true || contextoAtual.handoffReady,
     ultimaPerguntaCampo: (uceContext.lastQuestionField as CampoPergunta | null) ?? null,
   };
 }
@@ -202,7 +205,11 @@ function respostaNatural({
   const index = Object.keys(informacoesExtraidas).length % transicoes.length;
 
   if (podePassarCorretor) {
-    if (closingMessage) return `${confirmacao} ${closingMessage}`;
+    if (closingMessage) {
+      return Object.keys(informacoesExtraidas).length > 0
+        ? `${confirmacao} ${closingMessage}`
+        : closingMessage;
+    }
 
     return `${confirmacao} ${transicoes[index]} Ja tenho base para preparar o atendimento com um especialista da Terrazza. Proximo passo sugerido: ${sugestao}`;
   }

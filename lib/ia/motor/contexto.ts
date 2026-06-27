@@ -19,6 +19,7 @@ export function criarContextoInicial(): LeadContext {
     prazoMudanca: null,
     documentacao: null,
     documentacaoObservacao: null,
+    handoffReady: false,
     ultimaPerguntaCampo: null,
   };
 }

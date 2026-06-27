@@ -108,17 +108,22 @@ export function generateClosingMessage(
   awareness: UCECommercialAwareness,
 ) {
   const objective = text(context.fields.objetivo);
+  const leadType = text(context.leadType);
 
-  if (context.leadType === "proprietario" || objective.includes("administracao")) {
-    return "Excelente. Ja consigo preparar uma previa para avaliacao comercial do seu imovel. O proximo passo e um especialista da Terrazza confirmar os dados e orientar a captacao com seguranca.";
+  if (leadType === "inquilino" || objective.includes("locacao")) {
+    return "Perfeito, ja tenho as principais informacoes para seu atendimento: localizacao, tipo de imovel, faixa de valor, quartos, pet e prazo. Vou encaminhar seu perfil para um especialista da Terrazza, que podera verificar opcoes compativeis e combinar os proximos passos.";
   }
 
-  if (objective.includes("locacao") || context.leadType === "inquilino") {
-    return "Perfeito, ja tenho as principais informacoes para preparar seu atendimento. Vou organizar seu perfil e encaminhar para um especialista da Terrazza, que podera apresentar opcoes compativeis e combinar os proximos passos.";
+  if (leadType === "proprietario" || objective.includes("administracao")) {
+    return "Excelente, ja tenho uma boa base para iniciar a avaliacao do seu imovel. O proximo passo e um especialista da Terrazza confirmar os dados, entender o estado do imovel e orientar a melhor estrategia de locacao e administracao.";
   }
 
-  if (objective.includes("compra") || objective.includes("venda")) {
-    return "Otimo, ja tenho uma base consistente para encaminhar seu atendimento. Vou preparar o resumo comercial e direcionar para um especialista da Terrazza confirmar os criterios e orientar os proximos passos.";
+  if (leadType === "comprador" || objective.includes("compra")) {
+    return "Perfeito, ja tenho uma boa visao do seu perfil de compra. Vou organizar essas informacoes para que um especialista possa avaliar opcoes compativeis e orientar os proximos passos com seguranca.";
+  }
+
+  if (leadType === "vendedor" || objective.includes("venda")) {
+    return "Excelente, ja tenho as informacoes iniciais para direcionar sua intencao de venda. O proximo passo e um especialista avaliar o imovel, o posicionamento de preco e a melhor estrategia comercial.";
   }
 
   if (awareness.shouldEscalateToHuman) {

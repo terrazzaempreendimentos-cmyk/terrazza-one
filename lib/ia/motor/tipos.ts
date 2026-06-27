@@ -51,6 +51,7 @@ export type LeadContext = {
   prazoMudanca: string | null;
   documentacao: boolean | null;
   documentacaoObservacao: string | null;
+  handoffReady: boolean;
   ultimaPerguntaCampo: CampoPergunta | null;
 };
 
