@@ -6,6 +6,7 @@ import type {
   UCEHandoffType,
   UCEHypothesis,
 } from "../core/types";
+import { selectUCESpecialist } from "../specialists";
 
 function hasValue(value: unknown) {
   if (value === null || value === undefined) return false;
@@ -114,6 +115,14 @@ export function shouldHandoff(
 ): UCEHandoffDecision {
   void hypotheses;
 
+  if (context.domain === "real_estate") {
+    return selectUCESpecialist(context).buildHandoff({
+      context,
+      missingFields,
+      score,
+    });
+  }
+
   const missingCriticalFields = isOwnerOrAdministration(context)
     ? ownerMissingCriticalFields(context)
     : tenantMissingCriticalFields(context);
@@ -147,6 +156,14 @@ export function isQualifiedForHandoff(
     ...context,
     leadType: tipoLead ?? context.leadType,
   };
+
+  if (contextWithType.domain === "real_estate") {
+    return selectUCESpecialist(contextWithType).buildHandoff({
+      context: contextWithType,
+      missingFields: [],
+      score,
+    }).canHandoff;
+  }
   const missingCriticalFields = isOwnerOrAdministration(contextWithType)
     ? ownerMissingCriticalFields(contextWithType)
     : tenantMissingCriticalFields(contextWithType);
@@ -160,6 +177,10 @@ export function generateDeterministicFinalMessage(
   tipoLead?: string | null,
   objetivo?: string | null,
 ) {
+  if (context.domain === "real_estate") {
+    return selectUCESpecialist(context).closingMessage;
+  }
+
   const leadType = text(tipoLead ?? context.leadType);
   const objective = text(objetivo ?? context.fields.objetivo);
 

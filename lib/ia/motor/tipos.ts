@@ -9,6 +9,7 @@ import type {
   UCECommercialStrategy,
   UCEConversationStatus,
   UCEHandoffDecision,
+  UCESpecialistSnapshot,
   UCETemporalDebug,
 } from "../../uce";
 
@@ -32,7 +33,27 @@ export type CampoPergunta =
   | "quartos"
   | "financiamento"
   | "fgts"
-  | "documentacao";
+  | "documentacao"
+  | "entradaDisponivel"
+  | "garagem"
+  | "condominioAceita"
+  | "prazoCompra"
+  | "valorEsperado"
+  | "motivoVenda"
+  | "imovelFinanciado"
+  | "imovelOcupado"
+  | "jaAnunciou"
+  | "exclusividade"
+  | "moradores"
+  | "alugado"
+  | "valorAluguelAtual"
+  | "condominioValor"
+  | "iptu"
+  | "administracaoAtual"
+  | "motivoTroca"
+  | "administracaoCompleta"
+  | "chavesDisponiveis"
+  | "destinoCaptacao";
 
 export type LeadContext = {
   tipoLead: TipoLeadSimulador | null;
@@ -52,6 +73,27 @@ export type LeadContext = {
   prazoMudanca: string | null;
   documentacao: boolean | null;
   documentacaoObservacao: string | null;
+  entradaDisponivel: number | null;
+  garagem: boolean | null;
+  condominioAceita: boolean | null;
+  prazoCompra: string | null;
+  valorEsperado: number | null;
+  motivoVenda: string | null;
+  imovelFinanciado: boolean | null;
+  imovelOcupado: boolean | null;
+  jaAnunciou: boolean | null;
+  exclusividade: boolean | null;
+  moradores: number | null;
+  alugado: boolean | null;
+  valorAluguelAtual: number | null;
+  condominioValor: number | null;
+  iptu: number | null;
+  administracaoAtual: boolean | null;
+  motivoTroca: string | null;
+  administracaoCompleta: boolean | null;
+  chavesDisponiveis: boolean | null;
+  destinoCaptacao: string | null;
+  especialistaAtivo: string | null;
   handoffReady: boolean;
   ultimaPerguntaCampo: CampoPergunta | null;
 };
@@ -146,6 +188,7 @@ export type MotorTurnResult = {
   closingMessage: string | null;
   conversationStatus: UCEConversationStatus;
   temporalDebug: UCETemporalDebug;
+  specialist: UCESpecialistSnapshot;
   qualificado: boolean;
   motivoQualificacao: string;
   podePassarCorretor: boolean;

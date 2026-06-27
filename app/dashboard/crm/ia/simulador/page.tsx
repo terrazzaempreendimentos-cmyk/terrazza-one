@@ -25,7 +25,6 @@ import {
 } from "lucide-react";
 
 import {
-  gerarMensagemInicial,
   type TipoLeadSimulador,
 } from "../../../../../lib/ia/fluxos";
 import { obterScriptQualificacao } from "../../../../../lib/ia/scriptsQualificacao";
@@ -54,11 +53,13 @@ import { selecionarPersona } from "../../../../../lib/ia/personas";
 import type { RespostaComercial } from "../../../../../lib/ia/comercial";
 import {
   uceAcademyScenarios,
+  uceSpecialists,
   type UCEBrokerMentorBriefing,
   type UCECommercialAwareness,
   type UCECommercialStrategy,
   type UCEConversationStatus,
   type UCEHandoffDecision,
+  type UCESpecialistSnapshot,
   type UCETemporalDebug,
 } from "../../../../../lib/uce";
 
@@ -153,6 +154,49 @@ function contextoConfigurado({
   });
 }
 
+function especialistaInicial(tipoLead: TipoLeadSimulador): UCESpecialistSnapshot {
+  const specialist =
+    tipoLead === "comprador"
+      ? uceSpecialists.comprador
+      : tipoLead === "vendedor"
+        ? uceSpecialists.vendedor
+        : tipoLead === "inquilino"
+          ? uceSpecialists.locacao
+          : tipoLead === "proprietario"
+            ? uceSpecialists.administracao
+            : uceSpecialists.captacao;
+
+  return {
+    id: specialist.id,
+    label: specialist.persona.label,
+    objective: specialist.persona.objective,
+  };
+}
+
+function perguntaInicialEspecialista(
+  tipoLead: TipoLeadSimulador,
+  contexto: LeadContext,
+) {
+  const specialist =
+    tipoLead === "comprador"
+      ? uceSpecialists.comprador
+      : tipoLead === "vendedor"
+        ? uceSpecialists.vendedor
+        : tipoLead === "inquilino"
+          ? uceSpecialists.locacao
+          : tipoLead === "proprietario"
+            ? uceSpecialists.administracao
+            : uceSpecialists.captacao;
+
+  return (
+    specialist.questions.find((question) => {
+      const value = contexto[question.field as keyof LeadContext];
+
+      return value === null || value === undefined || value === "";
+    }) ?? null
+  );
+}
+
 function BarraConfianca({ item }: { item: CampoConfianca }) {
   const cor =
     item.confianca >= 85
@@ -215,6 +259,9 @@ export default function SimuladorIaPage() {
   const [closingMessage, setClosingMessage] = useState<string | null>(null);
   const [conversationStatus, setConversationStatus] =
     useState<UCEConversationStatus>("coletando");
+  const [specialist, setSpecialist] = useState<UCESpecialistSnapshot | null>(
+    null,
+  );
   const fimChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -364,13 +411,17 @@ export default function SimuladorIaPage() {
       cidade,
       canal,
     });
-    const perguntaInicial = descobrirProximaPergunta(contextoInicial);
+    const especialista = especialistaInicial(tipoLead);
+    const perguntaInicial = perguntaInicialEspecialista(tipoLead, contextoInicial);
     const contextoComPerguntaInicial = atualizarContexto(contextoInicial, {
-      ultimaPerguntaCampo: perguntaInicial?.campo ?? null,
+      ultimaPerguntaCampo:
+        (perguntaInicial?.field as LeadContext["ultimaPerguntaCampo"]) ?? null,
+      especialistaAtivo: especialista.id,
     });
     const textoInicial = [
-      gerarMensagemInicial(tipoLead, origem),
-      perguntaInicial ? perguntaInicial.texto : null,
+      uceSpecialists[especialista.id as keyof typeof uceSpecialists].persona
+        .initialMessage,
+      perguntaInicial ? perguntaInicial.text : null,
     ]
       .filter(Boolean)
       .join("\n\n");
@@ -389,6 +440,7 @@ export default function SimuladorIaPage() {
     setHandoff(null);
     setClosingMessage(null);
     setConversationStatus("coletando");
+    setSpecialist(especialista);
   }
 
   function reiniciarSimulacao() {
@@ -405,6 +457,7 @@ export default function SimuladorIaPage() {
     setHandoff(null);
     setClosingMessage(null);
     setConversationStatus("coletando");
+    setSpecialist(null);
     setContexto(
       contextoConfigurado({
         tipoLead,
@@ -449,6 +502,7 @@ export default function SimuladorIaPage() {
     setHandoff(resultado.handoff);
     setClosingMessage(resultado.closingMessage);
     setConversationStatus(resultado.conversationStatus);
+    setSpecialist(resultado.specialist);
     setMensagem("");
     window.requestAnimationFrame(() => textareaRef.current?.focus());
   }
@@ -683,6 +737,10 @@ export default function SimuladorIaPage() {
                     <p className="text-sm text-white/60">
                       Canal: {labelTexto(canal)} | Origem: {labelTexto(origem)}
                     </p>
+                    <p className="mt-1 text-sm font-semibold text-[#E1B866]">
+                      Especialista ativo:{" "}
+                      {specialist?.label ?? "Aguardando objetivo"}
+                    </p>
                   </div>
                 </div>
                 <button
@@ -783,11 +841,14 @@ export default function SimuladorIaPage() {
                           <h3 className="text-xl font-semibold text-[#071E36]">
                             Estado Cognitivo
                           </h3>
-                          <p className="text-sm text-[#64736D]">
-                            {qualificacao.motivoQualificacao}
-                          </p>
-                        </div>
-                      </div>
+                      <p className="text-sm text-[#64736D]">
+                        {qualificacao.motivoQualificacao}
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-[#8B6827]">
+                        {specialist?.label ?? "Especialista ainda nao definido"}
+                      </p>
+                    </div>
+                  </div>
                       <span
                         className={
                           qualificacao.podePassarCorretor
@@ -807,6 +868,14 @@ export default function SimuladorIaPage() {
                       </p>
                       <p className="mt-1 text-[#64736D]">
                         {conversationStatus}
+                      </p>
+                      <p className="mt-2 font-semibold text-[#071E36]">
+                        Especialista ativo
+                      </p>
+                      <p className="mt-1 text-[#64736D]">
+                        {specialist
+                          ? `${specialist.label} - ${specialist.objective}`
+                          : "Aguardando objetivo do cliente"}
                       </p>
                     </div>
 

@@ -56,6 +56,12 @@ export type UCEConversationStatus =
   | "handoff_pronto"
   | "encerrado";
 
+export type UCESpecialistSnapshot = {
+  id: string;
+  label: string;
+  objective: string;
+};
+
 export type UCEBriefing = {
   summary: string;
   fields: Record<string, unknown>;
@@ -191,4 +197,5 @@ export type UCEProcessResult = {
   commercialStrategy: UCECommercialStrategy;
   commercialAwareness: UCECommercialAwareness;
   brokerMentorBriefing: UCEBrokerMentorBriefing;
+  specialist: UCESpecialistSnapshot;
 };

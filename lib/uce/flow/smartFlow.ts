@@ -1,4 +1,5 @@
 import type { UCEContext, UCENextQuestion } from "../core/types";
+import { getNextSpecialistQuestion } from "../specialists";
 
 const realEstateQuestions: UCENextQuestion[] = [
   {
@@ -24,11 +25,15 @@ function isFilled(value: unknown) {
 }
 
 export function getNextSmartQuestion(context: UCEContext) {
-  const questions = context.domain === "real_estate" ? realEstateQuestions : realEstateQuestions;
-
   if (context.metadata.handoffReady === true) {
     return null;
   }
+
+  if (context.domain === "real_estate") {
+    return getNextSpecialistQuestion(context);
+  }
+
+  const questions = realEstateQuestions;
 
   if (
     context.fields.urgencia === "indefinida" &&

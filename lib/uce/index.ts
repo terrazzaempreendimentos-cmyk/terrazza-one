@@ -8,3 +8,4 @@ export * from "./briefing";
 export * from "./domain";
 export * from "./commercial";
 export * from "./academy";
+export * from "./specialists";

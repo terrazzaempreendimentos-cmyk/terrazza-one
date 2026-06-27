@@ -18,6 +18,7 @@ export function generateHypotheses(context: UCEContext): UCEHypothesis[] {
   const objetivo = getString(context, "objetivo");
   const quartos = getNumber(context, "quartos");
   const valor = getNumber(context, "valor");
+  const valorEsperado = getNumber(context, "valorEsperado");
 
   if (quartos >= 3 || tipoImovel.includes("casa")) {
     hypotheses.push({
@@ -30,7 +31,7 @@ export function generateHypotheses(context: UCEContext): UCEHypothesis[] {
     });
   }
 
-  if (valor > 5000) {
+  if (valor > 5000 || valorEsperado > 1000000) {
     hypotheses.push({
       key: "perfil_alto_padrao",
       title: "Perfil alto padrao",
@@ -104,6 +105,28 @@ export function generateHypotheses(context: UCEContext): UCEHypothesis[] {
       confidence: 72,
       category: "compra",
       evidence: ["financiamento/fgts"],
+    });
+  }
+
+  if (objetivo === "compra" && context.fields.financiamento === false) {
+    hypotheses.push({
+      key: "perfil_investidor",
+      title: "Possivel investidor",
+      description: "Compra sem financiamento pode indicar maior prontidao financeira.",
+      confidence: 68,
+      category: "investidor",
+      evidence: ["financiamento"],
+    });
+  }
+
+  if (objetivo === "venda") {
+    hypotheses.push({
+      key: "lead_venda",
+      title: "Lead vendedor",
+      description: "Cliente deseja vender imovel e precisa de avaliacao comercial.",
+      confidence: 86,
+      category: "venda",
+      evidence: ["objetivo"],
     });
   }
 

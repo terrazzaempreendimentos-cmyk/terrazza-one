@@ -420,6 +420,50 @@ UCE entrega briefing ao adapter legado
 O adapter em `lib/ia/motor/adapter.ts` permite que o simulador continue usando
 os tipos atuais enquanto o processamento passa pela nova fundacao.
 
+## Arquitetura de Especialistas Comerciais
+
+A IA Comercial nao deve mais operar como uma IA generica com um unico roteiro.
+A partir da Sprint UCE-10, cada objetivo comercial ativa um especialista
+diferente dentro da UCE.
+
+Fluxo:
+
+Cliente informa objetivo  
+â†“  
+UCE seleciona especialista  
+â†“  
+Especialista carrega roteiro proprio  
+â†“  
+Especialista faz perguntas proprias  
+â†“  
+Especialista gera inferencias proprias  
+â†“  
+Especialista encerra com mensagem propria  
+â†“  
+Especialista monta briefing proprio  
+â†“  
+Especialista define handoff proprio
+
+Especialistas atuais:
+
+- Comprador: compra de imovel, com perguntas de cidade, bairro, tipo, valor, financiamento, FGTS, entrada, quartos, garagem, condominio e prazo de compra.
+- Venda: venda de imovel, com foco em valor esperado, motivo, documentacao, ocupacao, urgencia, anuncio anterior e exclusividade.
+- Locacao: inquilino procurando aluguel, com cidade, bairro, tipo, valor, quartos, pet, moradores, garagem, condominio e prazo.
+- Administracao: proprietario que deseja gestao patrimonial, com ocupacao, aluguel atual, condominio, IPTU, administracao atual, motivo de troca, administracao completa e chaves.
+- Captacao: quando o cliente fala em anunciar, a UCE nao inicia qualificacao. Ela pergunta primeiro se o anuncio sera para venda ou locacao. Venda redireciona para Especialista Venda; locacao redireciona para Especialista Administracao.
+
+Regras comerciais de isolamento:
+
+- compra e venda nunca perguntam pet;
+- proprietario nunca recebe pergunta de FGTS;
+- comprador nunca recebe pergunta de valor de aluguel;
+- locacao nunca recebe pergunta de financiamento;
+- venda nunca pergunta se aceita pet.
+
+Essa arquitetura permite que Terrazza, Unita e Maximiza compartilhem o core da
+UCE no futuro, trocando especialistas e roteiros sem reescrever o processador
+central.
+
 ## Inteligencia Comercial UCE
 
 A IA Comercial da Terrazza passa a contar com um pacote de inteligencia

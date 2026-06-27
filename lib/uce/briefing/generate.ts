@@ -4,6 +4,7 @@ import type {
   UCEHypothesis,
   UCETemperature,
 } from "../core/types";
+import { selectUCESpecialist } from "../specialists";
 
 function publicFields(context: UCEContext) {
   return {
@@ -35,6 +36,18 @@ export function generateUCEBriefing({
   score: number;
   temperature: UCETemperature;
 }): UCEBriefing {
+  const specialist = selectUCESpecialist(context);
+
+  if (context.domain === "real_estate") {
+    return specialist.buildBriefing({
+      context,
+      hypotheses,
+      pendingFields,
+      score,
+      temperature,
+    });
+  }
+
   const fields = publicFields(context);
   const summary = [
     `Lead ${context.leadType ?? "sem tipo definido"}.`,

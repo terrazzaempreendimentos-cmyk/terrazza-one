@@ -12,7 +12,6 @@ import {
   selectCommercialStrategy,
 } from "../commercial";
 import {
-  generateDeterministicFinalMessage,
   getNextSmartQuestion,
   isQualifiedForHandoff,
   shouldHandoff,
@@ -23,6 +22,11 @@ import { interpretTemporalExpression } from "../interpreters/temporal";
 import { detectCorrection } from "../memory";
 import { calculateUCEScore } from "../score";
 import { detectarBairro, detectarCidade } from "../domain";
+import {
+  getSpecialistPendingFields,
+  selectUCESpecialist,
+  type UCESpecialistConfig,
+} from "../specialists";
 
 const requiredFields = [
   "objetivo",
@@ -117,6 +121,73 @@ function parseGeneralRealEstateFields(message: string) {
   return fields;
 }
 
+function specialistSnapshot(specialist: UCESpecialistConfig) {
+  return {
+    id: specialist.id,
+    label: specialist.persona.label,
+    objective: specialist.persona.objective,
+  };
+}
+
+function parseBooleanAnswer(text: string) {
+  if (has(text, ["sim", "tenho", "preciso", "aceito", "considero", "quero"])) {
+    return true;
+  }
+
+  if (has(text, ["nao", "sem", "nao tenho", "dispenso"])) {
+    return false;
+  }
+
+  return null;
+}
+
+function parseActiveQuestionValue(field: string, message: string) {
+  const text = normalize(message);
+  const moneyFields = [
+    "valor",
+    "valorEsperado",
+    "valorAluguelAtual",
+    "condominioValor",
+    "iptu",
+    "entradaDisponivel",
+  ];
+  const booleanFields = [
+    "financiamento",
+    "fgts",
+    "garagem",
+    "condominioAceita",
+    "imovelFinanciado",
+    "documentacao",
+    "imovelOcupado",
+    "jaAnunciou",
+    "exclusividade",
+    "alugado",
+    "administracaoAtual",
+    "administracaoCompleta",
+    "chavesDisponiveis",
+    "pet",
+  ];
+
+  if (field === "destinoCaptacao") {
+    if (has(text, ["venda", "vender"])) return "venda";
+    if (has(text, ["locacao", "aluguel", "alugar", "locar"])) return "locacao";
+  }
+
+  if (field === "quartos" || field === "moradores") {
+    return parseNumberWords(text);
+  }
+
+  if (moneyFields.includes(field)) {
+    return parseMoney(text);
+  }
+
+  if (booleanFields.includes(field)) {
+    return parseBooleanAnswer(text);
+  }
+
+  return message.trim().length > 0 ? message.trim() : null;
+}
+
 function isFilled(value: unknown) {
   if (value === null || value === undefined) return false;
   if (typeof value === "string") return value.trim().length > 0;
@@ -125,6 +196,10 @@ function isFilled(value: unknown) {
 }
 
 function pendingFields(context: UCEContext) {
+  if (context.domain === "real_estate") {
+    return getSpecialistPendingFields(context);
+  }
+
   return requiredFields.filter((field) => !isFilled(context.fields[field]));
 }
 
@@ -152,6 +227,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
   };
 
   if (input.context.metadata.handoffReady === true) {
+    const specialist = selectUCESpecialist(input.context);
     const context: UCEContext = {
       ...input.context,
       activeQuestion: null,
@@ -187,11 +263,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     const schedulingIntent = normalize(input.message).includes("agendar");
     const closingMessage = schedulingIntent
       ? "Esse atendimento ja esta pronto para encaminhamento. O proximo passo e o especialista confirmar disponibilidade e seguir com o atendimento."
-      : generateDeterministicFinalMessage(
-          context,
-          context.leadType,
-          context.fields.objetivo as string | null,
-        );
+      : specialist.closingMessage;
 
     return {
       context,
@@ -209,7 +281,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       handoff: {
         canHandoff: true,
         reason: "Atendimento ja estava pronto para passagem humana.",
-        handoffType: "corretor",
+        handoffType: specialist.handoffType,
         missingCriticalFields: [],
         optionalMissingFields: missing,
       },
@@ -219,6 +291,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       commercialStrategy,
       commercialAwareness,
       brokerMentorBriefing,
+      specialist: specialistSnapshot(specialist),
     };
   }
 
@@ -302,6 +375,29 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     }
   }
 
+  const generalFields = parseGeneralRealEstateFields(input.message);
+  const activeField =
+    input.context.activeQuestion?.field ?? input.context.lastQuestionField;
+  const messageChangesObjective =
+    Boolean(generalFields.objetivo) &&
+    activeField !== "objetivo" &&
+    activeField !== "destinoCaptacao";
+  if (!contextual.field && activeField && !messageChangesObjective) {
+    const activeValue = parseActiveQuestionValue(activeField, input.message);
+
+    if (activeValue !== null) {
+      fields[activeField] = activeValue;
+      interpretedFields.push(
+        fieldConfidence(
+          activeField,
+          activeValue,
+          80,
+          "Informacao extraida a partir da pergunta ativa do especialista.",
+        ),
+      );
+    }
+  }
+
   const temporal = interpretTemporalExpression(input.message);
   const contextualHandledUrgency = contextual.field === "urgencia";
   const contextualHandledAnotherField =
@@ -333,13 +429,31 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     );
   }
 
-  const generalFields = parseGeneralRealEstateFields(input.message);
   Object.entries(generalFields).forEach(([field, value]) => {
     fields[field] = value;
     interpretedFields.push(
       fieldConfidence(field, value, 82, "Informacao extraida por regras gerais UCE."),
     );
   });
+
+  if (fields.destinoCaptacao === "venda") {
+    fields.objetivo = "venda";
+  }
+
+  if (fields.destinoCaptacao === "locacao") {
+    fields.objetivo = "administracao";
+  }
+
+  const preliminaryContext: UCEContext = {
+    ...input.context,
+    fields,
+    metadata: {
+      ...input.context.metadata,
+      activeSpecialist: undefined,
+    },
+  };
+  const specialist = selectUCESpecialist(preliminaryContext);
+  const activeSpecialist = specialist.id;
 
   const contextBeforeQuestion: UCEContext = {
     ...input.context,
@@ -348,6 +462,10 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       ...input.context.memory,
       { role: "user", content: input.message, createdAt: new Date().toISOString() },
     ],
+    metadata: {
+      ...input.context.metadata,
+      activeSpecialist,
+    },
   };
   const preliminaryMissing = pendingFields(contextBeforeQuestion);
   const hypotheses = generateHypotheses(contextBeforeQuestion);
@@ -395,11 +513,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     ? shouldHandoff(context, score, preliminaryMissing, hypotheses)
     : shouldHandoff(context, score, missing, hypotheses);
   const closingMessage = qualified
-    ? generateDeterministicFinalMessage(
-        context,
-        context.leadType,
-        context.fields.objetivo as string | null,
-      )
+    ? specialist.closingMessage
     : null;
 
   if (qualified) {
@@ -450,5 +564,6 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     commercialStrategy,
     commercialAwareness,
     brokerMentorBriefing,
+    specialist: specialistSnapshot(specialist),
   };
 }

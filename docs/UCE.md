@@ -16,7 +16,8 @@ Criar um motor modular capaz de interpretar respostas curtas, preservar contexto
 - `lib/uce/score`: score e temperatura.
 - `lib/uce/briefing`: briefing estruturado.
 - `lib/uce/domain`: dominios suportados.
-- `lib/uce/personas` e `lib/uce/commercial`: fundacoes para especializacao futura.
+- `lib/uce/specialists`: arquitetura de especialistas comerciais.
+- `lib/uce/personas` e `lib/uce/commercial`: fundacoes comerciais auxiliares.
 
 ## Fluxo
 
@@ -37,6 +38,53 @@ Score
 Briefing  
 ↓  
 Adapter legado para o simulador
+
+## Arquitetura de Especialistas
+
+A UCE deixa de conduzir todos os atendimentos com um unico roteiro. A primeira
+decisao do `processUCE` passa a ser o objetivo do cliente. Esse objetivo ativa
+um especialista comercial com persona, roteiro, perguntas, inferencias,
+fechamento, briefing e handoff proprios.
+
+Fluxo novo:
+
+Objetivo do cliente  
+â†“  
+Especialista  
+â†“  
+Fluxo proprio  
+â†“  
+Perguntas proprias  
+â†“  
+Inferencias proprias  
+â†“  
+Fechamento proprio  
+â†“  
+Briefing proprio  
+â†“  
+Handoff proprio
+
+A estrutura fica em `lib/uce/specialists`:
+
+- `comprador`: compra de imovel, sem perguntas de pet, administracao ou aluguel atual.
+- `vendedor`: venda de imovel, sem perguntas de pet.
+- `locacao`: busca de imovel para aluguel como inquilino.
+- `administracao`: proprietario que deseja administracao patrimonial.
+- `captacao`: caso especial para "anunciar"; pergunta primeiro se e venda ou locacao e redireciona para venda ou administracao.
+- `common`: tipos e utilitarios compartilhados pelos especialistas.
+
+Cada especialista possui `persona.ts`, `roteiro.ts`, `questions.ts`,
+`closing.ts`, `handoff.ts` e `briefing.ts`.
+
+O processador central agora seleciona o especialista antes de decidir a proxima
+pergunta. Depois disso, carrega o roteiro, as perguntas, o briefing, o fechamento
+e o handoff daquele especialista. As regras de exclusao impedem que perguntas de
+um objetivo vazem para outro, por exemplo pet em compra/venda, FGTS para
+proprietario, financiamento em locacao e valor de aluguel para comprador.
+
+No simulador, o especialista ativo aparece de forma explicita para validar o
+roteamento da conversa, como "Especialista Comprador", "Especialista Locacao",
+"Especialista Administracao", "Especialista Venda" ou "Especialista Captacao".
 
 ## Compatibilidade
 

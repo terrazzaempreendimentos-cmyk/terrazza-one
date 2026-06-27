@@ -40,6 +40,7 @@ export function camposPreenchidos(contexto: LeadContext) {
     (campo) =>
       campo !== "ultimaPerguntaCampo" &&
       campo !== "handoffReady" &&
+      campo !== "especialistaAtivo" &&
       possuiInformacao(contexto, campo),
   );
 }

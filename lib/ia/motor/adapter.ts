@@ -31,6 +31,26 @@ const camposLegados: Array<keyof LeadContext> = [
   "prazoMudanca",
   "documentacao",
   "documentacaoObservacao",
+  "entradaDisponivel",
+  "garagem",
+  "condominioAceita",
+  "prazoCompra",
+  "valorEsperado",
+  "motivoVenda",
+  "imovelFinanciado",
+  "imovelOcupado",
+  "jaAnunciou",
+  "exclusividade",
+  "moradores",
+  "alugado",
+  "valorAluguelAtual",
+  "condominioValor",
+  "iptu",
+  "administracaoAtual",
+  "motivoTroca",
+  "administracaoCompleta",
+  "chavesDisponiveis",
+  "destinoCaptacao",
 ];
 
 function leadContextToUCE({
@@ -68,6 +88,7 @@ function leadContextToUCE({
     metadata: {
       legacyContext: contexto,
       handoffReady: contexto.handoffReady,
+      activeSpecialist: contexto.especialistaAtivo ?? undefined,
     },
   };
 }
@@ -117,6 +138,64 @@ function uceToLeadContext({
         : contextoAtual.documentacao,
     documentacaoObservacao:
       (uceContext.fields.documentacaoObservacao as string | null) ?? null,
+    entradaDisponivel:
+      (uceContext.fields.entradaDisponivel as number | null) ?? null,
+    garagem:
+      typeof uceContext.fields.garagem === "boolean"
+        ? uceContext.fields.garagem
+        : contextoAtual.garagem,
+    condominioAceita:
+      typeof uceContext.fields.condominioAceita === "boolean"
+        ? uceContext.fields.condominioAceita
+        : contextoAtual.condominioAceita,
+    prazoCompra: (uceContext.fields.prazoCompra as string | null) ?? null,
+    valorEsperado: (uceContext.fields.valorEsperado as number | null) ?? null,
+    motivoVenda: (uceContext.fields.motivoVenda as string | null) ?? null,
+    imovelFinanciado:
+      typeof uceContext.fields.imovelFinanciado === "boolean"
+        ? uceContext.fields.imovelFinanciado
+        : contextoAtual.imovelFinanciado,
+    imovelOcupado:
+      typeof uceContext.fields.imovelOcupado === "boolean"
+        ? uceContext.fields.imovelOcupado
+        : contextoAtual.imovelOcupado,
+    jaAnunciou:
+      typeof uceContext.fields.jaAnunciou === "boolean"
+        ? uceContext.fields.jaAnunciou
+        : contextoAtual.jaAnunciou,
+    exclusividade:
+      typeof uceContext.fields.exclusividade === "boolean"
+        ? uceContext.fields.exclusividade
+        : contextoAtual.exclusividade,
+    moradores: (uceContext.fields.moradores as number | null) ?? null,
+    alugado:
+      typeof uceContext.fields.alugado === "boolean"
+        ? uceContext.fields.alugado
+        : contextoAtual.alugado,
+    valorAluguelAtual:
+      (uceContext.fields.valorAluguelAtual as number | null) ?? null,
+    condominioValor:
+      (uceContext.fields.condominioValor as number | null) ?? null,
+    iptu: (uceContext.fields.iptu as number | null) ?? null,
+    administracaoAtual:
+      typeof uceContext.fields.administracaoAtual === "boolean"
+        ? uceContext.fields.administracaoAtual
+        : contextoAtual.administracaoAtual,
+    motivoTroca: (uceContext.fields.motivoTroca as string | null) ?? null,
+    administracaoCompleta:
+      typeof uceContext.fields.administracaoCompleta === "boolean"
+        ? uceContext.fields.administracaoCompleta
+        : contextoAtual.administracaoCompleta,
+    chavesDisponiveis:
+      typeof uceContext.fields.chavesDisponiveis === "boolean"
+        ? uceContext.fields.chavesDisponiveis
+        : contextoAtual.chavesDisponiveis,
+    destinoCaptacao:
+      (uceContext.fields.destinoCaptacao as string | null) ?? null,
+    especialistaAtivo:
+      typeof uceContext.metadata.activeSpecialist === "string"
+        ? uceContext.metadata.activeSpecialist
+        : contextoAtual.especialistaAtivo,
     handoffReady:
       uceContext.metadata.handoffReady === true || contextoAtual.handoffReady,
     ultimaPerguntaCampo: (uceContext.lastQuestionField as CampoPergunta | null) ?? null,
@@ -176,7 +255,7 @@ function resumoDoQueEntendeu(informacoes: ExtractedInfo) {
   ].filter(Boolean);
 
   if (partes.length === 0) {
-    return "Entendi. Vou organizar isso com cuidado para nao perder o contexto.";
+    return "Entendi.";
   }
 
   return `Perfeito, registrei ${partes.join(", ")}.`;
@@ -199,7 +278,7 @@ function respostaNatural({
   const transicoes = [
     "Otimo, isso ja ajuda bastante.",
     "Excelente, com essas informacoes ja consigo avancar.",
-    "Agora so preciso confirmar mais um ponto.",
+    "Vamos seguir com a proxima informacao.",
     "Perfeito, entendi o caminho.",
   ];
   const index = Object.keys(informacoesExtraidas).length % transicoes.length;
@@ -303,6 +382,7 @@ export function processarTurno({
     closingMessage: uceResult.closingMessage,
     conversationStatus: uceResult.conversationStatus,
     temporalDebug: uceResult.temporalDebug,
+    specialist: uceResult.specialist,
     qualificado: handoffQualificado || qualificado,
     motivoQualificacao: handoffQualificado
       ? uceResult.handoff.reason
