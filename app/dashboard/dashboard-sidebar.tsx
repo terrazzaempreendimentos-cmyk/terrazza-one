@@ -65,6 +65,11 @@ const menuGroups = [
         href: "/dashboard/crm/ia/conhecimento",
         icon: BookOpen,
       },
+      {
+        label: "Memórias UCE",
+        href: "/dashboard/crm/ia/memorias",
+        icon: Brain,
+      },
       { label: "Agenda Inteligente", href: "/dashboard/crm/agenda", icon: ClipboardCheck },
       { label: "Roleta Inteligente", href: "/dashboard/crm/roleta", icon: Sparkles },
       { label: "Corretores", href: "/dashboard/crm/corretores", icon: ShieldCheck },

@@ -436,3 +436,23 @@ Tipos iniciais de handoff:
 Essa camada evita que a IA continue perguntando depois de ja ter qualificado o
 lead. O objetivo e transformar a conversa em um atendimento completo, com
 fechamento elegante e passagem clara para a equipe humana da Terrazza.
+
+## Memoria Persistente
+
+A Memoria Persistente do UCE registra contexto reutilizavel por entidade, como
+lead, inquilino, proprietario, imovel, corretor, atendimento, manutencao e
+conflito. Ela permite separar fatos duraveis de uma conversa momentanea,
+mantendo historico, preferencias, riscos, pendencias e observacoes importantes
+para atendimentos futuros.
+
+As memorias sao registros consolidados que devem permanecer uteis depois da
+interacao original. Ja as interacoes representam mensagens ou eventos
+cronologicos do atendimento, com canal, direcao, resumo, intencao, sentimento e
+status. No futuro, o UCE podera consultar essas memorias antes do
+pre-atendimento para reconhecer recorrencia, entender proprietarios e
+inquilinos, contextualizar imoveis, antecipar manutencoes e tratar conflitos com
+mais cuidado.
+
+Nesta fundacao, a memoria persistente fica isolada em `lib/uce/memory/persistent`
+e usa as tabelas `uce_memories` e `uce_interactions`. Ela ainda nao esta
+integrada ao `/api/uce/chat`, a automacoes, WhatsApp ou n8n.
