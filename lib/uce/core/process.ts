@@ -27,6 +27,12 @@ import { detectarBairro, detectarCidade } from "../domain";
 import { queryKnowledge } from "../knowledge";
 import type { UCEKnowledgeResult } from "../knowledge";
 import {
+  findMatches,
+  generateRecommendations,
+  type UCEMatchEntity,
+} from "../correspondencias";
+import { analisarPerfilComportamental } from "../perfil";
+import {
   getSpecialistPendingFields,
   selectUCESpecialist,
   type UCESpecialistConfig,
@@ -633,6 +639,59 @@ function summarizeKnowledgeResults(results: UCEKnowledgeResult[]) {
   ].join("\n");
 }
 
+function stringField(context: UCEContext, field: string) {
+  const value = context.fields[field];
+  return typeof value === "string" && value.trim() ? value : null;
+}
+
+function numberField(context: UCEContext, field: string) {
+  const value = context.fields[field];
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function booleanField(context: UCEContext, field: string) {
+  const value = context.fields[field];
+  return typeof value === "boolean" ? value : null;
+}
+
+function matchEntityType(context: UCEContext): UCEMatchEntity["type"] {
+  if (context.leadType === "comprador") return "comprador";
+  if (context.leadType === "inquilino") return "inquilino";
+  if (context.leadType === "proprietario") return "proprietario";
+
+  return "lead";
+}
+
+function buildMatchInput(context: UCEContext): UCEMatchEntity {
+  const objective = stringField(context, "objetivo");
+  const labelParts = [
+    context.leadType ?? "Lead",
+    objective,
+    stringField(context, "tipoImovel"),
+    stringField(context, "bairro"),
+  ].filter(Boolean);
+
+  return {
+    id: "uce-contexto-atual",
+    type: matchEntityType(context),
+    label: labelParts.join(" - ") || "Contexto atual UCE",
+    cidade: stringField(context, "cidade"),
+    bairro: stringField(context, "bairro"),
+    tipoImovel: stringField(context, "tipoImovel"),
+    valor: numberField(context, "valor") ?? numberField(context, "valorEsperado"),
+    areaM2: numberField(context, "areaM2"),
+    quartos: numberField(context, "quartos"),
+    banheiros: numberField(context, "banheiros"),
+    vagas: numberField(context, "vagas"),
+    pet: booleanField(context, "pet"),
+    objetivo: objective,
+    financiamento: booleanField(context, "financiamento"),
+    fgts: booleanField(context, "fgts"),
+    urgencia: stringField(context, "urgencia"),
+    perfil: stringField(context, "perfil"),
+  };
+}
+
 export function processUCE(input: UCEProcessInput): UCEProcessResult {
   const fields = { ...input.context.fields };
   const interpretedFields: UCEFieldConfidence[] = [];
@@ -666,6 +725,17 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       hypotheses,
     });
     const knowledgeSummary = summarizeKnowledgeResults(knowledgeResults);
+    const correspondenceMatches = findMatches({
+      ...buildMatchInput(context),
+      limit: 5,
+    });
+    const correspondenceRecommendations =
+      generateRecommendations(correspondenceMatches);
+    const perfilComportamental = analisarPerfilComportamental(
+      context,
+      context.memory,
+      hypotheses,
+    );
     const { score, temperature } = calculateUCEScore(context, hypotheses);
     const commercialStrategy = selectCommercialStrategy(context, hypotheses);
     const commercialAwareness = evaluateCommercialAwareness(
@@ -688,6 +758,9 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       temperature,
       knowledgeResults,
       knowledgeSummary,
+      correspondenceMatches,
+      correspondenceRecommendations,
+      perfilComportamental,
     });
     const closingMessage = generatePostHandoffResponse(
       context,
@@ -724,6 +797,9 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       specialist: specialistSnapshot(specialist),
       knowledgeResults,
       knowledgeSummary,
+      correspondenceMatches,
+      correspondenceRecommendations,
+      perfilComportamental,
     };
   }
 
@@ -981,6 +1057,17 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     hypotheses,
   });
   const knowledgeSummary = summarizeKnowledgeResults(knowledgeResults);
+  const correspondenceMatches = findMatches({
+    ...buildMatchInput(contextBeforeQuestion),
+    limit: 5,
+  });
+  const correspondenceRecommendations =
+    generateRecommendations(correspondenceMatches);
+  const perfilComportamental = analisarPerfilComportamental(
+    contextBeforeQuestion,
+    contextBeforeQuestion.memory,
+    hypotheses,
+  );
   const { score, temperature } = calculateUCEScore(
     contextBeforeQuestion,
     hypotheses,
@@ -1022,6 +1109,9 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     temperature,
     knowledgeResults,
     knowledgeSummary,
+    correspondenceMatches,
+    correspondenceRecommendations,
+    perfilComportamental,
   });
   const handoff = qualified
     ? shouldHandoff(context, score, preliminaryMissing, hypotheses)
@@ -1081,5 +1171,8 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     specialist: specialistSnapshot(specialist),
     knowledgeResults,
     knowledgeSummary,
+    correspondenceMatches,
+    correspondenceRecommendations,
+    perfilComportamental,
   };
 }

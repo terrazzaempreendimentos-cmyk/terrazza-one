@@ -61,8 +61,11 @@ import {
   type UCEConversationStatus,
   type UCEHandoffDecision,
   type UCEKnowledgeResult,
+  type UCEMatch,
+  type UCEPerfil,
   type UCESpecialistSnapshot,
   type UCETemporalDebug,
+  type UCERecommendation,
 } from "../../../../../lib/uce";
 import type { UCELLMOutput } from "../../../../../lib/uce/llm/types";
 import { gerarRespostaOpenAIAssistida } from "./actions";
@@ -305,6 +308,13 @@ export default function SimuladorIaPage() {
     [],
   );
   const [knowledgeSummary, setKnowledgeSummary] = useState("");
+  const [correspondenceMatches, setCorrespondenceMatches] = useState<UCEMatch[]>(
+    [],
+  );
+  const [correspondenceRecommendations, setCorrespondenceRecommendations] =
+    useState<UCERecommendation[]>([]);
+  const [perfilComportamental, setPerfilComportamental] =
+    useState<UCEPerfil | null>(null);
   const [ultimoPacoteExtraido, setUltimoPacoteExtraido] = useState<ExtractedInfo>(
     {},
   );
@@ -402,6 +412,9 @@ export default function SimuladorIaPage() {
         alertasComerciais: leituraComercial,
         knowledgeResults,
         knowledgeSummary,
+        correspondenceMatches,
+        correspondenceRecommendations,
+        perfilComportamental: perfilComportamental ?? undefined,
       }),
     [
       contexto,
@@ -411,6 +424,9 @@ export default function SimuladorIaPage() {
       inferenciasComerciais,
       knowledgeResults,
       knowledgeSummary,
+      correspondenceMatches,
+      correspondenceRecommendations,
+      perfilComportamental,
       leituraComercial,
     ],
   );
@@ -509,6 +525,9 @@ export default function SimuladorIaPage() {
     setSpecialist(especialista);
     setKnowledgeResults([]);
     setKnowledgeSummary("");
+    setCorrespondenceMatches([]);
+    setCorrespondenceRecommendations([]);
+    setPerfilComportamental(null);
     setUltimoPacoteExtraido({});
     setLlmStatus({
       modo: modoResposta,
@@ -541,6 +560,9 @@ export default function SimuladorIaPage() {
     setSpecialist(null);
     setKnowledgeResults([]);
     setKnowledgeSummary("");
+    setCorrespondenceMatches([]);
+    setCorrespondenceRecommendations([]);
+    setPerfilComportamental(null);
     setUltimoPacoteExtraido({});
     setLlmStatus({
       modo: modoResposta,
@@ -659,6 +681,9 @@ export default function SimuladorIaPage() {
     setSpecialist(resultado.specialist);
     setKnowledgeResults(resultado.knowledgeResults);
     setKnowledgeSummary(resultado.knowledgeSummary);
+    setCorrespondenceMatches(resultado.correspondenceMatches);
+    setCorrespondenceRecommendations(resultado.correspondenceRecommendations);
+    setPerfilComportamental(resultado.perfilComportamental);
     setUltimoPacoteExtraido(resultado.informacoesExtraidas);
     setLlmStatus(statusResposta);
     setMensagem("");
@@ -1379,6 +1404,176 @@ export default function SimuladorIaPage() {
                         )}
                       </div>
                     </div>
+                  </section>
+
+                  <section className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-xl font-semibold text-[#071E36]">
+                          UCE Perfil
+                        </h3>
+                        <p className="mt-1 text-sm text-[#64736D]">
+                          Leitura comportamental para orientar a condução humana.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[#071E36]/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#071E36]">
+                        {perfilComportamental?.riscoPerda ?? "sem risco"}
+                      </span>
+                    </div>
+
+                    {perfilComportamental ? (
+                      <div className="mt-5 grid gap-4">
+                        <div className="grid gap-3 md:grid-cols-3">
+                          <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                              Perfil principal
+                            </p>
+                            <p className="mt-1 font-semibold text-[#071E36]">
+                              {perfilComportamental.perfilPrincipal}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                              Estilo de decisão
+                            </p>
+                            <p className="mt-1 font-semibold text-[#071E36]">
+                              {perfilComportamental.estiloDecisao}
+                            </p>
+                          </div>
+                          <div className="rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                              Risco de perda
+                            </p>
+                            <p className="mt-1 font-semibold text-[#071E36]">
+                              {perfilComportamental.riscoPerda}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                            Sinais detectados
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {perfilComportamental.sinaisDetectados.length > 0 ? (
+                              perfilComportamental.sinaisDetectados.map((sinal) => (
+                                <span
+                                  key={sinal.id}
+                                  className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-medium text-[#64736D]"
+                                >
+                                  {sinal.frase}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-sm text-[#64736D]">
+                                Nenhum sinal textual forte detectado.
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                            Recomendações
+                          </p>
+                          <ul className="mt-3 grid gap-2 text-sm leading-6 text-[#64736D]">
+                            {perfilComportamental.recomendacoes.length > 0 ? (
+                              perfilComportamental.recomendacoes.map((recomendacao) => (
+                                <li key={recomendacao.id}>
+                                  <strong className="text-[#071E36]">
+                                    {recomendacao.titulo}:
+                                  </strong>{" "}
+                                  {recomendacao.texto}
+                                </li>
+                              ))
+                            ) : (
+                              <li>Seguir abordagem consultiva e confirmar próximos passos.</li>
+                            )}
+                          </ul>
+                        </div>
+
+                        <p className="rounded-2xl bg-[#F7F3ED] px-4 py-3 text-sm leading-6 text-[#64736D]">
+                          {perfilComportamental.resumoPerfil}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="mt-5 rounded-2xl border border-dashed border-[#E8DDCB] bg-[#F7F3ED] px-4 py-6 text-sm text-[#64736D]">
+                        Perfil comportamental ainda não calculado.
+                      </div>
+                    )}
+                  </section>
+
+                  <section className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-xl font-semibold text-[#071E36]">
+                          UCE Correspondências
+                        </h3>
+                        <p className="mt-1 text-sm text-[#64736D]">
+                          Pessoas, imóveis e oportunidades relacionadas automaticamente.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[#071E36]/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#071E36]">
+                        Top {Math.min(correspondenceMatches.length, 5)}
+                      </span>
+                    </div>
+
+                    <div className="mt-5 grid gap-3">
+                      {correspondenceMatches.length > 0 ? (
+                        correspondenceMatches.slice(0, 5).map((match) => (
+                          <div
+                            key={match.id}
+                            className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <p className="font-semibold text-[#071E36]">
+                                  {match.target.label}
+                                </p>
+                                <p className="mt-1 text-sm text-[#64736D]">
+                                  {match.target.type} · {[match.target.cidade, match.target.bairro]
+                                    .filter(Boolean)
+                                    .join(" / ") || "local não informado"}
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-xs font-bold text-[#8B6827]">
+                                {match.compatibility.score}%
+                              </span>
+                            </div>
+
+                            <div className="mt-3 flex flex-wrap gap-2">
+                              {match.compatibility.reasons.map((reason) => (
+                                <span
+                                  key={`${match.id}-${reason.criterion}`}
+                                  className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-medium text-[#64736D]"
+                                >
+                                  {reason.label}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-[#E8DDCB] bg-[#F7F3ED] px-4 py-6 text-sm text-[#64736D]">
+                          Nenhuma correspondência automática encontrada ainda.
+                        </div>
+                      )}
+                    </div>
+
+                    {correspondenceRecommendations.length > 0 ? (
+                      <div className="mt-4 rounded-2xl bg-[#F7F3ED] px-4 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                          Sugestões
+                        </p>
+                        <ul className="mt-2 grid gap-2 text-sm text-[#64736D]">
+                          {correspondenceRecommendations.map((recommendation) => (
+                            <li key={recommendation.id}>
+                              {recommendation.message}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ) : null}
                   </section>
 
                   <section className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">

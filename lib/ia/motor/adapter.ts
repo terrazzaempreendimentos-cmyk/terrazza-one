@@ -357,6 +357,9 @@ export function processarTurno({
       alertasComerciais: leituraComercial,
       knowledgeResults: uceResult.knowledgeResults,
       knowledgeSummary: uceResult.knowledgeSummary,
+      correspondenceMatches: uceResult.correspondenceMatches,
+      correspondenceRecommendations: uceResult.correspondenceRecommendations,
+      perfilComportamental: uceResult.perfilComportamental,
     }),
     respostaIa: respostaNatural({
       informacoesExtraidas,
@@ -388,6 +391,9 @@ export function processarTurno({
     specialist: uceResult.specialist,
     knowledgeResults: uceResult.knowledgeResults,
     knowledgeSummary: uceResult.knowledgeSummary,
+    correspondenceMatches: uceResult.correspondenceMatches,
+    correspondenceRecommendations: uceResult.correspondenceRecommendations,
+    perfilComportamental: uceResult.perfilComportamental,
     uceResult,
     qualificado: handoffQualificado || qualificado,
     motivoQualificacao: handoffQualificado

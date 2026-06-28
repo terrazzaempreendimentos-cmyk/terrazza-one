@@ -1,4 +1,6 @@
 import type { UCEKnowledgeResult } from "../knowledge/types";
+import type { UCEMatch, UCERecommendation } from "../correspondencias/types";
+import type { UCEPerfil } from "../perfil/types";
 
 export type UCEDomain =
   | "real_estate"
@@ -71,6 +73,9 @@ export type UCEBriefing = {
   pendingFields: string[];
   knowledgeSummary?: string;
   knowledgeResults?: UCEKnowledgeResult[];
+  correspondenceMatches?: UCEMatch[];
+  correspondenceRecommendations?: UCERecommendation[];
+  perfilComportamental?: UCEPerfil;
 };
 
 export type UCEHandoffType =
@@ -204,4 +209,7 @@ export type UCEProcessResult = {
   specialist: UCESpecialistSnapshot;
   knowledgeResults: UCEKnowledgeResult[];
   knowledgeSummary: string;
+  correspondenceMatches: UCEMatch[];
+  correspondenceRecommendations: UCERecommendation[];
+  perfilComportamental: UCEPerfil;
 };

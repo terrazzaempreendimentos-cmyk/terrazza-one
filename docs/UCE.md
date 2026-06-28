@@ -489,3 +489,76 @@ Os especialistas passam a declarar seus dominios permitidos:
 
 Essa camada prepara o UCE para raciocinar com base em relacoes, prioridade e
 contexto territorial, mantendo a decisao sob controle do proprio UCE.
+
+## UCE Correspondencias
+
+O modulo `lib/uce/correspondencias` cria a base das correspondencias
+inteligentes do UCE. A proposta e relacionar automaticamente pessoas, imoveis e
+oportunidades, sem depender de busca manual da equipe.
+
+O mecanismo compara entradas como compradores, inquilinos, proprietarios,
+imoveis e leads com oportunidades conhecidas. A compatibilidade considera
+criterios como cidade, bairro, tipo de imovel, valor, area, quartos, banheiros,
+vagas, pet, objetivo, financiamento, FGTS, urgencia e perfil.
+
+Cada correspondencia recebe:
+
+- score de compatibilidade de 0 a 100;
+- nivel de compatibilidade;
+- motivos objetivos, como mesmo bairro, valor compativel, 3 quartos, perfil
+  familiar ou aceita financiamento;
+- recomendacoes comerciais para o proximo passo.
+
+Quando o briefing e gerado, o UCE tambem consulta correspondencias e inclui no
+resultado:
+
+- correspondencias encontradas;
+- compatibilidade;
+- sugestoes.
+
+No simulador, o painel "UCE Correspondencias" exibe os cinco principais
+resultados, com score e motivos. Nesta fase, a base e estrutural e estatica,
+sem alteracao de banco, WhatsApp, n8n ou OpenAI.
+
+A estrutura foi preparada para evoluir futuramente para Unita, leiloes,
+investidores, Airbnb, temporada, venda e locacao.
+
+## UCE Perfil Comportamental
+
+O modulo `lib/uce/perfil` identifica sinais de comportamento, intencao,
+urgencia, estilo de decisao e perfil comercial durante o atendimento. Ele nao
+substitui dados cadastrais: dados cadastrais dizem quem e a pessoa e quais
+informacoes objetivas foram coletadas; o perfil comportamental indica como essa
+pessoa parece decidir, quais riscos existem e como o corretor deve conduzir a
+conversa.
+
+O UCE Perfil analisa:
+
+- mensagens trocadas;
+- contexto preenchido;
+- hipoteses comerciais;
+- sinais como "vou pensar", "estou so pesquisando", "preciso resolver rapido",
+  "achei caro", "nao tenho fiador", "tenho filhos", "tenho pet", "quero
+  investir" e "primeiro imovel".
+
+O resultado inclui:
+
+- perfil principal;
+- perfis secundarios;
+- estilo de decisao;
+- nivel de urgencia;
+- risco de perda;
+- sinais detectados;
+- recomendacoes;
+- resumo do perfil.
+
+Essa leitura ajuda o corretor a adaptar a abordagem. Um lead inseguro deve
+receber mais clareza e seguranca; um lead urgente precisa de objetividade e
+poucas opcoes; um investidor exige foco em liquidez, rentabilidade, valorizacao
+e riscos; um proprietario inseguro precisa entender gestao profissional,
+garantia locaticia, analise cadastral e acompanhamento juridico.
+
+No futuro, esse modulo podera apoiar atendimentos no WhatsApp e no CRM,
+permitindo historico comportamental por lead, proprietario, comprador,
+inquilino ou vendedor. Nesta fase, ele permanece local ao UCE e nao altera
+banco, OpenAI, WhatsApp ou n8n.

@@ -10,7 +10,10 @@ import type {
   UCEConversationStatus,
   UCEHandoffDecision,
   UCEKnowledgeResult,
+  UCEMatch,
+  UCEPerfil,
   UCEProcessResult,
+  UCERecommendation,
   UCESpecialistSnapshot,
   UCETemporalDebug,
 } from "../../uce";
@@ -197,6 +200,9 @@ export type MotorTurnResult = {
   specialist: UCESpecialistSnapshot;
   knowledgeResults: UCEKnowledgeResult[];
   knowledgeSummary: string;
+  correspondenceMatches: UCEMatch[];
+  correspondenceRecommendations: UCERecommendation[];
+  perfilComportamental: UCEPerfil;
   uceResult: UCEProcessResult;
   qualificado: boolean;
   motivoQualificacao: string;

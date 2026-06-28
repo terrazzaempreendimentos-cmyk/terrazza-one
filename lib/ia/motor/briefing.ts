@@ -1,7 +1,12 @@
 import { camposPendentes } from "./memoria";
 import type { HipoteseIA } from "./inferencia";
 import type { LeadContext, LeadTemperature } from "./tipos";
-import type { UCEKnowledgeResult } from "../../uce";
+import type {
+  UCEMatch,
+  UCEKnowledgeResult,
+  UCEPerfil,
+  UCERecommendation,
+} from "../../uce";
 
 function valorTexto(valor: unknown) {
   if (valor === null || valor === undefined || valor === "") return "Nao informado";
@@ -19,6 +24,9 @@ export function gerarBriefing({
   alertasComerciais,
   knowledgeResults = [],
   knowledgeSummary,
+  correspondenceMatches = [],
+  correspondenceRecommendations = [],
+  perfilComportamental,
 }: {
   contexto: LeadContext;
   score: number;
@@ -27,6 +35,9 @@ export function gerarBriefing({
   hipotesesComerciais?: HipoteseIA[];
   knowledgeResults?: UCEKnowledgeResult[];
   knowledgeSummary?: string;
+  correspondenceMatches?: UCEMatch[];
+  correspondenceRecommendations?: UCERecommendation[];
+  perfilComportamental?: UCEPerfil;
   alertasComerciais?: {
     objecaoDetectada: string | null;
     riscoComercial: string | null;
@@ -89,6 +100,44 @@ export function gerarBriefing({
           )
           .join("\n")
       : knowledgeSummary ?? "- Nenhuma base proprietaria relevante encontrada.",
+    "Correspondencias encontradas:",
+    correspondenceMatches.length > 0
+      ? correspondenceMatches
+          .map(
+            (match) =>
+              `- ${match.target.label}: ${match.compatibility.score}% (${match.compatibility.reasons
+                .map((reason) => reason.label)
+                .join(", ")})`,
+          )
+          .join("\n")
+      : "- Nenhuma correspondencia relevante encontrada.",
+    "Sugestoes de correspondencia:",
+    correspondenceRecommendations.length > 0
+      ? correspondenceRecommendations.map((recommendation) => `- ${recommendation.message}`).join("\n")
+      : "- Sem sugestoes automaticas no momento.",
+    "Perfil comportamental:",
+    perfilComportamental
+      ? [
+          `- Perfil principal: ${perfilComportamental.perfilPrincipal}`,
+          `- Estilo de decisao: ${perfilComportamental.estiloDecisao}`,
+          `- Risco de perda: ${perfilComportamental.riscoPerda}`,
+          `- Sinais: ${
+            perfilComportamental.sinaisDetectados.length > 0
+              ? perfilComportamental.sinaisDetectados
+                  .map((sinal) => sinal.frase)
+                  .join(", ")
+              : "sem sinais fortes"
+          }`,
+          `- Recomendacoes: ${
+            perfilComportamental.recomendacoes.length > 0
+              ? perfilComportamental.recomendacoes
+                  .map((recomendacao) => recomendacao.texto)
+                  .join(" | ")
+              : "seguir abordagem consultiva"
+          }`,
+          `- Resumo: ${perfilComportamental.resumoPerfil}`,
+        ].join("\n")
+      : "- Perfil comportamental ainda nao calculado.",
     `Pendencias: ${
       pendencias.length > 0 ? pendencias.join(", ") : "Sem pendencias essenciais"
     }`,

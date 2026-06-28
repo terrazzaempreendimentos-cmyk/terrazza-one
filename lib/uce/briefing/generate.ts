@@ -5,6 +5,8 @@ import type {
   UCETemperature,
 } from "../core/types";
 import type { UCEKnowledgeResult } from "../knowledge/types";
+import type { UCEMatch, UCERecommendation } from "../correspondencias/types";
+import type { UCEPerfil } from "../perfil/types";
 import { selectUCESpecialist } from "../specialists";
 
 function publicFields(context: UCEContext) {
@@ -32,6 +34,9 @@ export function generateUCEBriefing({
   temperature,
   knowledgeResults = [],
   knowledgeSummary = "",
+  correspondenceMatches = [],
+  correspondenceRecommendations = [],
+  perfilComportamental,
 }: {
   context: UCEContext;
   hypotheses: UCEHypothesis[];
@@ -40,6 +45,9 @@ export function generateUCEBriefing({
   temperature: UCETemperature;
   knowledgeResults?: UCEKnowledgeResult[];
   knowledgeSummary?: string;
+  correspondenceMatches?: UCEMatch[];
+  correspondenceRecommendations?: UCERecommendation[];
+  perfilComportamental?: UCEPerfil;
 }): UCEBriefing {
   const specialist = selectUCESpecialist(context);
 
@@ -56,6 +64,9 @@ export function generateUCEBriefing({
       ...briefing,
       knowledgeResults,
       knowledgeSummary,
+      correspondenceMatches,
+      correspondenceRecommendations,
+      perfilComportamental,
     };
   }
 
@@ -76,5 +87,8 @@ export function generateUCEBriefing({
     pendingFields,
     knowledgeResults,
     knowledgeSummary,
+    correspondenceMatches,
+    correspondenceRecommendations,
+    perfilComportamental,
   };
 }
