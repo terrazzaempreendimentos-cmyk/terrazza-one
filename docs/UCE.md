@@ -289,6 +289,20 @@ OpenAI, fallback, guardrails, tokens estimados, modelo, latencia e motivos de
 reprovacao. Esse diagnostico prepara a observabilidade necessaria para uma API,
 n8n ou WhatsApp em sprints futuras, sem conectar esses canais agora.
 
+## API Bridge para n8n
+
+A Sprint UCE-16.4 adiciona `POST /api/uce/chat` como ponte interna para testes
+futuros com n8n. A rota recebe mensagem, contexto temporario, canal, origem,
+tipo de lead e modo de resposta; chama o UCE; opcionalmente aciona OpenAI
+assistida; e retorna resposta estruturada com contexto atualizado, briefing,
+knowledge, diagnostico LLM e actions sugeridas.
+
+A API nao salva lead, nao grava timeline, nao envia WhatsApp e nao cria workflow
+n8n. Ela apenas prepara o contrato para que o n8n consiga manter memoria
+temporaria e decidir proximos passos em uma sprint futura.
+
+Documentacao completa: `docs/UCE_API.md`.
+
 ## Compatibilidade
 
 O motor antigo em `lib/ia/motor` continua disponivel. A ponte inicial fica em:
