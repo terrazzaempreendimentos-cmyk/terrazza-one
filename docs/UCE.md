@@ -201,6 +201,34 @@ dominio, categoria, tags e texto. O objetivo e permitir que os especialistas da
 UCE usem conhecimento proprietario da Terrazza antes de qualquer camada futura
 de linguagem natural.
 
+## LLM Adapter
+
+A Sprint UCE-16.1 prepara uma camada isolada para futura integracao com OpenAI
+em `lib/uce/llm`, ainda sem chave, dependencia ou chamada real de API.
+
+A regra central permanece: a UCE decide. O `processUCE` continua responsavel por
+especialista ativo, fluxo, score, handoff, status da conversa, conhecimento
+consultado e proxima pergunta. A camada de LLM recebe esse resultado pronto e
+apenas transforma a decisao em linguagem natural.
+
+Arquivos principais:
+
+- `types.ts`: contratos de entrada, saida, provider e resultado de guardrails;
+- `promptBuilder.ts`: monta o prompt com especialista, objetivo, contexto,
+  proxima pergunta decidida pela UCE, conhecimento consultado, tom de voz,
+  restricoes, mensagem do usuario e status;
+- `openaiAdapter.ts`: contem `generateNaturalResponse(input)`, hoje simulado,
+  sem chamar OpenAI real;
+- `guardrails.ts`: valida se a resposta nao inventa imovel, nao promete
+  aprovacao, nao da parecer juridico definitivo, nao muda especialista, nao pede
+  campo que a UCE nao pediu e nao contraria handoff;
+- `fallback.ts`: gera uma resposta segura usando apenas a decisao do proprio
+  UCE, protegendo o atendimento caso a OpenAI falhe no futuro.
+
+Assim, quando a OpenAI for conectada, ela devera escrever a resposta final, mas
+nao podera assumir controle do raciocinio operacional. Guardrails validam a
+saida e o fallback garante continuidade segura do atendimento.
+
 ## Compatibilidade
 
 O motor antigo em `lib/ia/motor` continua disponivel. A ponte inicial fica em:

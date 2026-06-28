@@ -10,3 +10,4 @@ export * from "./commercial";
 export * from "./academy";
 export * from "./specialists";
 export * from "./knowledge";
+export * from "./llm";
