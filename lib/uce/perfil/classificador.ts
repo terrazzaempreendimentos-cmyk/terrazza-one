@@ -2,10 +2,13 @@ import type { UCEContext, UCEHypothesis, UCEMessage } from "../core/types";
 import { detectarSinaisComportamentais } from "./sinais";
 import type {
   UCEEstiloDecisao,
+  UCEPerfil,
   UCEPerfilComportamental,
   UCEPerfilRisco,
   UCESinalComportamental,
 } from "./types";
+
+type UCEPerfilClassificacao = Omit<UCEPerfil, "recomendacoes" | "resumoPerfil">;
 
 function addScore<T extends string>(scores: Map<T, number>, key: T | undefined, value: number) {
   if (!key) return;
@@ -121,7 +124,7 @@ export function classificarPerfilComportamental(
   context: UCEContext,
   messages: UCEMessage[],
   hypotheses: UCEHypothesis[],
-) {
+): UCEPerfilClassificacao {
   const text = messages.map((message) => message.content).join(" ");
   const signals = [
     ...detectarSinaisComportamentais(text),
@@ -144,7 +147,7 @@ export function classificarPerfilComportamental(
     .map(([profile]) => profile)
     .filter((profile) => profile !== perfilPrincipal);
   const estiloDecisao = styles[0]?.[0] ?? "consultivo";
-  const nivelUrgencia = signals.some((signal) => signal.urgencia === "alta")
+  const nivelUrgencia: UCEPerfil["nivelUrgencia"] = signals.some((signal) => signal.urgencia === "alta")
     ? "alta"
     : context.fields.urgencia === "baixa"
       ? "baixa"
