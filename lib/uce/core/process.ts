@@ -22,6 +22,8 @@ import { interpretTemporalExpression } from "../interpreters/temporal";
 import { detectCorrection } from "../memory";
 import { calculateUCEScore } from "../score";
 import { detectarBairro, detectarCidade } from "../domain";
+import { queryKnowledge } from "../knowledge";
+import type { UCEKnowledgeResult } from "../knowledge";
 import {
   getSpecialistPendingFields,
   selectUCESpecialist,
@@ -212,6 +214,96 @@ function fieldConfidence(
   return { field, value, confidence, reason };
 }
 
+function uniqueValues(values: Array<string | null | undefined>) {
+  return Array.from(
+    new Set(
+      values
+        .filter((value): value is string => Boolean(value?.trim()))
+        .map((value) => value.trim()),
+    ),
+  );
+}
+
+function consultKnowledgeForSpecialist({
+  context,
+  specialist,
+  hypotheses,
+}: {
+  context: UCEContext;
+  specialist: UCESpecialistConfig;
+  hypotheses: Array<{ title: string; key: string; category: string }>;
+}) {
+  const objective = typeof context.fields.objetivo === "string"
+    ? context.fields.objetivo
+    : null;
+  const city = typeof context.fields.cidade === "string"
+    ? context.fields.cidade
+    : null;
+  const neighborhood = typeof context.fields.bairro === "string"
+    ? context.fields.bairro
+    : null;
+  const hypothesisTerms = hypotheses.slice(0, 3).flatMap((hypothesis) => [
+    hypothesis.key,
+    hypothesis.title,
+    hypothesis.category,
+  ]);
+  const tags = uniqueValues([
+    objective,
+    context.leadType,
+    city,
+    neighborhood,
+    specialist.id,
+    specialist.persona.label,
+    ...specialist.knowledge.tags,
+    ...hypothesisTerms,
+  ]);
+  const text = uniqueValues([
+    objective,
+    context.leadType ?? undefined,
+    city,
+    neighborhood,
+    specialist.id,
+    specialist.persona.label,
+    specialist.persona.objective,
+    ...hypothesisTerms,
+  ]).join(" ");
+  const byId = new Map<string, UCEKnowledgeResult>();
+
+  specialist.knowledge.categories.forEach((category) => {
+    queryKnowledge({
+      domain: "real_estate",
+      category,
+      tags,
+      text,
+      limit: 4,
+    }).forEach((result) => {
+      const current = byId.get(result.item.id);
+
+      if (!current || result.score > current.score) {
+        byId.set(result.item.id, result);
+      }
+    });
+  });
+
+  return Array.from(byId.values())
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 6);
+}
+
+function summarizeKnowledgeResults(results: UCEKnowledgeResult[]) {
+  if (results.length === 0) {
+    return "Nenhuma base proprietaria relevante foi encontrada para este turno.";
+  }
+
+  return [
+    "Base consultada pelo UCE:",
+    ...results.map(
+      (result) =>
+        `- ${result.item.title} (${result.item.category}, prioridade ${result.item.priority})`,
+    ),
+  ].join("\n");
+}
+
 export function processUCE(input: UCEProcessInput): UCEProcessResult {
   const fields = { ...input.context.fields };
   const interpretedFields: UCEFieldConfidence[] = [];
@@ -239,6 +331,12 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     };
     const missing = pendingFields(context);
     const hypotheses = generateHypotheses(context);
+    const knowledgeResults = consultKnowledgeForSpecialist({
+      context,
+      specialist,
+      hypotheses,
+    });
+    const knowledgeSummary = summarizeKnowledgeResults(knowledgeResults);
     const { score, temperature } = calculateUCEScore(context, hypotheses);
     const commercialStrategy = selectCommercialStrategy(context, hypotheses);
     const commercialAwareness = evaluateCommercialAwareness(
@@ -259,6 +357,8 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       pendingFields: missing,
       score,
       temperature,
+      knowledgeResults,
+      knowledgeSummary,
     });
     const schedulingIntent = normalize(input.message).includes("agendar");
     const closingMessage = schedulingIntent
@@ -292,6 +392,8 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       commercialAwareness,
       brokerMentorBriefing,
       specialist: specialistSnapshot(specialist),
+      knowledgeResults,
+      knowledgeSummary,
     };
   }
 
@@ -469,6 +571,12 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
   };
   const preliminaryMissing = pendingFields(contextBeforeQuestion);
   const hypotheses = generateHypotheses(contextBeforeQuestion);
+  const knowledgeResults = consultKnowledgeForSpecialist({
+    context: contextBeforeQuestion,
+    specialist,
+    hypotheses,
+  });
+  const knowledgeSummary = summarizeKnowledgeResults(knowledgeResults);
   const { score, temperature } = calculateUCEScore(
     contextBeforeQuestion,
     hypotheses,
@@ -508,6 +616,8 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     pendingFields: missing,
     score,
     temperature,
+    knowledgeResults,
+    knowledgeSummary,
   });
   const handoff = qualified
     ? shouldHandoff(context, score, preliminaryMissing, hypotheses)
@@ -565,5 +675,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     commercialAwareness,
     brokerMentorBriefing,
     specialist: specialistSnapshot(specialist),
+    knowledgeResults,
+    knowledgeSummary,
   };
 }

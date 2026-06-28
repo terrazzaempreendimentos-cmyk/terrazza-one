@@ -59,6 +59,7 @@ import {
   type UCECommercialStrategy,
   type UCEConversationStatus,
   type UCEHandoffDecision,
+  type UCEKnowledgeResult,
   type UCESpecialistSnapshot,
   type UCETemporalDebug,
 } from "../../../../../lib/uce";
@@ -262,6 +263,10 @@ export default function SimuladorIaPage() {
   const [specialist, setSpecialist] = useState<UCESpecialistSnapshot | null>(
     null,
   );
+  const [knowledgeResults, setKnowledgeResults] = useState<UCEKnowledgeResult[]>(
+    [],
+  );
+  const [knowledgeSummary, setKnowledgeSummary] = useState("");
   const fimChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -342,6 +347,8 @@ export default function SimuladorIaPage() {
         sugestao: scriptAtivo.proximaAcaoSugerida,
         hipotesesComerciais: inferenciasComerciais,
         alertasComerciais: leituraComercial,
+        knowledgeResults,
+        knowledgeSummary,
       }),
     [
       contexto,
@@ -349,6 +356,8 @@ export default function SimuladorIaPage() {
       scoreMotor.temperatura,
       scriptAtivo,
       inferenciasComerciais,
+      knowledgeResults,
+      knowledgeSummary,
       leituraComercial,
     ],
   );
@@ -441,6 +450,8 @@ export default function SimuladorIaPage() {
     setClosingMessage(null);
     setConversationStatus("coletando");
     setSpecialist(especialista);
+    setKnowledgeResults([]);
+    setKnowledgeSummary("");
   }
 
   function reiniciarSimulacao() {
@@ -458,6 +469,8 @@ export default function SimuladorIaPage() {
     setClosingMessage(null);
     setConversationStatus("coletando");
     setSpecialist(null);
+    setKnowledgeResults([]);
+    setKnowledgeSummary("");
     setContexto(
       contextoConfigurado({
         tipoLead,
@@ -503,6 +516,8 @@ export default function SimuladorIaPage() {
     setClosingMessage(resultado.closingMessage);
     setConversationStatus(resultado.conversationStatus);
     setSpecialist(resultado.specialist);
+    setKnowledgeResults(resultado.knowledgeResults);
+    setKnowledgeSummary(resultado.knowledgeSummary);
     setMensagem("");
     window.requestAnimationFrame(() => textareaRef.current?.focus());
   }
@@ -1035,6 +1050,65 @@ export default function SimuladorIaPage() {
                           </div>
                         )}
                       </div>
+                    </div>
+                  </section>
+
+                  <section className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-xl font-semibold text-[#071E36]">
+                          Conhecimento Consultado
+                        </h3>
+                        <p className="mt-1 text-sm text-[#64736D]">
+                          Bases proprietarias usadas pelo especialista neste turno.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[#071E36]/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#071E36]">
+                        {knowledgeResults.length} resultado(s)
+                      </span>
+                    </div>
+
+                    <div className="mt-5 grid gap-3">
+                      {knowledgeResults.length > 0 ? (
+                        knowledgeResults.map((result) => (
+                          <div
+                            key={result.item.id}
+                            className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3"
+                          >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <p className="font-semibold text-[#071E36]">
+                                    {result.item.title}
+                                  </p>
+                                  <span className="rounded-full bg-[#071E36]/5 px-2 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] text-[#64736D]">
+                                    {result.item.category}
+                                  </span>
+                                </div>
+                                <p className="mt-2 text-sm leading-6 text-[#64736D]">
+                                  {result.item.content.length > 260
+                                    ? `${result.item.content.slice(0, 260)}...`
+                                    : result.item.content}
+                                </p>
+                              </div>
+                              <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-xs font-bold text-[#8B6827]">
+                                Prioridade {result.item.priority}
+                              </span>
+                            </div>
+                            <p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                              Tags
+                            </p>
+                            <p className="mt-1 text-sm leading-6 text-[#64736D]">
+                              {result.item.tags.join(", ")}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="rounded-2xl border border-dashed border-[#E8DDCB] bg-[#F7F3ED] px-4 py-6 text-sm text-[#64736D]">
+                          {knowledgeSummary ||
+                            "Nenhum conhecimento proprietario consultado ainda."}
+                        </div>
+                      )}
                     </div>
                   </section>
 

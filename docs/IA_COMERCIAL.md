@@ -464,6 +464,28 @@ Essa arquitetura permite que Terrazza, Unita e Maximiza compartilhem o core da
 UCE no futuro, trocando especialistas e roteiros sem reescrever o processador
 central.
 
+## Especialistas e Knowledge Engine
+
+Cada especialista da UCE passa a consultar o Knowledge Engine antes de conduzir
+o atendimento, consolidar briefing, fechar a conversa ou orientar a estrategia
+comercial. A consulta usa o objetivo do cliente, tipo de lead, cidade, bairro,
+especialista ativo e hipoteses comerciais principais.
+
+Mapeamento inicial:
+
+- Comprador consulta conhecimento de compra, financiamento, FGTS e bairros.
+- Venda consulta venda, avaliacao comercial, documentacao e bairros.
+- Locacao consulta locacao, garantias, documentacao e bairros.
+- Administracao consulta administracao, garantias, juridico basico,
+  documentacao e bairros.
+- Captacao consulta venda, locacao e base territorial, mas primeiro pergunta se
+  o anuncio sera para venda ou locacao.
+
+O simulador exibe a area "Conhecimento Consultado" para mostrar quais bases
+proprietarias foram usadas no ultimo turno. Isso reforca a regra central: a IA
+nao inventa metodologia comercial; ela consulta conhecimento da Terrazza e usa o
+motor cognitivo para decidir a proxima conducao.
+
 ## Inteligencia Comercial UCE
 
 A IA Comercial da Terrazza passa a contar com um pacote de inteligencia

@@ -162,6 +162,45 @@ detectar bairros e cidades conhecidos. Assim, os especialistas podem consultar
 o perfil territorial sem depender de OpenAI, banco ou integracoes externas nesta
 fase.
 
+## Knowledge Comercial e Juridico
+
+A Sprint UCE-12.3 adiciona a primeira base comercial, juridica e operacional da
+Terrazza dentro do Knowledge Engine. Essa base continua estatica e versionada no
+codigo, sem banco, OpenAI, WhatsApp ou integracoes externas.
+
+Arquivos principais:
+
+- `lib/uce/knowledge/commercial/terrazza.ts`;
+- `lib/uce/knowledge/legal/realEstate.ts`;
+- `lib/uce/knowledge/scripts/terrazza.ts`.
+
+Conteudos iniciais:
+
+- institucional da Terrazza Solucoes Imobiliarias, com atuacao em Maceio e
+  Aracaju;
+- foco inicial em Maceio para locacao e administracao;
+- atuacao em Aracaju para captacao, venda e locacao;
+- processo de administracao de imoveis: divulgacao, cadastro, analise cadastral,
+  garantia locaticia, contrato, vistoria, cobranca, repasse, manutencao e
+  suporte ao proprietario;
+- fluxo de locacao: perfil do inquilino, documentacao, garantia, visita,
+  proposta, analise, contrato e entrega de chaves;
+- fluxo de venda: captacao, avaliacao comercial, documentacao, matricula, preco,
+  negociacao e proposta;
+- garantias: fiador, caucao, seguro fianca, titulo de capitalizacao e analise
+  via Maximiza;
+- objecoes: achei caro, condominio alto, vou pensar, nao tenho fiador, quero ver
+  outros imoveis e estou so pesquisando;
+- juridico basico: nao dar parecer juridico definitivo, encaminhar para
+  especialista, evitar promessa de aprovacao, respeitar LGPD e tratar
+  documentacao imobiliaria como orientacao inicial.
+
+Esses itens sao agregados em `lib/uce/knowledge/repository.ts`, portanto
+`queryKnowledge()` passa a consultar a base comercial, juridica e de scripts por
+dominio, categoria, tags e texto. O objetivo e permitir que os especialistas da
+UCE usem conhecimento proprietario da Terrazza antes de qualquer camada futura
+de linguagem natural.
+
 ## Compatibilidade
 
 O motor antigo em `lib/ia/motor` continua disponivel. A ponte inicial fica em:

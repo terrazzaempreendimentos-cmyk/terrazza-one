@@ -7,6 +7,7 @@ import type {
   UCENextQuestion,
   UCETemperature,
 } from "../../core/types";
+import type { UCEKnowledgeCategory } from "../../knowledge/types";
 
 export type UCESpecialistId =
   | "comprador"
@@ -43,6 +44,10 @@ export type UCESpecialistConfig = {
   persona: UCESpecialistPersona;
   roteiro: UCESpecialistRoute;
   questions: UCENextQuestion[];
+  knowledge: {
+    categories: UCEKnowledgeCategory[];
+    tags: string[];
+  };
   closingMessage: string;
   handoffType: UCEHandoffType;
   buildBriefing: (input: UCESpecialistBriefingInput) => UCEBriefing;

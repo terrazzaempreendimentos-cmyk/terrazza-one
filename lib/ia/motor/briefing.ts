@@ -1,6 +1,7 @@
 import { camposPendentes } from "./memoria";
 import type { HipoteseIA } from "./inferencia";
 import type { LeadContext, LeadTemperature } from "./tipos";
+import type { UCEKnowledgeResult } from "../../uce";
 
 function valorTexto(valor: unknown) {
   if (valor === null || valor === undefined || valor === "") return "Nao informado";
@@ -16,12 +17,16 @@ export function gerarBriefing({
   sugestao,
   hipotesesComerciais = [],
   alertasComerciais,
+  knowledgeResults = [],
+  knowledgeSummary,
 }: {
   contexto: LeadContext;
   score: number;
   temperatura: LeadTemperature;
   sugestao: string;
   hipotesesComerciais?: HipoteseIA[];
+  knowledgeResults?: UCEKnowledgeResult[];
+  knowledgeSummary?: string;
   alertasComerciais?: {
     objecaoDetectada: string | null;
     riscoComercial: string | null;
@@ -72,6 +77,15 @@ export function gerarBriefing({
           .filter(Boolean)
           .join("\n")
       : "- Nenhum alerta comercial detectado.",
+    "Base consultada pelo UCE:",
+    knowledgeResults.length > 0
+      ? knowledgeResults
+          .map(
+            (result) =>
+              `- ${result.item.title} (${result.item.category}, prioridade ${result.item.priority}): ${result.item.content}`,
+          )
+          .join("\n")
+      : knowledgeSummary ?? "- Nenhuma base proprietaria relevante encontrada.",
     `Pendencias: ${
       pendencias.length > 0 ? pendencias.join(", ") : "Sem pendencias essenciais"
     }`,

@@ -11,6 +11,10 @@ export const compradorSpecialist: UCESpecialistConfig = {
   persona: compradorPersona,
   roteiro: compradorRoteiro,
   questions: compradorQuestions,
+  knowledge: {
+    categories: ["comercial", "financeiro", "documentacao", "bairros", "faq"],
+    tags: ["compra", "comprador", "financiamento", "fgts", "bairros"],
+  },
   closingMessage: compradorClosingMessage,
   handoffType: "especialista_venda",
   buildBriefing: buildCompradorBriefing,

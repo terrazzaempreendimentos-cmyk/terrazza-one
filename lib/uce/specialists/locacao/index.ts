@@ -11,6 +11,10 @@ export const locacaoSpecialist: UCESpecialistConfig = {
   persona: locacaoPersona,
   roteiro: locacaoRoteiro,
   questions: locacaoQuestions,
+  knowledge: {
+    categories: ["comercial", "garantias", "documentacao", "bairros", "scripts"],
+    tags: ["locacao", "inquilino", "garantias", "documentacao", "bairros"],
+  },
   closingMessage: locacaoClosingMessage,
   handoffType: "especialista_locacao",
   buildBriefing: buildLocacaoBriefing,

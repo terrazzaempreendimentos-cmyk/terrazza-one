@@ -1,3 +1,5 @@
+import type { UCEKnowledgeResult } from "../knowledge/types";
+
 export type UCEDomain =
   | "real_estate"
   | "auctions"
@@ -67,6 +69,8 @@ export type UCEBriefing = {
   fields: Record<string, unknown>;
   hypotheses: UCEHypothesis[];
   pendingFields: string[];
+  knowledgeSummary?: string;
+  knowledgeResults?: UCEKnowledgeResult[];
 };
 
 export type UCEHandoffType =
@@ -198,4 +202,6 @@ export type UCEProcessResult = {
   commercialAwareness: UCECommercialAwareness;
   brokerMentorBriefing: UCEBrokerMentorBriefing;
   specialist: UCESpecialistSnapshot;
+  knowledgeResults: UCEKnowledgeResult[];
+  knowledgeSummary: string;
 };

@@ -4,6 +4,7 @@ import type {
   UCEHypothesis,
   UCETemperature,
 } from "../core/types";
+import type { UCEKnowledgeResult } from "../knowledge/types";
 import { selectUCESpecialist } from "../specialists";
 
 function publicFields(context: UCEContext) {
@@ -29,23 +30,33 @@ export function generateUCEBriefing({
   pendingFields,
   score,
   temperature,
+  knowledgeResults = [],
+  knowledgeSummary = "",
 }: {
   context: UCEContext;
   hypotheses: UCEHypothesis[];
   pendingFields: string[];
   score: number;
   temperature: UCETemperature;
+  knowledgeResults?: UCEKnowledgeResult[];
+  knowledgeSummary?: string;
 }): UCEBriefing {
   const specialist = selectUCESpecialist(context);
 
   if (context.domain === "real_estate") {
-    return specialist.buildBriefing({
+    const briefing = specialist.buildBriefing({
       context,
       hypotheses,
       pendingFields,
       score,
       temperature,
     });
+
+    return {
+      ...briefing,
+      knowledgeResults,
+      knowledgeSummary,
+    };
   }
 
   const fields = publicFields(context);
@@ -63,5 +74,7 @@ export function generateUCEBriefing({
     fields,
     hypotheses,
     pendingFields,
+    knowledgeResults,
+    knowledgeSummary,
   };
 }

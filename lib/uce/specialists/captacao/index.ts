@@ -11,6 +11,10 @@ export const captacaoSpecialist: UCESpecialistConfig = {
   persona: captacaoPersona,
   roteiro: captacaoRoteiro,
   questions: captacaoQuestions,
+  knowledge: {
+    categories: ["comercial", "scripts", "bairros", "objecoes"],
+    tags: ["captacao", "venda", "locacao", "anuncio", "bairros"],
+  },
   closingMessage: captacaoClosingMessage,
   handoffType: "atendimento_humano",
   buildBriefing: buildCaptacaoBriefing,

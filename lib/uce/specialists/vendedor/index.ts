@@ -11,6 +11,10 @@ export const vendedorSpecialist: UCESpecialistConfig = {
   persona: vendedorPersona,
   roteiro: vendedorRoteiro,
   questions: vendedorQuestions,
+  knowledge: {
+    categories: ["comercial", "documentacao", "bairros", "objecoes", "scripts"],
+    tags: ["venda", "captacao", "avaliacao", "documentacao", "matricula", "bairros"],
+  },
   closingMessage: vendedorClosingMessage,
   handoffType: "especialista_venda",
   buildBriefing: buildVendedorBriefing,

@@ -354,6 +354,8 @@ export function processarTurno({
       sugestao: script.proximaAcaoSugerida,
       hipotesesComerciais: inferenciasComerciais,
       alertasComerciais: leituraComercial,
+      knowledgeResults: uceResult.knowledgeResults,
+      knowledgeSummary: uceResult.knowledgeSummary,
     }),
     respostaIa: respostaNatural({
       informacoesExtraidas,
@@ -383,6 +385,8 @@ export function processarTurno({
     conversationStatus: uceResult.conversationStatus,
     temporalDebug: uceResult.temporalDebug,
     specialist: uceResult.specialist,
+    knowledgeResults: uceResult.knowledgeResults,
+    knowledgeSummary: uceResult.knowledgeSummary,
     qualificado: handoffQualificado || qualificado,
     motivoQualificacao: handoffQualificado
       ? uceResult.handoff.reason

@@ -4,3 +4,6 @@ export * from "./query";
 export * from "./ranking";
 export * from "./formatter";
 export * from "./territorial";
+export * from "./commercial/terrazza";
+export * from "./legal/realEstate";
+export * from "./scripts/terrazza";
