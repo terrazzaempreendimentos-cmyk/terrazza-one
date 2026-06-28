@@ -2,6 +2,7 @@ import { camposPendentes } from "./memoria";
 import type { HipoteseIA } from "./inferencia";
 import type { LeadContext, LeadTemperature } from "./tipos";
 import type {
+  UCEAprendizadoResult,
   UCEMatch,
   UCEKnowledgeResult,
   UCEPerfil,
@@ -27,6 +28,7 @@ export function gerarBriefing({
   correspondenceMatches = [],
   correspondenceRecommendations = [],
   perfilComportamental,
+  aprendizado,
 }: {
   contexto: LeadContext;
   score: number;
@@ -38,6 +40,7 @@ export function gerarBriefing({
   correspondenceMatches?: UCEMatch[];
   correspondenceRecommendations?: UCERecommendation[];
   perfilComportamental?: UCEPerfil;
+  aprendizado?: UCEAprendizadoResult;
   alertasComerciais?: {
     objecaoDetectada: string | null;
     riscoComercial: string | null;
@@ -138,6 +141,32 @@ export function gerarBriefing({
           `- Resumo: ${perfilComportamental.resumoPerfil}`,
         ].join("\n")
       : "- Perfil comportamental ainda nao calculado.",
+    "Aprendizado UCE:",
+    aprendizado
+      ? [
+          `- Padroes: ${
+            aprendizado.padroesDetectados.length > 0
+              ? aprendizado.padroesDetectados
+                  .map((padrao) => `${padrao.titulo} (${padrao.confianca}%)`)
+                  .join(", ")
+              : "sem padroes fortes"
+          }`,
+          `- Insights: ${
+            aprendizado.insights.length > 0
+              ? aprendizado.insights.map((insight) => insight.titulo).join(", ")
+              : "sem insights relevantes"
+          }`,
+          `- Recomendacoes: ${
+            aprendizado.recomendacoes.length > 0
+              ? aprendizado.recomendacoes
+                  .map((recomendacao) => recomendacao.titulo)
+                  .join(", ")
+              : "sem recomendacoes adicionais"
+          }`,
+          `- Metricas: confianca ${aprendizado.metricas.nivelConfianca}, complexidade ${aprendizado.metricas.complexidadeAtendimento}, prioridade ${aprendizado.metricas.prioridadeOperacional}, humano ${aprendizado.metricas.necessidadeHumano}, relacionamento ${aprendizado.metricas.potencialRelacionamento}`,
+          `- Resumo: ${aprendizado.resumoAprendizado}`,
+        ].join("\n")
+      : "- Aprendizado ainda nao calculado.",
     `Pendencias: ${
       pendencias.length > 0 ? pendencias.join(", ") : "Sem pendencias essenciais"
     }`,

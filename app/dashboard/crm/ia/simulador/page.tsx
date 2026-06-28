@@ -55,6 +55,7 @@ import type { RespostaComercial } from "../../../../../lib/ia/comercial";
 import {
   uceAcademyScenarios,
   uceSpecialists,
+  type UCEAprendizadoResult,
   type UCEBrokerMentorBriefing,
   type UCECommercialAwareness,
   type UCECommercialStrategy,
@@ -315,6 +316,9 @@ export default function SimuladorIaPage() {
     useState<UCERecommendation[]>([]);
   const [perfilComportamental, setPerfilComportamental] =
     useState<UCEPerfil | null>(null);
+  const [aprendizado, setAprendizado] = useState<UCEAprendizadoResult | null>(
+    null,
+  );
   const [ultimoPacoteExtraido, setUltimoPacoteExtraido] = useState<ExtractedInfo>(
     {},
   );
@@ -415,6 +419,7 @@ export default function SimuladorIaPage() {
         correspondenceMatches,
         correspondenceRecommendations,
         perfilComportamental: perfilComportamental ?? undefined,
+        aprendizado: aprendizado ?? undefined,
       }),
     [
       contexto,
@@ -427,6 +432,7 @@ export default function SimuladorIaPage() {
       correspondenceMatches,
       correspondenceRecommendations,
       perfilComportamental,
+      aprendizado,
       leituraComercial,
     ],
   );
@@ -528,6 +534,7 @@ export default function SimuladorIaPage() {
     setCorrespondenceMatches([]);
     setCorrespondenceRecommendations([]);
     setPerfilComportamental(null);
+    setAprendizado(null);
     setUltimoPacoteExtraido({});
     setLlmStatus({
       modo: modoResposta,
@@ -563,6 +570,7 @@ export default function SimuladorIaPage() {
     setCorrespondenceMatches([]);
     setCorrespondenceRecommendations([]);
     setPerfilComportamental(null);
+    setAprendizado(null);
     setUltimoPacoteExtraido({});
     setLlmStatus({
       modo: modoResposta,
@@ -684,6 +692,7 @@ export default function SimuladorIaPage() {
     setCorrespondenceMatches(resultado.correspondenceMatches);
     setCorrespondenceRecommendations(resultado.correspondenceRecommendations);
     setPerfilComportamental(resultado.perfilComportamental);
+    setAprendizado(resultado.aprendizado);
     setUltimoPacoteExtraido(resultado.informacoesExtraidas);
     setLlmStatus(statusResposta);
     setMensagem("");
@@ -1404,6 +1413,124 @@ export default function SimuladorIaPage() {
                         )}
                       </div>
                     </div>
+                  </section>
+
+                  <section className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <h3 className="text-xl font-semibold text-[#071E36]">
+                          UCE Aprendizado
+                        </h3>
+                        <p className="mt-1 text-sm text-[#64736D]">
+                          Padrões, insights e prioridade operacional percebidos pelo UCE.
+                        </p>
+                      </div>
+                      <span className="rounded-full bg-[#071E36]/5 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#071E36]">
+                        {aprendizado?.metricas.prioridadeOperacional ?? "sem prioridade"}
+                      </span>
+                    </div>
+
+                    {aprendizado ? (
+                      <div className="mt-5 grid gap-4">
+                        <div className="grid gap-3 md:grid-cols-5">
+                          {Object.entries(aprendizado.metricas).map(([key, value]) => (
+                            <div
+                              key={key}
+                              className="rounded-2xl bg-[#F7F3ED] px-4 py-3"
+                            >
+                              <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                                {key}
+                              </p>
+                              <p className="mt-1 font-semibold text-[#071E36]">
+                                {value}
+                              </p>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="grid gap-3 lg:grid-cols-2">
+                          <div className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                              Padrões detectados
+                            </p>
+                            <div className="mt-3 grid gap-2">
+                              {aprendizado.padroesDetectados.length > 0 ? (
+                                aprendizado.padroesDetectados.map((padrao) => (
+                                  <div key={padrao.id} className="rounded-xl bg-white px-3 py-2">
+                                    <div className="flex items-start justify-between gap-3">
+                                      <p className="font-semibold text-[#071E36]">
+                                        {padrao.titulo}
+                                      </p>
+                                      <span className="rounded-full bg-[#C89B3C]/10 px-2 py-1 text-[11px] font-bold text-[#8B6827]">
+                                        {padrao.confianca}%
+                                      </span>
+                                    </div>
+                                    <p className="mt-1 text-sm leading-6 text-[#64736D]">
+                                      {padrao.descricao}
+                                    </p>
+                                  </div>
+                                ))
+                              ) : (
+                                <p className="text-sm text-[#64736D]">
+                                  Nenhum padrão forte detectado ainda.
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3">
+                            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                              Insights
+                            </p>
+                            <ul className="mt-3 grid gap-2 text-sm leading-6 text-[#64736D]">
+                              {aprendizado.insights.length > 0 ? (
+                                aprendizado.insights.map((insight) => (
+                                  <li key={insight.id}>
+                                    <strong className="text-[#071E36]">
+                                      {insight.titulo}:
+                                    </strong>{" "}
+                                    {insight.descricao}
+                                  </li>
+                                ))
+                              ) : (
+                                <li>Sem insights relevantes ainda.</li>
+                              )}
+                            </ul>
+                          </div>
+                        </div>
+
+                        <div className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] px-4 py-3">
+                          <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                            Recomendações práticas
+                          </p>
+                          <div className="mt-3 flex flex-wrap gap-2">
+                            {aprendizado.recomendacoes.length > 0 ? (
+                              aprendizado.recomendacoes.map((recomendacao) => (
+                                <span
+                                  key={recomendacao.id}
+                                  className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-medium text-[#64736D]"
+                                  title={recomendacao.descricao}
+                                >
+                                  {recomendacao.titulo}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-sm text-[#64736D]">
+                                Nenhuma recomendação adicional.
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        <p className="rounded-2xl bg-[#F7F3ED] px-4 py-3 text-sm leading-6 text-[#64736D]">
+                          {aprendizado.resumoAprendizado}
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="mt-5 rounded-2xl border border-dashed border-[#E8DDCB] bg-[#F7F3ED] px-4 py-6 text-sm text-[#64736D]">
+                        Aprendizado ainda não calculado.
+                      </div>
+                    )}
                   </section>
 
                   <section className="rounded-[1.75rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">

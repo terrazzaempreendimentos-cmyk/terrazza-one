@@ -360,6 +360,7 @@ export function processarTurno({
       correspondenceMatches: uceResult.correspondenceMatches,
       correspondenceRecommendations: uceResult.correspondenceRecommendations,
       perfilComportamental: uceResult.perfilComportamental,
+      aprendizado: uceResult.aprendizado,
     }),
     respostaIa: respostaNatural({
       informacoesExtraidas,
@@ -394,6 +395,7 @@ export function processarTurno({
     correspondenceMatches: uceResult.correspondenceMatches,
     correspondenceRecommendations: uceResult.correspondenceRecommendations,
     perfilComportamental: uceResult.perfilComportamental,
+    aprendizado: uceResult.aprendizado,
     uceResult,
     qualificado: handoffQualificado || qualificado,
     motivoQualificacao: handoffQualificado

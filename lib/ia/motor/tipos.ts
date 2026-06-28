@@ -8,6 +8,7 @@ import type {
   UCECommercialAwareness,
   UCECommercialStrategy,
   UCEConversationStatus,
+  UCEAprendizadoResult,
   UCEHandoffDecision,
   UCEKnowledgeResult,
   UCEMatch,
@@ -203,6 +204,7 @@ export type MotorTurnResult = {
   correspondenceMatches: UCEMatch[];
   correspondenceRecommendations: UCERecommendation[];
   perfilComportamental: UCEPerfil;
+  aprendizado: UCEAprendizadoResult;
   uceResult: UCEProcessResult;
   qualificado: boolean;
   motivoQualificacao: string;

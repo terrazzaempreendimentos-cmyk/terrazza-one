@@ -7,6 +7,7 @@ import type {
 import type { UCEKnowledgeResult } from "../knowledge/types";
 import type { UCEMatch, UCERecommendation } from "../correspondencias/types";
 import type { UCEPerfil } from "../perfil/types";
+import type { UCEAprendizadoResult } from "../aprendizado/types";
 import { selectUCESpecialist } from "../specialists";
 
 function publicFields(context: UCEContext) {
@@ -37,6 +38,7 @@ export function generateUCEBriefing({
   correspondenceMatches = [],
   correspondenceRecommendations = [],
   perfilComportamental,
+  aprendizado,
 }: {
   context: UCEContext;
   hypotheses: UCEHypothesis[];
@@ -48,6 +50,7 @@ export function generateUCEBriefing({
   correspondenceMatches?: UCEMatch[];
   correspondenceRecommendations?: UCERecommendation[];
   perfilComportamental?: UCEPerfil;
+  aprendizado?: UCEAprendizadoResult;
 }): UCEBriefing {
   const specialist = selectUCESpecialist(context);
 
@@ -67,6 +70,7 @@ export function generateUCEBriefing({
       correspondenceMatches,
       correspondenceRecommendations,
       perfilComportamental,
+      aprendizado,
     };
   }
 
@@ -90,5 +94,6 @@ export function generateUCEBriefing({
     correspondenceMatches,
     correspondenceRecommendations,
     perfilComportamental,
+    aprendizado,
   };
 }

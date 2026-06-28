@@ -32,6 +32,7 @@ import {
   type UCEMatchEntity,
 } from "../correspondencias";
 import { analisarPerfilComportamental } from "../perfil";
+import { analisarAprendizado } from "../aprendizado";
 import {
   getSpecialistPendingFields,
   selectUCESpecialist,
@@ -736,6 +737,14 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       context.memory,
       hypotheses,
     );
+    const aprendizado = analisarAprendizado({
+      context,
+      perfilComportamental,
+      hypotheses,
+      knowledgeResults,
+      correspondencias: correspondenceMatches,
+      memorias: [],
+    });
     const { score, temperature } = calculateUCEScore(context, hypotheses);
     const commercialStrategy = selectCommercialStrategy(context, hypotheses);
     const commercialAwareness = evaluateCommercialAwareness(
@@ -761,6 +770,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       correspondenceMatches,
       correspondenceRecommendations,
       perfilComportamental,
+      aprendizado,
     });
     const closingMessage = generatePostHandoffResponse(
       context,
@@ -800,6 +810,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       correspondenceMatches,
       correspondenceRecommendations,
       perfilComportamental,
+      aprendizado,
     };
   }
 
@@ -1068,6 +1079,14 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     contextBeforeQuestion.memory,
     hypotheses,
   );
+  const aprendizado = analisarAprendizado({
+    context: contextBeforeQuestion,
+    perfilComportamental,
+    hypotheses,
+    knowledgeResults,
+    correspondencias: correspondenceMatches,
+    memorias: [],
+  });
   const { score, temperature } = calculateUCEScore(
     contextBeforeQuestion,
     hypotheses,
@@ -1112,6 +1131,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     correspondenceMatches,
     correspondenceRecommendations,
     perfilComportamental,
+    aprendizado,
   });
   const handoff = qualified
     ? shouldHandoff(context, score, preliminaryMissing, hypotheses)
@@ -1174,5 +1194,6 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     correspondenceMatches,
     correspondenceRecommendations,
     perfilComportamental,
+    aprendizado,
   };
 }

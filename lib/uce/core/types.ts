@@ -1,6 +1,7 @@
 import type { UCEKnowledgeResult } from "../knowledge/types";
 import type { UCEMatch, UCERecommendation } from "../correspondencias/types";
 import type { UCEPerfil } from "../perfil/types";
+import type { UCEAprendizadoResult } from "../aprendizado/types";
 
 export type UCEDomain =
   | "real_estate"
@@ -76,6 +77,7 @@ export type UCEBriefing = {
   correspondenceMatches?: UCEMatch[];
   correspondenceRecommendations?: UCERecommendation[];
   perfilComportamental?: UCEPerfil;
+  aprendizado?: UCEAprendizadoResult;
 };
 
 export type UCEHandoffType =
@@ -212,4 +214,5 @@ export type UCEProcessResult = {
   correspondenceMatches: UCEMatch[];
   correspondenceRecommendations: UCERecommendation[];
   perfilComportamental: UCEPerfil;
+  aprendizado: UCEAprendizadoResult;
 };

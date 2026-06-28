@@ -562,3 +562,38 @@ No futuro, esse modulo podera apoiar atendimentos no WhatsApp e no CRM,
 permitindo historico comportamental por lead, proprietario, comprador,
 inquilino ou vendedor. Nesta fase, ele permanece local ao UCE e nao altera
 banco, OpenAI, WhatsApp ou n8n.
+
+## UCE Aprendizado
+
+O modulo `lib/uce/aprendizado` cria a primeira camada de aprendizado do UCE.
+Nesta fase, nao e machine learning real. E um aprendizado baseado em padroes,
+regras, estatisticas simples e sinais observados durante o atendimento.
+
+O UCE Aprendizado usa:
+
+- contexto coletado no atendimento;
+- perfil comportamental;
+- hipoteses comerciais;
+- conhecimento consultado;
+- correspondencias encontradas;
+- memorias futuras.
+
+O objetivo e transformar dados dispersos em padroes reutilizaveis. Exemplos:
+familia buscando 3 quartos, investidor buscando liquidez, inquilino com pet que
+precisa de flexibilidade, comprador financiado que precisa de documentacao,
+proprietario inseguro que precisa de seguranca e urgencia alta que exige
+handoff rapido.
+
+O resultado inclui:
+
+- padroes detectados;
+- insights;
+- recomendacoes praticas;
+- metricas simples, como nivel de confianca, complexidade do atendimento,
+  prioridade operacional, necessidade humana e potencial de relacionamento;
+- resumo do aprendizado.
+
+Essa camada prepara o UCE para futuras analises estatisticas e aprendizado
+continuo. Ela sera util tanto para a Terrazza quanto para a Unita, mantendo a
+regra central: o UCE aprende padroes para apoiar a decisao, sem depender de
+automacoes externas nesta etapa.
