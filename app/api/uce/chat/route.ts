@@ -32,6 +32,14 @@ type UCEChatPayload = {
   context?: Partial<LeadContext>;
 };
 
+type UCEApiLlmSummary = {
+  usedOpenAI: boolean;
+  fallbackUsed: boolean;
+  guardrailsApproved: boolean;
+  estimatedTotalTokens: number;
+  model: string | null;
+};
+
 const channels: UCEApiChannel[] = [
   "whatsapp",
   "instagram",
@@ -130,7 +138,7 @@ function buildActions(handoffReady: boolean) {
   ];
 }
 
-function emptyLlm() {
+function emptyLlm(): UCEApiLlmSummary {
   return {
     usedOpenAI: false,
     fallbackUsed: false,
@@ -140,7 +148,7 @@ function emptyLlm() {
   };
 }
 
-function llmResponse(output: UCELLMOutput) {
+function llmResponse(output: UCELLMOutput): UCEApiLlmSummary {
   return {
     usedOpenAI: output.report.usedOpenAI,
     fallbackUsed: output.report.fallbackUsed,

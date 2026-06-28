@@ -8,6 +8,7 @@ import {
   BarChart3,
   BookOpen,
   Bot,
+  Brain,
   Building2,
   ChevronDown,
   ChevronRight,
