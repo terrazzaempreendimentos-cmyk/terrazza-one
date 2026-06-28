@@ -258,6 +258,37 @@ Essa integracao fica restrita ao ambiente seguro de teste do simulador. Nao ha
 rota publica, WhatsApp ou n8n nesta etapa; esses canais ficam para sprints
 futuras.
 
+## Guardrails e Controle de Custo
+
+A Sprint UCE-16.3 fortalece a OpenAI assistida para que ela continue sendo uma
+camada de linguagem, nao de decisao. A UCE permanece responsavel por
+especialista, fluxo, score, handoff, proxima pergunta, conhecimento consultado e
+status da conversa. Se houver qualquer duvida, a resposta volta para o fallback
+seguro da UCE pura.
+
+Os guardrails bloqueiam respostas que inventem imoveis especificos, prometam
+aprovacao de credito, deem parecer juridico definitivo, alterem especialista,
+pecam campo diferente da proxima pergunta definida pela UCE, contrariem
+`handoff_pronto`, prometam disponibilidade, informem preco ou condominio fora do
+contexto ou usem linguagem agressiva, pressionadora ou informal demais. Cada
+validacao retorna aprovacao, motivos e severidade.
+
+O fallback protege o atendimento em cinco situacoes: coleta normal,
+`handoff_pronto`, atendimento encerrado, erro de OpenAI e guardrail reprovado.
+Assim, falhas de API, chave ausente, latencia ou saidas inseguras nao quebram o
+simulador nem desviam o fluxo comercial.
+
+O controle de custo fica em `lib/uce/llm/tokenBudget.ts`. A estimativa usa a
+regra simples de 1 token para cerca de 4 caracteres, limita knowledge, historico
+e briefing no prompt e gera um relatorio de budget. O prompt padrao usa
+`DEFAULT_LLM_TOKEN_BUDGET = 2500`, reduzindo custo e evitando que conteudo
+irrelevante seja enviado ao modelo.
+
+O simulador mostra um painel compacto de Diagnostico LLM com modo ativo, uso da
+OpenAI, fallback, guardrails, tokens estimados, modelo, latencia e motivos de
+reprovacao. Esse diagnostico prepara a observabilidade necessaria para uma API,
+n8n ou WhatsApp em sprints futuras, sem conectar esses canais agora.
+
 ## Compatibilidade
 
 O motor antigo em `lib/ia/motor` continua disponivel. A ponte inicial fica em:

@@ -1,7 +1,8 @@
 import OpenAI from "openai";
 import { generateFallbackResponse } from "./fallback";
 import { validateLLMOutput } from "./guardrails";
-import { buildLLMPrompt } from "./promptBuilder";
+import { buildLLMPrompt, DEFAULT_LLM_TOKEN_BUDGET } from "./promptBuilder";
+import { buildBudgetReport } from "./tokenBudget";
 import type { UCELLMInput, UCELLMOutput } from "./types";
 
 const DEFAULT_MODEL = "gpt-4o-mini";
@@ -48,6 +49,7 @@ function buildOutput({
   openaiUsed,
   fallbackUsed,
   error,
+  latencyMs,
 }: {
   text: string;
   input: UCELLMInput;
@@ -57,7 +59,9 @@ function buildOutput({
   openaiUsed: boolean;
   fallbackUsed: boolean;
   error: string | null;
+  latencyMs: number | null;
 }): UCELLMOutput {
+  const model = input.model ?? DEFAULT_MODEL;
   const draftOutput = {
     text,
     provider,
@@ -65,30 +69,59 @@ function buildOutput({
     simulated,
     openaiUsed,
     fallbackUsed,
-    model: input.model ?? DEFAULT_MODEL,
+    model,
     error,
     guardrails: {
-      valid: true,
-      violations: [],
+      approved: true,
+      reasons: [],
+      severity: "low" as const,
       safeText: null,
     },
+    report: buildBudgetReport({
+      provider,
+      model,
+      prompt,
+      outputText: text,
+      promptBudget: DEFAULT_LLM_TOKEN_BUDGET,
+      usedOpenAI: openaiUsed,
+      fallbackUsed,
+      guardrailsApproved: true,
+      guardrailReasons: [],
+      latencyMs,
+    }),
   };
   const guardrails = validateLLMOutput(draftOutput, input.uceResult);
-  const shouldFallback = fallbackUsed || !guardrails.valid;
+  const shouldFallback = fallbackUsed || !guardrails.approved;
+  const finalText = shouldFallback
+    ? guardrails.safeText ??
+      generateFallbackResponse(input.uceResult, "guardrail_reprovado")
+    : draftOutput.text;
+  const finalFallbackUsed = shouldFallback;
 
   return {
     ...draftOutput,
-    text: shouldFallback
-      ? guardrails.safeText ?? generateFallbackResponse(input.uceResult)
-      : draftOutput.text,
-    fallbackUsed: shouldFallback,
+    text: finalText,
+    fallbackUsed: finalFallbackUsed,
     guardrails,
+    report: buildBudgetReport({
+      provider,
+      model,
+      prompt,
+      outputText: finalText,
+      promptBudget: DEFAULT_LLM_TOKEN_BUDGET,
+      usedOpenAI: openaiUsed,
+      fallbackUsed: finalFallbackUsed,
+      guardrailsApproved: guardrails.approved,
+      guardrailReasons: guardrails.reasons,
+      latencyMs,
+    }),
   };
 }
 
 export async function generateNaturalResponse(
   input: UCELLMInput,
 ): Promise<UCELLMOutput> {
+  const startedAt = Date.now();
   const prompt = input.prompt ?? buildLLMPrompt(input.uceResult);
   const provider = input.provider ?? "mock";
 
@@ -102,6 +135,7 @@ export async function generateNaturalResponse(
       openaiUsed: false,
       fallbackUsed: false,
       error: null,
+      latencyMs: Date.now() - startedAt,
     });
   }
 
@@ -128,10 +162,11 @@ export async function generateNaturalResponse(
       openaiUsed: true,
       fallbackUsed: false,
       error: null,
+      latencyMs: Date.now() - startedAt,
     });
   } catch (error) {
     return buildOutput({
-      text: generateFallbackResponse(input.uceResult),
+      text: generateFallbackResponse(input.uceResult, "erro_openai"),
       input,
       prompt,
       provider,
@@ -139,6 +174,7 @@ export async function generateNaturalResponse(
       openaiUsed: false,
       fallbackUsed: true,
       error: error instanceof Error ? error.message : "Falha desconhecida na OpenAI.",
+      latencyMs: Date.now() - startedAt,
     });
   }
 }

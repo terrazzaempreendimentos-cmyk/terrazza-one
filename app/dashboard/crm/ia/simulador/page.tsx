@@ -74,6 +74,11 @@ type LLMStatus = {
   openaiUsed: boolean;
   fallbackUsed: boolean;
   guardrailsApproved: boolean | null;
+  model: string | null;
+  estimatedTotalTokens: number | null;
+  promptBudget: number | null;
+  latencyMs: number | null;
+  guardrailReasons: string[];
   error: string | null;
 };
 
@@ -308,6 +313,11 @@ export default function SimuladorIaPage() {
     openaiUsed: false,
     fallbackUsed: false,
     guardrailsApproved: null,
+    model: null,
+    estimatedTotalTokens: null,
+    promptBudget: null,
+    latencyMs: null,
+    guardrailReasons: [],
     error: null,
   });
   const fimChatRef = useRef<HTMLDivElement>(null);
@@ -505,6 +515,11 @@ export default function SimuladorIaPage() {
       openaiUsed: false,
       fallbackUsed: false,
       guardrailsApproved: null,
+      model: null,
+      estimatedTotalTokens: null,
+      promptBudget: null,
+      latencyMs: null,
+      guardrailReasons: [],
       error: null,
     });
   }
@@ -532,6 +547,11 @@ export default function SimuladorIaPage() {
       openaiUsed: false,
       fallbackUsed: false,
       guardrailsApproved: null,
+      model: null,
+      estimatedTotalTokens: null,
+      promptBudget: null,
+      latencyMs: null,
+      guardrailReasons: [],
       error: null,
     });
     setContexto(
@@ -547,9 +567,14 @@ export default function SimuladorIaPage() {
   function statusFromLLM(output: UCELLMOutput): LLMStatus {
     return {
       modo: "openai",
-      openaiUsed: output.openaiUsed,
-      fallbackUsed: output.fallbackUsed,
-      guardrailsApproved: output.guardrails.valid,
+      openaiUsed: output.report.usedOpenAI,
+      fallbackUsed: output.report.fallbackUsed,
+      guardrailsApproved: output.report.guardrailsApproved,
+      model: output.report.model,
+      estimatedTotalTokens: output.report.estimatedTotalTokens,
+      promptBudget: output.report.promptBudget,
+      latencyMs: output.report.latencyMs,
+      guardrailReasons: output.report.guardrailReasons,
       error: output.error,
     };
   }
@@ -574,6 +599,11 @@ export default function SimuladorIaPage() {
       openaiUsed: false,
       fallbackUsed: false,
       guardrailsApproved: modoResposta === "uce" ? null : false,
+      model: null,
+      estimatedTotalTokens: null,
+      promptBudget: null,
+      latencyMs: null,
+      guardrailReasons: [],
       error: null,
     };
 
@@ -592,6 +622,11 @@ export default function SimuladorIaPage() {
           openaiUsed: false,
           fallbackUsed: true,
           guardrailsApproved: false,
+          model: null,
+          estimatedTotalTokens: null,
+          promptBudget: null,
+          latencyMs: null,
+          guardrailReasons: ["Falha ao acionar Server Action do LLM."],
           error:
             error instanceof Error
               ? error.message
@@ -1124,6 +1159,51 @@ export default function SimuladorIaPage() {
                           </p>
                         </div>
                       </div>
+                    </div>
+
+                    <div className="mt-4 rounded-2xl border border-[#E8DDCB] bg-white px-4 py-3 text-sm">
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-[#071E36]">
+                            Diagnostico LLM
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            Modo:{" "}
+                            {llmStatus.modo === "openai"
+                              ? "OpenAI assistida"
+                              : "UCE puro"}{" "}
+                            | OpenAI usada: {llmStatus.openaiUsed ? "sim" : "nao"} |
+                            Fallback: {llmStatus.fallbackUsed ? "sim" : "nao"}
+                          </p>
+                        </div>
+                        <span className="rounded-full bg-[#F7F3ED] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6827]">
+                          {llmStatus.guardrailsApproved === null
+                            ? "Guardrails n/a"
+                            : llmStatus.guardrailsApproved
+                              ? "Guardrails aprovado"
+                              : "Guardrails reprovado"}
+                        </span>
+                      </div>
+                      <div className="mt-3 grid gap-2 text-[#64736D] md:grid-cols-3">
+                        <p>Modelo: {llmStatus.model ?? "n/a"}</p>
+                        <p>
+                          Tokens estimados:{" "}
+                          {llmStatus.estimatedTotalTokens !== null
+                            ? `${llmStatus.estimatedTotalTokens}/${llmStatus.promptBudget}`
+                            : "n/a"}
+                        </p>
+                        <p>
+                          Latencia:{" "}
+                          {llmStatus.latencyMs !== null
+                            ? `${llmStatus.latencyMs}ms`
+                            : "n/a"}
+                        </p>
+                      </div>
+                      {llmStatus.guardrailReasons.length > 0 ? (
+                        <p className="mt-2 leading-6 text-[#8B6827]">
+                          Motivos: {llmStatus.guardrailReasons.join("; ")}
+                        </p>
+                      ) : null}
                     </div>
 
                     <div className="mt-5">
