@@ -275,26 +275,22 @@ function respostaNatural({
   closingMessage?: string | null;
 }) {
   const confirmacao = resumoDoQueEntendeu(informacoesExtraidas);
-  const transicoes = [
-    "Otimo, isso ja ajuda bastante.",
-    "Excelente, com essas informacoes ja consigo avancar.",
-    "Vamos seguir com a proxima informacao.",
-    "Perfeito, entendi o caminho.",
-  ];
-  const index = Object.keys(informacoesExtraidas).length % transicoes.length;
+  const hasNewInfo = Object.keys(informacoesExtraidas).length > 0;
 
   if (podePassarCorretor) {
     if (closingMessage) {
-      return Object.keys(informacoesExtraidas).length > 0
+      return hasNewInfo
         ? `${confirmacao} ${closingMessage}`
         : closingMessage;
     }
 
-    return `${confirmacao} ${transicoes[index]} Ja tenho base para preparar o atendimento com um especialista da Terrazza. Proximo passo sugerido: ${sugestao}`;
+    return `${confirmacao} Ja tenho base para preparar o atendimento com um especialista da Terrazza. Proximo passo sugerido: ${sugestao}`;
   }
 
   if (proximaPergunta) {
-    return `${confirmacao} ${transicoes[index]} ${proximaPergunta.texto}`;
+    return hasNewInfo
+      ? `${confirmacao} ${proximaPergunta.texto}`
+      : proximaPergunta.texto;
   }
 
   return `${confirmacao} Vou consolidar essas informacoes e preparar o melhor encaminhamento comercial.`;

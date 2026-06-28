@@ -979,10 +979,10 @@ export default function SimuladorIaPage() {
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
                           <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.14em] text-emerald-700">
-                            Handoff pronto
+                            Atendimento qualificado
                           </span>
                           <h3 className="mt-4 text-xl font-semibold text-[#071E36]">
-                            Atendimento qualificado para corretor
+                            Pronto para especialista da Terrazza
                           </h3>
                           <p className="mt-1 text-sm leading-6 text-[#64736D]">
                             {handoff.reason}
@@ -994,6 +994,14 @@ export default function SimuladorIaPage() {
                       </div>
 
                       <div className="mt-5 grid gap-3 text-sm md:grid-cols-2">
+                        <div className="rounded-2xl bg-white px-4 py-3">
+                          <p className="font-semibold text-[#071E36]">
+                            Especialista sugerido
+                          </p>
+                          <p className="mt-1 leading-6 text-[#64736D]">
+                            {specialist?.label ?? handoff.handoffType}
+                          </p>
+                        </div>
                         <div className="rounded-2xl bg-white px-4 py-3">
                           <p className="font-semibold text-[#071E36]">
                             Campos essenciais coletados
@@ -1014,11 +1022,19 @@ export default function SimuladorIaPage() {
                         </div>
                         <div className="rounded-2xl bg-white px-4 py-3 md:col-span-2">
                           <p className="font-semibold text-[#071E36]">
-                            Mensagem final da IA
+                            Mensagem final
                           </p>
                           <p className="mt-1 leading-6 text-[#64736D]">
                             {closingMessage ??
                               "Atendimento qualificado e pronto para passagem."}
+                          </p>
+                        </div>
+                        <div className="rounded-2xl bg-white px-4 py-3 md:col-span-2">
+                          <p className="font-semibold text-[#071E36]">
+                            Texto para corretor
+                          </p>
+                          <p className="mt-1 whitespace-pre-line leading-6 text-[#64736D]">
+                            {textoPassagemCorretor}
                           </p>
                         </div>
                       </div>

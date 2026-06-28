@@ -1,2 +1,2 @@
 export const compradorClosingMessage =
-  "Perfeito. Ja conheco o perfil do imovel que voce procura. Vou encaminhar seu briefing para um especialista em vendas da Terrazza selecionar opcoes compativeis e entrar em contato.";
+  "Perfeito. Já organizei seu perfil de compra. Um especialista em vendas da Terrazza poderá avaliar opções compatíveis e orientar os próximos passos.";

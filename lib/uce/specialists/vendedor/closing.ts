@@ -1,2 +1,2 @@
 export const vendedorClosingMessage =
-  "Excelente. Ja possuo as informacoes iniciais para direcionar sua venda. Um especialista da Terrazza fara uma avaliacao comercial e orientara a melhor estrategia.";
+  "Excelente. Já tenho uma boa base para direcionar sua venda. O próximo passo é uma avaliação comercial com especialista da Terrazza.";

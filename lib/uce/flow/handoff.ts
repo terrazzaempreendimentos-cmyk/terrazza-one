@@ -6,7 +6,7 @@ import type {
   UCEHandoffType,
   UCEHypothesis,
 } from "../core/types";
-import { selectUCESpecialist } from "../specialists";
+import { selectUCESpecialist, type UCESpecialistConfig } from "../specialists";
 
 function hasValue(value: unknown) {
   if (value === null || value === undefined) return false;
@@ -170,6 +170,24 @@ export function isQualifiedForHandoff(
   const minimumScore = isOwnerOrAdministration(contextWithType) ? 65 : 70;
 
   return missingCriticalFields.length === 0 && score >= minimumScore;
+}
+
+export function generatePostHandoffResponse(
+  context: UCEContext,
+  specialist: UCESpecialistConfig,
+  message = "",
+) {
+  void context;
+  void specialist;
+
+  const normalizedMessage = text(message);
+  const followUpIntents = ["ok", "sim", "agendar", "quero", "pode seguir"];
+
+  if (followUpIntents.some((intent) => normalizedMessage.includes(intent))) {
+    return "Combinado. O próximo passo é o especialista confirmar disponibilidade e continuar o atendimento.";
+  }
+
+  return "Perfeito. Esse atendimento já está qualificado e pronto para ser encaminhado ao especialista da Terrazza.";
 }
 
 export function generateDeterministicFinalMessage(

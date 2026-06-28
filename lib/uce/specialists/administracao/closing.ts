@@ -1,2 +1,2 @@
 export const administracaoClosingMessage =
-  "Excelente. Ja tenho uma visao inicial do imovel e do tipo de administracao desejada. Um especialista patrimonial continuara o atendimento.";
+  "Excelente. Já tenho uma visão inicial do imóvel e da administração desejada. Um especialista patrimonial da Terrazza poderá continuar o atendimento.";

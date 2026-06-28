@@ -13,6 +13,7 @@ import {
   selectCommercialStrategy,
 } from "../commercial";
 import {
+  generatePostHandoffResponse,
   getNextSmartQuestion,
   isQualifiedForHandoff,
   shouldHandoff,
@@ -543,10 +544,11 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       knowledgeResults,
       knowledgeSummary,
     });
-    const schedulingIntent = normalize(input.message).includes("agendar");
-    const closingMessage = schedulingIntent
-      ? "Esse atendimento ja esta pronto para encaminhamento. O proximo passo e o especialista confirmar disponibilidade e seguir com o atendimento."
-      : specialist.closingMessage;
+    const closingMessage = generatePostHandoffResponse(
+      context,
+      specialist,
+      input.message,
+    );
 
     return {
       context,
