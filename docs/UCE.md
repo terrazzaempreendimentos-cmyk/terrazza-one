@@ -456,3 +456,36 @@ mais cuidado.
 Nesta fundacao, a memoria persistente fica isolada em `lib/uce/memory/persistent`
 e usa as tabelas `uce_memories` e `uce_interactions`. Ela ainda nao esta
 integrada ao `/api/uce/chat`, a automacoes, WhatsApp ou n8n.
+
+## UCE Conhecimento Inteligente
+
+O UCE Conhecimento Inteligente transforma a base proprietaria em um mecanismo de
+apoio a decisao. Ele nao deve ser tratado apenas como um banco de textos. Cada
+item passa a ter dominio, categoria, prioridade, tags, fonte, localidade,
+vigencia e relacionamentos com outros conceitos do ecossistema imobiliario.
+
+A estrutura inicial fica em `lib/uce/conhecimento`:
+
+- `engine.ts`: base estruturada inicial de conhecimento.
+- `search.ts`: busca por texto, categoria, tags, cidade, bairro e dominio.
+- `ranking.ts`: calcula score por titulo, tags, conteudo, prioridade, dominio,
+  cidade e bairro.
+- `relations.ts`: expande relacoes entre conceitos, como Ponta Verde, Maceio,
+  turismo, Airbnb, alto padrao, venda e locacao.
+- `context.ts`: monta o contexto relevante para o UCE sem enviar toda a base.
+
+O principio central e entregar ao UCE apenas o conhecimento util para aquele
+turno. A OpenAI, quando usada futuramente como camada de linguagem, nao deve
+receber a base inteira nem decidir quais conhecimentos importam.
+
+Os especialistas passam a declarar seus dominios permitidos:
+
+- Comprador: Venda, Financiamento, Bairros e Mercado.
+- Locacao: Locacao, Garantias, Condominio e Bairros.
+- Administracao: Administracao, Condominio, Juridico e Garantias, com tags de
+  manutencao.
+- Captacao: Venda, Locacao, Comercial e Mercado, com tags de avaliacao.
+- Vendedor: Venda, Mercado, Imoveis e Bairros.
+
+Essa camada prepara o UCE para raciocinar com base em relacoes, prioridade e
+contexto territorial, mantendo a decisao sob controle do proprio UCE.

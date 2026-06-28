@@ -12,6 +12,7 @@ export const locacaoSpecialist: UCESpecialistConfig = {
   roteiro: locacaoRoteiro,
   questions: locacaoQuestions,
   knowledge: {
+    dominios: ["Locacao", "Garantias", "Condominio", "Bairros"],
     categories: ["comercial", "garantias", "documentacao", "bairros", "scripts"],
     tags: ["locacao", "inquilino", "garantias", "documentacao", "bairros"],
   },

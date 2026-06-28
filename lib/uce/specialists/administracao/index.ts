@@ -12,8 +12,9 @@ export const administracaoSpecialist: UCESpecialistConfig = {
   roteiro: administracaoRoteiro,
   questions: administracaoQuestions,
   knowledge: {
+    dominios: ["Administracao", "Condominio", "Juridico", "Garantias"],
     categories: ["comercial", "garantias", "juridico", "documentacao", "bairros", "scripts"],
-    tags: ["administracao", "proprietario", "garantias", "juridico", "bairros"],
+    tags: ["administracao", "proprietario", "garantias", "juridico", "bairros", "manutencao"],
   },
   closingMessage: administracaoClosingMessage,
   handoffType: "especialista_administracao",

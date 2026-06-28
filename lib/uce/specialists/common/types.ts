@@ -8,6 +8,7 @@ import type {
   UCETemperature,
 } from "../../core/types";
 import type { UCEKnowledgeCategory } from "../../knowledge/types";
+import type { UCEConhecimentoDominio } from "../../conhecimento";
 
 export type UCESpecialistId =
   | "comprador"
@@ -47,6 +48,7 @@ export type UCESpecialistConfig = {
   knowledge: {
     categories: UCEKnowledgeCategory[];
     tags: string[];
+    dominios?: UCEConhecimentoDominio[];
   };
   closingMessage: string;
   handoffType: UCEHandoffType;

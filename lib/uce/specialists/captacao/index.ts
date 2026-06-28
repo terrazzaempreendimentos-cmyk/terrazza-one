@@ -12,8 +12,9 @@ export const captacaoSpecialist: UCESpecialistConfig = {
   roteiro: captacaoRoteiro,
   questions: captacaoQuestions,
   knowledge: {
+    dominios: ["Venda", "Locacao", "Comercial", "Mercado"],
     categories: ["comercial", "scripts", "bairros", "objecoes"],
-    tags: ["captacao", "venda", "locacao", "anuncio", "bairros"],
+    tags: ["captacao", "venda", "locacao", "anuncio", "bairros", "avaliacao"],
   },
   closingMessage: captacaoClosingMessage,
   handoffType: "atendimento_humano",

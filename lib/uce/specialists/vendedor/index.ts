@@ -12,6 +12,7 @@ export const vendedorSpecialist: UCESpecialistConfig = {
   roteiro: vendedorRoteiro,
   questions: vendedorQuestions,
   knowledge: {
+    dominios: ["Venda", "Mercado", "Imoveis", "Bairros"],
     categories: ["comercial", "documentacao", "bairros", "objecoes", "scripts"],
     tags: ["venda", "captacao", "avaliacao", "documentacao", "matricula", "bairros"],
   },
