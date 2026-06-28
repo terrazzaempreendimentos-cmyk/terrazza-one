@@ -8,6 +8,7 @@ function missingCompradorFields(context: UCEContext) {
       : null,
     !hasValue(context.fields.tipoImovel) ? "tipoImovel" : null,
     !hasValue(context.fields.valor) ? "valor" : null,
+    !hasValue(context.fields.entradaDisponivel) ? "entradaDisponivel" : null,
     !hasValue(context.fields.financiamento) ? "financiamento" : null,
     !hasValue(context.fields.fgts) ? "fgts" : null,
     !hasValue(context.fields.quartos) ? "quartos" : null,

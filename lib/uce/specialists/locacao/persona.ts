@@ -2,9 +2,9 @@ import type { UCESpecialistPersona } from "../common";
 
 export const locacaoPersona: UCESpecialistPersona = {
   id: "locacao",
-  label: "Especialista Locacao",
-  objective: "Alugar imovel como inquilino",
-  tone: "Acolhedor e direto, com foco em disponibilidade e aderencia.",
+  label: "Especialista Locação",
+  objective: "Alugar imóvel como inquilino",
+  tone: "Acolhedor e direto, com foco em disponibilidade e aderência.",
   initialMessage:
-    "Ola! Vou entender o imovel que voce procura para locacao e preparar seu atendimento.",
+    "Olá! Vou entender o imóvel que você procura para locação e preparar seu atendimento.",
 };

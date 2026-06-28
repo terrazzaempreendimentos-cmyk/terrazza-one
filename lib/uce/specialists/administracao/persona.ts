@@ -2,9 +2,9 @@ import type { UCESpecialistPersona } from "../common";
 
 export const administracaoPersona: UCESpecialistPersona = {
   id: "administracao",
-  label: "Especialista Administracao",
-  objective: "Administrar imovel",
-  tone: "Patrimonial, organizado e seguro para proprietarios.",
+  label: "Especialista Administração",
+  objective: "Administrar imóvel",
+  tone: "Patrimonial, organizado e seguro para proprietários.",
   initialMessage:
-    "Ola! Vou entender seu imovel e como a Terrazza pode assumir sua administracao completa.",
+    "Olá! Vou entender seu imóvel e como a Terrazza pode assumir sua administração completa.",
 };

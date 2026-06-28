@@ -24,6 +24,18 @@ export function selectUCESpecialist(context: UCEContext): UCESpecialistConfig {
 
   const objective = text(context.fields.objetivo);
   const leadType = text(context.leadType);
+  const capturePurpose = text(
+    context.fields.finalidadeAnuncio ?? context.fields.destinoCaptacao,
+  );
+
+  if (
+    leadType === "proprietario" &&
+    !capturePurpose &&
+    objective !== "venda" &&
+    objective !== "administracao"
+  ) {
+    return captacaoSpecialist;
+  }
 
   if (objective === "captacao" || objective.includes("anunciar")) {
     return captacaoSpecialist;
@@ -37,11 +49,18 @@ export function selectUCESpecialist(context: UCEContext): UCESpecialistConfig {
     return vendedorSpecialist;
   }
 
+  if (
+    leadType === "proprietario" &&
+    (objective === "locacao" || objective === "administracao")
+  ) {
+    return administracaoSpecialist;
+  }
+
   if (objective === "locacao" || leadType === "inquilino") {
     return locacaoSpecialist;
   }
 
-  if (objective === "administracao" || leadType === "proprietario") {
+  if (objective === "administracao") {
     return administracaoSpecialist;
   }
 
@@ -78,12 +97,12 @@ export function getNextSpecialistQuestion(
   ) {
     return {
       field: "prazoMudanca",
-      text: "Qual seria o prazo ideal? Pode ser uma data, um mes ou uma quantidade de dias.",
-      reason: "Urgencia confirmada, mas ainda falta prazo especifico.",
+      text: "Qual seria o prazo ideal? Pode ser uma data, um mês ou uma quantidade de dias.",
+      reason: "Urgência confirmada, mas ainda falta prazo específico.",
     };
   }
 
-  return (
+  const nextQuestion =
     specialist.questions.find((question) => {
       if (
         (question.field === "cidade" || question.field === "bairro") &&
@@ -93,8 +112,19 @@ export function getNextSpecialistQuestion(
       }
 
       return !hasValue(context.fields[question.field]);
-    }) ?? null
-  );
+    }) ?? null;
+
+  if (nextQuestion?.field === "finalidadeAnuncio") {
+    return {
+      ...nextQuestion,
+      text:
+        text(context.leadType) === "proprietario"
+          ? "Perfeito. Esse imóvel será para venda ou para locação/administração?"
+          : "Perfeito. Esse anúncio será para venda ou para locação?",
+    };
+  }
+
+  return nextQuestion;
 }
 
 export * from "./common";

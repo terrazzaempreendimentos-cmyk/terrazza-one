@@ -61,7 +61,9 @@ export type CampoPergunta =
   | "motivoTroca"
   | "administracaoCompleta"
   | "chavesDisponiveis"
-  | "destinoCaptacao";
+  | "destinoCaptacao"
+  | "finalidadeAnuncio"
+  | "ocupacao";
 
 export type LeadContext = {
   tipoLead: TipoLeadSimulador | null;
@@ -82,7 +84,7 @@ export type LeadContext = {
   prazoMudanca: string | null;
   documentacao: boolean | null;
   documentacaoObservacao: string | null;
-  entradaDisponivel: number | null;
+  entradaDisponivel: number | boolean | null;
   garagem: boolean | null;
   vagas: number | null;
   condominioAceita: boolean | null;
@@ -103,6 +105,8 @@ export type LeadContext = {
   administracaoCompleta: boolean | null;
   chavesDisponiveis: boolean | null;
   destinoCaptacao: string | null;
+  finalidadeAnuncio: string | null;
+  ocupacao: string | null;
   especialistaAtivo: string | null;
   handoffReady: boolean;
   ultimaPerguntaCampo: CampoPergunta | null;

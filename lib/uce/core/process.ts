@@ -340,7 +340,7 @@ function parseActiveQuestionValue(field: string, message: string) {
 
   if (field === "destinoCaptacao") {
     if (has(text, ["venda", "vender"])) return "venda";
-    if (has(text, ["locacao", "aluguel", "alugar", "locar"])) return "locacao";
+    if (has(text, ["locacao", "aluguel", "alugar", "locar", "administrar", "administracao"])) return "locacao";
   }
 
   if (field === "quartos" || field === "moradores") {
@@ -349,6 +349,21 @@ function parseActiveQuestionValue(field: string, message: string) {
 
   if (field === "vagas") {
     return parseVagas(text);
+  }
+
+  if (field === "entradaDisponivel") {
+    const money = parseMoney(text);
+    if (money !== null) return money;
+    if (has(text, ["sim", "tenho", "tenho sim"])) return true;
+    if (has(text, ["nao", "ainda nao", "sem entrada"])) return false;
+
+    return null;
+  }
+
+  if (field === "condominioValor" || field === "condominio") {
+    if (has(text, ["nao", "nao tem", "sem condominio", "isento"])) return 0;
+
+    return parseMoney(text);
   }
 
   if (moneyFields.includes(field)) {
@@ -414,14 +429,14 @@ export function resolveActiveQuestionAnswer(
       fields.objetivo = "venda";
       resolvedField = "finalidadeAnuncio";
       value = "venda";
-      reason = "Finalidade do anuncio resolvida; fluxo deve trocar para vendedor.";
-    } else if (has(text, ["locacao", "locação", "alugar", "aluguel", "locar"])) {
+      reason = "Finalidade do anúncio resolvida; fluxo deve trocar para vendedor.";
+    } else if (has(text, ["locacao", "locação", "alugar", "aluguel", "locar", "administrar", "administracao", "administração"])) {
       fields.destinoCaptacao = "locacao";
       fields.finalidadeAnuncio = "locacao";
       fields.objetivo = "administracao";
       resolvedField = "finalidadeAnuncio";
       value = "locacao";
-      reason = "Finalidade do anuncio resolvida; fluxo deve trocar para administracao.";
+      reason = "Finalidade do anúncio resolvida; fluxo deve trocar para administração.";
     } else {
       return null;
     }
@@ -444,6 +459,33 @@ export function resolveActiveQuestionAnswer(
       value = false;
     } else {
       return null;
+    }
+  } else if (field === "entradaDisponivel") {
+    const money = parseMoney(text);
+    if (money !== null) {
+      fields.entradaDisponivel = money;
+      value = money;
+    } else if (has(text, ["sim", "tenho", "tenho sim"])) {
+      fields.entradaDisponivel = true;
+      value = true;
+    } else if (has(text, ["nao", "não", "ainda nao", "ainda não", "sem entrada"])) {
+      fields.entradaDisponivel = false;
+      value = false;
+    } else {
+      return null;
+    }
+  } else if (field === "condominioValor" || field === "condominio") {
+    if (has(text, ["nao", "não", "nao tem", "não tem", "sem condominio", "sem condomínio", "isento"])) {
+      fields.condominioValor = 0;
+      resolvedField = "condominioValor";
+      value = 0;
+    } else {
+      const money = parseMoney(text);
+      if (money === null) return null;
+
+      fields.condominioValor = money;
+      resolvedField = "condominioValor";
+      value = money;
     }
   } else if (field === "urgencia") {
     if (has(text, ["sem pressa", "nao", "não"])) {
@@ -985,9 +1027,16 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
   const contextualHandledAnotherField =
     Boolean(activeResolution?.resolvedField && activeResolution.resolvedField !== "urgencia") ||
     (Boolean(contextual.field) && contextual.field !== "urgencia");
+  const activeAllowsTemporal =
+    !activeField ||
+    activeField === "urgencia" ||
+    activeField === "prazoMudanca" ||
+    activeField === "prazoCompra";
+  const hasExplicitDeadline = Boolean(temporal.deadlineText);
   if (
     !contextualHandledUrgency &&
     !contextualHandledAnotherField &&
+    (activeAllowsTemporal || hasExplicitDeadline) &&
     (temporal.urgency !== "indefinida" || temporal.asksForSpecificDeadline)
   ) {
     fields.urgencia = temporal.urgency;

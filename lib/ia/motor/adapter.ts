@@ -53,6 +53,8 @@ const camposLegados: Array<keyof LeadContext> = [
   "administracaoCompleta",
   "chavesDisponiveis",
   "destinoCaptacao",
+  "finalidadeAnuncio",
+  "ocupacao",
 ];
 
 function leadContextToUCE({
@@ -142,7 +144,7 @@ function uceToLeadContext({
     documentacaoObservacao:
       (uceContext.fields.documentacaoObservacao as string | null) ?? null,
     entradaDisponivel:
-      (uceContext.fields.entradaDisponivel as number | null) ?? null,
+      (uceContext.fields.entradaDisponivel as number | boolean | null) ?? null,
     garagem:
       typeof uceContext.fields.garagem === "boolean"
         ? uceContext.fields.garagem
@@ -196,6 +198,9 @@ function uceToLeadContext({
         : contextoAtual.chavesDisponiveis,
     destinoCaptacao:
       (uceContext.fields.destinoCaptacao as string | null) ?? null,
+    finalidadeAnuncio:
+      (uceContext.fields.finalidadeAnuncio as string | null) ?? null,
+    ocupacao: (uceContext.fields.ocupacao as string | null) ?? null,
     especialistaAtivo:
       typeof uceContext.metadata.activeSpecialist === "string"
         ? uceContext.metadata.activeSpecialist

@@ -1,18 +1,14 @@
 import type { UCENextQuestion } from "../../core/types";
 
 export const vendedorQuestions: UCENextQuestion[] = [
-  { field: "cidade", text: "Em qual cidade fica o imovel?", reason: "Cidade orienta avaliacao comercial." },
-  { field: "bairro", text: "Qual e o bairro do imovel?", reason: "Bairro ajuda na analise de mercado." },
-  { field: "tipoImovel", text: "Qual e o tipo do imovel?", reason: "Tipo define comparaveis." },
-  { field: "areaM2", text: "Qual é a área aproximada do imóvel?", reason: "Area ajuda na avaliacao comercial." },
-  { field: "quartos", text: "Quantos quartos o imovel possui?", reason: "Quartos qualificam comparaveis." },
-  { field: "vagas", text: "Quantas vagas de garagem possui?", reason: "Vagas impactam avaliacao comercial." },
-  { field: "valor", text: "Qual valor voce espera pela venda?", reason: "Valor esperado indica posicionamento." },
-  { field: "ocupacao", text: "O imovel esta ocupado?", reason: "Ocupacao afeta visita e estrategia." },
-  { field: "documentacao", text: "A documentacao do imovel esta organizada?", reason: "Documentacao indica prontidao comercial." },
-  { field: "urgencia", text: "Qual a urgencia para vender?", reason: "Urgencia define prioridade e abordagem." },
-  { field: "motivoVenda", text: "Qual e o principal motivo da venda?", reason: "Motivo orienta estrategia." },
-  { field: "imovelFinanciado", text: "O imovel ainda esta financiado?", reason: "Financiamento afeta viabilidade da venda." },
-  { field: "jaAnunciou", text: "Voce ja anunciou esse imovel antes?", reason: "Historico de anuncio mostra tracao." },
-  { field: "exclusividade", text: "Voce considera trabalhar com exclusividade?", reason: "Exclusividade define estrategia comercial." },
+  { field: "cidade", text: "Em qual cidade fica o imóvel?", reason: "Cidade orienta avaliação comercial." },
+  { field: "bairro", text: "Qual é o bairro do imóvel?", reason: "Bairro ajuda na análise de mercado." },
+  { field: "tipoImovel", text: "Qual é o tipo do imóvel?", reason: "Tipo define comparáveis." },
+  { field: "areaM2", text: "Qual é a área aproximada do imóvel?", reason: "Área ajuda na avaliação comercial." },
+  { field: "quartos", text: "Quantos quartos o imóvel possui?", reason: "Quartos qualificam comparáveis." },
+  { field: "vagas", text: "Quantas vagas de garagem possui?", reason: "Vagas impactam avaliação comercial." },
+  { field: "valor", text: "Qual valor você espera pela venda?", reason: "Valor esperado indica posicionamento." },
+  { field: "ocupacao", text: "O imóvel está ocupado ou desocupado?", reason: "Ocupação afeta visita e estratégia." },
+  { field: "documentacao", text: "A documentação do imóvel está organizada?", reason: "Documentação indica prontidão comercial." },
+  { field: "urgencia", text: "Existe algum prazo ou urgência para a venda?", reason: "Urgência define prioridade e abordagem." },
 ];

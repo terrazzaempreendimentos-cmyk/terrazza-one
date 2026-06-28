@@ -41,6 +41,8 @@ export function criarContextoInicial(): LeadContext {
     administracaoCompleta: null,
     chavesDisponiveis: null,
     destinoCaptacao: null,
+    finalidadeAnuncio: null,
+    ocupacao: null,
     especialistaAtivo: null,
     handoffReady: false,
     ultimaPerguntaCampo: null,

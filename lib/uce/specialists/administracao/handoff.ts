@@ -11,7 +11,9 @@ function missingAdministracaoFields(context: UCEContext) {
     !hasValue(context.fields.quartos) ? "quartos" : null,
     !hasValue(context.fields.vagas) ? "vagas" : null,
     !hasValue(context.fields.ocupacao) ? "ocupacao" : null,
-    !hasValue(context.fields.valor) ? "valor" : null,
+    !hasValue(context.fields.valorAluguelAtual) ? "valorAluguelAtual" : null,
+    !hasValue(context.fields.condominioValor) ? "condominioValor" : null,
+    !hasValue(context.fields.iptu) ? "iptu" : null,
     !hasValue(context.fields.documentacao) ? "documentacao" : null,
     !hasValue(context.fields.urgencia) ? "urgencia" : null,
   ].filter(Boolean) as string[];
@@ -33,7 +35,7 @@ export function buildAdministracaoHandoff({
     minimumScore: 65,
     handoffType: "especialista_administracao",
     readyReason: "Briefing patrimonial completo para especialista continuar.",
-    notReadyReason: "Ainda faltam dados criticos da administracao",
+    notReadyReason: "Ainda faltam dados críticos da administração",
     score,
     optionalMissingFields: missingFields.filter(
       (field) => !criticalMissing.includes(field),

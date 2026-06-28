@@ -4,17 +4,17 @@ import { getNextSpecialistQuestion } from "../specialists";
 const realEstateQuestions: UCENextQuestion[] = [
   {
     field: "objetivo",
-    text: "Qual e seu principal objetivo agora: alugar, comprar, vender, administrar ou anunciar?",
+    text: "Qual é seu principal objetivo agora: alugar, comprar, vender, administrar ou anunciar?",
     reason: "Objetivo define o fluxo comercial.",
   },
   { field: "cidade", text: "Em qual cidade?", reason: "Cidade orienta mercado e disponibilidade." },
-  { field: "bairro", text: "Tem algum bairro ou regiao de preferencia?", reason: "Bairro qualifica aderencia." },
-  { field: "tipoImovel", text: "Qual tipo de imovel faz mais sentido?", reason: "Tipo do imovel direciona busca." },
-  { field: "valor", text: "Qual faixa de valor voce tem em mente?", reason: "Valor define viabilidade." },
-  { field: "quartos", text: "Quantos quartos voce precisa?", reason: "Quartos indicam perfil de uso." },
-  { field: "pet", text: "Voce possui pet?", reason: "Pet afeta aderencia do imovel." },
-  { field: "urgencia", text: "Existe alguma urgencia ou prazo importante?", reason: "Prazo define prioridade." },
-  { field: "documentacao", text: "Voce ja possui documentacao organizada?", reason: "Documentacao indica prontidao." },
+  { field: "bairro", text: "Tem algum bairro ou região de preferência?", reason: "Bairro qualifica aderência." },
+  { field: "tipoImovel", text: "Qual tipo de imóvel faz mais sentido?", reason: "Tipo do imóvel direciona busca." },
+  { field: "valor", text: "Qual faixa de valor você tem em mente?", reason: "Valor define viabilidade." },
+  { field: "quartos", text: "Quantos quartos você precisa?", reason: "Quartos indicam perfil de uso." },
+  { field: "pet", text: "Você possui pet?", reason: "Pet afeta aderência do imóvel." },
+  { field: "urgencia", text: "Existe alguma urgência ou prazo importante?", reason: "Prazo define prioridade." },
+  { field: "documentacao", text: "Você já possui documentação organizada?", reason: "Documentação indica prontidão." },
 ];
 
 function isFilled(value: unknown) {
@@ -41,8 +41,8 @@ export function getNextSmartQuestion(context: UCEContext) {
   ) {
     return {
       field: "urgencia",
-      text: "Perfeito. Qual seria o prazo ideal? Pode ser uma data, um mes ou uma quantidade de dias.",
-      reason: "Usuario confirmou urgencia, mas ainda falta prazo especifico.",
+      text: "Perfeito. Qual seria o prazo ideal? Pode ser uma data, um mês ou uma quantidade de dias.",
+      reason: "Usuário confirmou urgência, mas ainda falta prazo específico.",
     };
   }
 
