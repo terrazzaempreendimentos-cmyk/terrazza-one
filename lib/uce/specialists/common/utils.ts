@@ -54,6 +54,7 @@ export function buildSpecialistHandoff({
   readyReason,
   notReadyReason,
   score,
+  optionalMissingFields = [],
 }: {
   missingFields: string[];
   minimumScore: number;
@@ -61,8 +62,11 @@ export function buildSpecialistHandoff({
   readyReason: string;
   notReadyReason: string;
   score: number;
+  optionalMissingFields?: string[];
 }) {
-  const canHandoff = missingFields.length === 0 && score >= minimumScore;
+  void score;
+
+  const canHandoff = missingFields.length === 0;
 
   return {
     canHandoff,
@@ -75,6 +79,6 @@ export function buildSpecialistHandoff({
         }.`,
     handoffType: canHandoff ? handoffType : "atendimento_humano",
     missingCriticalFields: missingFields,
-    optionalMissingFields: [],
+    optionalMissingFields,
   };
 }

@@ -878,20 +878,70 @@ export default function SimuladorIaPage() {
                     </div>
 
                     <div className="mt-5 rounded-2xl border border-[#E8DDCB] bg-[#F7F3ED] px-4 py-3 text-sm">
-                      <p className="font-semibold text-[#071E36]">
-                        Conversation status
-                      </p>
-                      <p className="mt-1 text-[#64736D]">
-                        {conversationStatus}
-                      </p>
-                      <p className="mt-2 font-semibold text-[#071E36]">
-                        Especialista ativo
-                      </p>
-                      <p className="mt-1 text-[#64736D]">
-                        {specialist
-                          ? `${specialist.label} - ${specialist.objective}`
-                          : "Aguardando objetivo do cliente"}
-                      </p>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        <div>
+                          <p className="font-semibold text-[#071E36]">
+                            Conversation status
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {conversationStatus}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#071E36]">
+                            Especialista ativo
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {specialist
+                              ? `${specialist.label} - ${specialist.objective}`
+                              : "Aguardando objetivo do cliente"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#071E36]">
+                            Active question
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {proximaPergunta?.campo ??
+                              contexto.ultimaPerguntaCampo ??
+                              "nenhuma"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#071E36]">
+                            Ultimo campo resolvido
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {temporalDebug?.filledField ?? "nenhum"}:{" "}
+                            {temporalDebug?.savedValue === null ||
+                            temporalDebug?.savedValue === undefined
+                              ? "sem valor"
+                              : String(temporalDebug.savedValue)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#071E36]">
+                            Campos essenciais faltantes
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {handoff?.missingCriticalFields.length
+                              ? handoff.missingCriticalFields.join(", ")
+                              : camposPendentesMotor.length > 0
+                                ? camposPendentesMotor.join(", ")
+                                : "sem pendencias essenciais"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#071E36]">
+                            Campos opcionais faltantes
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {handoff?.optionalMissingFields.length
+                              ? handoff.optionalMissingFields.join(", ")
+                              : "sem pendencias opcionais"}
+                          </p>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="mt-5">

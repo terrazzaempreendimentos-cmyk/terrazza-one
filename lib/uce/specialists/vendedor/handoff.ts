@@ -12,25 +12,29 @@ function missingVendedorFields(context: UCEContext) {
     !hasValue(context.fields.documentacao) ? "documentacao" : null,
     !hasValue(context.fields.imovelOcupado) ? "imovelOcupado" : null,
     !hasValue(context.fields.urgencia) ? "urgencia" : null,
-    !hasValue(context.fields.jaAnunciou) ? "jaAnunciou" : null,
-    !hasValue(context.fields.exclusividade) ? "exclusividade" : null,
   ].filter(Boolean) as string[];
 }
 
 export function buildVendedorHandoff({
   context,
+  missingFields,
   score,
 }: {
   context: UCEContext;
   missingFields: string[];
   score: number;
 }) {
+  const criticalMissing = missingVendedorFields(context);
+
   return buildSpecialistHandoff({
-    missingFields: missingVendedorFields(context),
+    missingFields: criticalMissing,
     minimumScore: 65,
     handoffType: "especialista_venda",
     readyReason: "Briefing de venda completo para avaliacao comercial.",
     notReadyReason: "Ainda faltam dados criticos da venda",
     score,
+    optionalMissingFields: missingFields.filter(
+      (field) => !criticalMissing.includes(field),
+    ),
   });
 }

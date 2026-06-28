@@ -1,6 +1,7 @@
 import type {
   UCEContext,
   UCEFieldConfidence,
+  UCENextQuestion,
   UCEProcessInput,
   UCEProcessResult,
   UCETemporalDebug,
@@ -66,6 +67,9 @@ function parseMoney(text: string) {
 }
 
 function parseNumberWords(text: string) {
+  const standaloneNumber = text.match(/^\s*(\d{1,2})\s*$/);
+  if (standaloneNumber?.[1]) return Number(standaloneNumber[1]);
+
   if (has(text, ["1 quarto", "um quarto", "uma suite"])) return 1;
   if (has(text, ["2 quartos", "dois quartos", "duas suites"])) return 2;
   if (has(text, ["3 quartos", "tres quartos"])) return 3;
@@ -74,6 +78,16 @@ function parseNumberWords(text: string) {
   const match = text.match(/(\d+)\s*(quarto|quartos|suite|suites)/);
 
   return match?.[1] ? Number(match[1]) : null;
+}
+
+function parsePeopleCount(text: string) {
+  const number = parseNumberWords(text);
+  if (number) return number;
+  if (has(text, ["eu", "so eu", "só eu"])) return 1;
+  if (has(text, ["casal"])) return 2;
+  if (has(text, ["familia", "família"])) return 3;
+
+  return null;
 }
 
 function parseGeneralRealEstateFields(message: string) {
@@ -132,7 +146,18 @@ function specialistSnapshot(specialist: UCESpecialistConfig) {
 }
 
 function parseBooleanAnswer(text: string) {
-  if (has(text, ["sim", "tenho", "preciso", "aceito", "considero", "quero"])) {
+  if (
+    has(text, [
+      "sim",
+      "tenho",
+      "preciso",
+      "aceito",
+      "considero",
+      "quero",
+      "financiado",
+      "financiamento",
+    ])
+  ) {
     return true;
   }
 
@@ -188,6 +213,164 @@ function parseActiveQuestionValue(field: string, message: string) {
   }
 
   return message.trim().length > 0 ? message.trim() : null;
+}
+
+export function resolveActiveQuestionAnswer(
+  message: string,
+  context: UCEContext,
+  activeQuestion: UCENextQuestion | null,
+) {
+  void context;
+
+  const field = activeQuestion?.field;
+  if (!field) return null;
+
+  const text = normalize(message);
+  const fields: Record<string, unknown> = {};
+  let resolvedField = field;
+  let value: unknown = null;
+  let reason = "Resposta curta interpretada conforme pergunta ativa.";
+
+  if (field === "moradores" || field === "quantidadeMoradores") {
+    const count = parsePeopleCount(text);
+    if (!count) return null;
+
+    fields.moradores = count;
+    fields.quantidadeMoradores = count;
+    resolvedField = "moradores";
+    value = count;
+  } else if (field === "imovelOcupado" || field === "ocupacao") {
+    if (has(text, ["vazio", "desocupado", "livre", "sem inquilino", "nao", "não"])) {
+      fields.ocupacao = "desocupado";
+      fields.imovelOcupado = false;
+      fields.alugado = false;
+      resolvedField = "ocupacao";
+      value = "desocupado";
+    } else if (has(text, ["ocupado", "alugado", "tem inquilino", "sim"])) {
+      fields.ocupacao = "ocupado";
+      fields.imovelOcupado = true;
+      resolvedField = "ocupacao";
+      value = "ocupado";
+    } else {
+      return null;
+    }
+  } else if (field === "destinoCaptacao" || field === "finalidadeAnuncio") {
+    if (has(text, ["venda", "vender"])) {
+      fields.destinoCaptacao = "venda";
+      fields.finalidadeAnuncio = "venda";
+      fields.objetivo = "venda";
+      resolvedField = "finalidadeAnuncio";
+      value = "venda";
+      reason = "Finalidade do anuncio resolvida; fluxo deve trocar para vendedor.";
+    } else if (has(text, ["locacao", "locação", "alugar", "aluguel", "locar"])) {
+      fields.destinoCaptacao = "locacao";
+      fields.finalidadeAnuncio = "locacao";
+      fields.objetivo = "administracao";
+      resolvedField = "finalidadeAnuncio";
+      value = "locacao";
+      reason = "Finalidade do anuncio resolvida; fluxo deve trocar para administracao.";
+    } else {
+      return null;
+    }
+  } else if (field === "documentacao") {
+    if (has(text, ["sim", "tenho", "ok", "documentos ok"])) {
+      fields.documentacao = true;
+      value = true;
+    } else if (has(text, ["nao", "não", "nao sei", "não sei", "ainda nao", "ainda não"])) {
+      fields.documentacao = false;
+      value = false;
+    } else {
+      return null;
+    }
+  } else if (field === "pet") {
+    if (has(text, ["sim"])) {
+      fields.pet = true;
+      value = true;
+    } else if (has(text, ["nao", "não", "sem pet"])) {
+      fields.pet = false;
+      value = false;
+    } else {
+      return null;
+    }
+  } else if (field === "urgencia") {
+    if (has(text, ["sem pressa", "nao", "não"])) {
+      fields.urgencia = "baixa";
+      value = "baixa";
+    } else if (has(text, ["sim"])) {
+      fields.urgencia = "indefinida";
+      value = "indefinida";
+      reason = "Urgencia confirmada sem prazo especifico.";
+    } else if (
+      /\b\d+\s*dias?\b/.test(text) ||
+      has(text, ["ate julho", "até julho", "esse mes", "esse mês"])
+    ) {
+      fields.urgencia = "alta";
+      fields.prazoMudanca = message.trim();
+      value = "alta";
+      reason = "Prazo especifico reconhecido na resposta de urgencia.";
+    } else {
+      return null;
+    }
+  } else if (field === "prazoMudanca" || field === "prazoCompra") {
+    if (has(text, ["sem pressa", "nao", "não"])) {
+      fields.urgencia = "baixa";
+      fields[field] = "sem pressa";
+      value = "sem pressa";
+    } else {
+      fields[field] = message.trim();
+      fields.urgencia = "alta";
+      value = message.trim();
+    }
+  } else if (field === "cidade") {
+    const city = detectarCidade(message);
+    if (!city) return null;
+
+    fields.cidade = city;
+    value = city;
+  } else if (field === "bairro") {
+    const neighborhood = detectarBairro(message);
+    if (!neighborhood) return null;
+
+    fields.bairro = neighborhood;
+    value = neighborhood;
+  } else if (field === "tipoImovel") {
+    if (has(text, ["apartamento", "apto"])) {
+      fields.tipoImovel = "apartamento";
+      value = "apartamento";
+    } else if (has(text, ["casa"])) {
+      fields.tipoImovel = "casa";
+      value = "casa";
+    } else if (has(text, ["sala"])) {
+      fields.tipoImovel = "sala";
+      value = "sala";
+    } else if (has(text, ["terreno"])) {
+      fields.tipoImovel = "terreno";
+      value = "terreno";
+    } else if (has(text, ["lote"])) {
+      fields.tipoImovel = "lote";
+      value = "lote";
+    } else if (has(text, ["comercial"])) {
+      fields.tipoImovel = "comercial";
+      value = "comercial";
+    } else {
+      return null;
+    }
+  } else {
+    const activeValue = parseActiveQuestionValue(field, message);
+    if (activeValue === null) return null;
+
+    fields[field] = activeValue;
+    value = activeValue;
+  }
+
+  return {
+    fields,
+    resolvedField,
+    value,
+    confidence: 96,
+    reason,
+    recognizedExpression: message.trim() || null,
+  };
 }
 
 function isFilled(value: unknown) {
@@ -409,11 +592,55 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     );
   }
 
+  const activeQuestion =
+    input.context.activeQuestion ??
+    (input.context.lastQuestionField
+      ? {
+          field: input.context.lastQuestionField,
+          text: "",
+          reason: "Campo herdado da ultima pergunta.",
+        }
+      : null);
+  const activeResolution = resolveActiveQuestionAnswer(
+    input.message,
+    input.context,
+    activeQuestion,
+  );
+
+  if (activeResolution) {
+    Object.entries(activeResolution.fields).forEach(([field, value]) => {
+      fields[field] = value;
+      interpretedFields.push(
+        fieldConfidence(
+          field,
+          value,
+          activeResolution.confidence,
+          activeResolution.reason,
+        ),
+      );
+    });
+
+    temporalDebug = {
+      activeQuestionField: activeQuestion?.field ?? null,
+      filledField: activeResolution.resolvedField,
+      savedValue: activeResolution.value,
+      confidence: activeResolution.confidence,
+      decisionReason: activeResolution.reason,
+      recognizedExpression: activeResolution.recognizedExpression,
+    };
+  }
+
   const contextual = interpretContextualAnswer({
     text: input.message,
-    context: input.context,
+    context: activeResolution
+      ? {
+          ...input.context,
+          activeQuestion: null,
+          lastQuestionField: null,
+        }
+      : input.context,
   });
-  if (contextual.field) {
+  if (!activeResolution && contextual.field) {
     fields[contextual.field] = contextual.value;
     const metadata =
       "metadata" in contextual
@@ -484,7 +711,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     Boolean(generalFields.objetivo) &&
     activeField !== "objetivo" &&
     activeField !== "destinoCaptacao";
-  if (!contextual.field && activeField && !messageChangesObjective) {
+  if (!activeResolution && !contextual.field && activeField && !messageChangesObjective) {
     const activeValue = parseActiveQuestionValue(activeField, input.message);
 
     if (activeValue !== null) {
@@ -501,9 +728,11 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
   }
 
   const temporal = interpretTemporalExpression(input.message);
-  const contextualHandledUrgency = contextual.field === "urgencia";
+  const contextualHandledUrgency =
+    activeResolution?.resolvedField === "urgencia" || contextual.field === "urgencia";
   const contextualHandledAnotherField =
-    Boolean(contextual.field) && contextual.field !== "urgencia";
+    Boolean(activeResolution?.resolvedField && activeResolution.resolvedField !== "urgencia") ||
+    (Boolean(contextual.field) && contextual.field !== "urgencia");
   if (
     !contextualHandledUrgency &&
     !contextualHandledAnotherField &&
@@ -532,6 +761,10 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
   }
 
   Object.entries(generalFields).forEach(([field, value]) => {
+    if (activeResolution && Object.prototype.hasOwnProperty.call(fields, field)) {
+      return;
+    }
+
     fields[field] = value;
     interpretedFields.push(
       fieldConfidence(field, value, 82, "Informacao extraida por regras gerais UCE."),

@@ -8,7 +8,7 @@ export const locacaoQuestions: UCENextQuestion[] = [
   { field: "quartos", text: "Quantos quartos voce precisa?", reason: "Quartos indicam perfil de moradia." },
   { field: "pet", text: "Voce possui pet?", reason: "Pet e relevante para locacao." },
   { field: "moradores", text: "Quantas pessoas vao morar no imovel?", reason: "Moradores qualificam uso." },
+  { field: "prazoMudanca", text: "Qual o prazo para mudanca?", reason: "Prazo define prioridade." },
   { field: "garagem", text: "Precisa de garagem?", reason: "Garagem e requisito de busca." },
   { field: "condominioAceita", text: "Voce aceita imovel em condominio?", reason: "Condominio afeta as opcoes." },
-  { field: "prazoMudanca", text: "Qual o prazo para mudanca?", reason: "Prazo define prioridade." },
 ];

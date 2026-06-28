@@ -11,26 +11,30 @@ function missingCompradorFields(context: UCEContext) {
     !hasValue(context.fields.fgts) ? "fgts" : null,
     !hasValue(context.fields.entradaDisponivel) ? "entradaDisponivel" : null,
     !hasValue(context.fields.quartos) ? "quartos" : null,
-    !hasValue(context.fields.garagem) ? "garagem" : null,
-    !hasValue(context.fields.condominioAceita) ? "condominioAceita" : null,
     !hasValue(context.fields.prazoCompra) ? "prazoCompra" : null,
   ].filter(Boolean) as string[];
 }
 
 export function buildCompradorHandoff({
   context,
+  missingFields,
   score,
 }: {
   context: UCEContext;
   missingFields: string[];
   score: number;
 }) {
+  const criticalMissing = missingCompradorFields(context);
+
   return buildSpecialistHandoff({
-    missingFields: missingCompradorFields(context),
+    missingFields: criticalMissing,
     minimumScore: 70,
     handoffType: "especialista_venda",
     readyReason: "Briefing de compra completo para especialista em vendas.",
     notReadyReason: "Ainda faltam dados criticos do comprador",
     score,
+    optionalMissingFields: missingFields.filter(
+      (field) => !criticalMissing.includes(field),
+    ),
   });
 }

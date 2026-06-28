@@ -10,26 +10,30 @@ function missingLocacaoFields(context: UCEContext) {
     !hasValue(context.fields.quartos) ? "quartos" : null,
     !hasValue(context.fields.pet) ? "pet" : null,
     !hasValue(context.fields.moradores) ? "moradores" : null,
-    !hasValue(context.fields.garagem) ? "garagem" : null,
-    !hasValue(context.fields.condominioAceita) ? "condominioAceita" : null,
     !hasValue(context.fields.prazoMudanca) ? "prazoMudanca" : null,
   ].filter(Boolean) as string[];
 }
 
 export function buildLocacaoHandoff({
   context,
+  missingFields,
   score,
 }: {
   context: UCEContext;
   missingFields: string[];
   score: number;
 }) {
+  const criticalMissing = missingLocacaoFields(context);
+
   return buildSpecialistHandoff({
-    missingFields: missingLocacaoFields(context),
+    missingFields: criticalMissing,
     minimumScore: 70,
     handoffType: "especialista_locacao",
     readyReason: "Perfil de locacao completo para especialista continuar.",
     notReadyReason: "Ainda faltam dados criticos da locacao",
     score,
+    optionalMissingFields: missingFields.filter(
+      (field) => !criticalMissing.includes(field),
+    ),
   });
 }

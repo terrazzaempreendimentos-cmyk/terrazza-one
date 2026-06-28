@@ -8,30 +8,29 @@ function missingAdministracaoFields(context: UCEContext) {
     !hasValue(context.fields.tipoImovel) ? "tipoImovel" : null,
     !hasValue(context.fields.imovelOcupado) ? "imovelOcupado" : null,
     !hasValue(context.fields.alugado) ? "alugado" : null,
-    !hasValue(context.fields.valorAluguelAtual) ? "valorAluguelAtual" : null,
-    !hasValue(context.fields.condominioValor) ? "condominioValor" : null,
-    !hasValue(context.fields.iptu) ? "iptu" : null,
-    !hasValue(context.fields.administracaoAtual) ? "administracaoAtual" : null,
-    !hasValue(context.fields.motivoTroca) ? "motivoTroca" : null,
-    !hasValue(context.fields.administracaoCompleta) ? "administracaoCompleta" : null,
-    !hasValue(context.fields.chavesDisponiveis) ? "chavesDisponiveis" : null,
   ].filter(Boolean) as string[];
 }
 
 export function buildAdministracaoHandoff({
   context,
+  missingFields,
   score,
 }: {
   context: UCEContext;
   missingFields: string[];
   score: number;
 }) {
+  const criticalMissing = missingAdministracaoFields(context);
+
   return buildSpecialistHandoff({
-    missingFields: missingAdministracaoFields(context),
+    missingFields: criticalMissing,
     minimumScore: 65,
     handoffType: "especialista_administracao",
     readyReason: "Briefing patrimonial completo para especialista continuar.",
     notReadyReason: "Ainda faltam dados criticos da administracao",
     score,
+    optionalMissingFields: missingFields.filter(
+      (field) => !criticalMissing.includes(field),
+    ),
   });
 }

@@ -63,6 +63,17 @@ export function getNextSpecialistQuestion(
 ): UCENextQuestion | null {
   if (context.metadata.handoffReady === true) return null;
 
+  if (
+    context.fields.urgencia === "indefinida" &&
+    !hasValue(context.fields.prazoMudanca)
+  ) {
+    return {
+      field: "prazoMudanca",
+      text: "Qual seria o prazo ideal? Pode ser uma data, um mes ou uma quantidade de dias.",
+      reason: "Urgencia confirmada, mas ainda falta prazo especifico.",
+    };
+  }
+
   return (
     specialist.questions.find((question) => !hasValue(context.fields[question.field])) ??
     null
