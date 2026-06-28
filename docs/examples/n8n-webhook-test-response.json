@@ -1,0 +1,11 @@
+{
+  "ok": true,
+  "reply": "texto da resposta do UCE",
+  "conversationId": "uuid",
+  "conversationStatus": "coletando",
+  "specialist": "Especialista Locação",
+  "score": 0,
+  "handoffReady": false,
+  "nextQuestion": "pergunta seguinte",
+  "actions": []
+}

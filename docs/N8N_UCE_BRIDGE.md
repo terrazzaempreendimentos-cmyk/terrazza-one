@@ -117,6 +117,28 @@ Exemplo:
 
 Sem esse reenvio, o UCE inicia um novo contexto temporário.
 
+## Mantendo contexto no n8n
+
+O UCE retorna `context` atualizado a cada chamada. O n8n deve guardar esse
+`context` junto com o `conversationId` e com a identificação do remetente, como
+o telefone recebido no webhook.
+
+Na próxima mensagem do mesmo telefone, o n8n deve reenviar:
+
+- o mesmo `conversationId`;
+- o `context` retornado na última resposta;
+- a nova `message` do usuário.
+
+No MVP, essa memória temporária pode ficar em:
+
+- memória do próprio workflow, quando o teste for curto;
+- Data Store do n8n;
+- Google Sheets temporário;
+- outro armazenamento simples controlado pelo fluxo.
+
+Em produção, o ideal será persistir essa memória no Supabase para manter
+histórico, recuperar conversas e evitar perda de contexto entre execuções.
+
 ## Modos de Resposta
 
 `uce_puro`:
