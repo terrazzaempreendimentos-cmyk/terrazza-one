@@ -217,8 +217,8 @@ Arquivos principais:
 - `promptBuilder.ts`: monta o prompt com especialista, objetivo, contexto,
   proxima pergunta decidida pela UCE, conhecimento consultado, tom de voz,
   restricoes, mensagem do usuario e status;
-- `openaiAdapter.ts`: contem `generateNaturalResponse(input)`, hoje simulado,
-  sem chamar OpenAI real;
+- `openaiAdapter.ts`: contem `generateNaturalResponse(input)`, com chamada real
+  ao SDK oficial quando `provider` e `OPENAI_API_KEY` permitem;
 - `guardrails.ts`: valida se a resposta nao inventa imovel, nao promete
   aprovacao, nao da parecer juridico definitivo, nao muda especialista, nao pede
   campo que a UCE nao pediu e nao contraria handoff;
@@ -228,6 +228,35 @@ Arquivos principais:
 Assim, quando a OpenAI for conectada, ela devera escrever a resposta final, mas
 nao podera assumir controle do raciocinio operacional. Guardrails validam a
 saida e o fallback garante continuidade segura do atendimento.
+
+## OpenAI Assistida no Simulador
+
+A Sprint UCE-16.2 conecta a OpenAI apenas no simulador e apenas como camada de
+linguagem natural. O atendimento continua seguindo a regra central: a UCE
+decide, a OpenAI escreve melhor.
+
+O simulador passa a ter dois modos:
+
+- UCE puro: usa somente a resposta deterministica do motor;
+- OpenAI assistida: processa o turno normalmente pela UCE e envia o resultado
+  para o LLM Adapter transformar a decisao em uma resposta mais natural.
+
+Mesmo no modo assistido, a OpenAI nao escolhe especialista, nao altera fluxo,
+nao recalcula score, nao decide handoff e nao cria pergunta fora da decisao da
+UCE. O prompt enviado contem especialista ativo, status da conversa, pergunta
+decidida pela UCE, contexto coletado, knowledge consultado, tom da persona,
+restricoes e mensagem do usuario.
+
+Antes de exibir a resposta, `validateLLMOutput()` verifica se a saida nao
+inventa imovel, nao promete aprovacao, nao da parecer juridico definitivo, nao
+muda especialista, nao pede campo diferente do UCE e nao contradiz handoff. Se
+a OpenAI falhar, se `OPENAI_API_KEY` nao estiver configurada ou se os guardrails
+reprovarem a resposta, `generateFallbackResponse()` usa uma resposta segura
+gerada pelo proprio UCE.
+
+Essa integracao fica restrita ao ambiente seguro de teste do simulador. Nao ha
+rota publica, WhatsApp ou n8n nesta etapa; esses canais ficam para sprints
+futuras.
 
 ## Compatibilidade
 

@@ -388,6 +388,7 @@ export function processarTurno({
     specialist: uceResult.specialist,
     knowledgeResults: uceResult.knowledgeResults,
     knowledgeSummary: uceResult.knowledgeSummary,
+    uceResult,
     qualificado: handoffQualificado || qualificado,
     motivoQualificacao: handoffQualificado
       ? uceResult.handoff.reason

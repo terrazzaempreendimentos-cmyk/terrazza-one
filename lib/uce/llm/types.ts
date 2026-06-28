@@ -13,6 +13,7 @@ export type UCELLMInput = {
   userMessage?: string;
   provider?: UCELLMProvider;
   prompt?: string;
+  model?: string;
 };
 
 export type UCELLMOutput = {
@@ -20,5 +21,9 @@ export type UCELLMOutput = {
   provider: UCELLMProvider;
   prompt: string;
   simulated: boolean;
+  openaiUsed: boolean;
+  fallbackUsed: boolean;
+  model: string;
+  error: string | null;
   guardrails: UCELLMGuardrailResult;
 };

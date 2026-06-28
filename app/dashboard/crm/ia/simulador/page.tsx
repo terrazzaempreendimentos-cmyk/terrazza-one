@@ -64,6 +64,18 @@ import {
   type UCESpecialistSnapshot,
   type UCETemporalDebug,
 } from "../../../../../lib/uce";
+import type { UCELLMOutput } from "../../../../../lib/uce/llm/types";
+import { gerarRespostaOpenAIAssistida } from "./actions";
+
+type ModoResposta = "uce" | "openai";
+
+type LLMStatus = {
+  modo: ModoResposta;
+  openaiUsed: boolean;
+  fallbackUsed: boolean;
+  guardrailsApproved: boolean | null;
+  error: string | null;
+};
 
 const tiposLead: Array<{ label: string; value: TipoLeadSimulador }> = [
   { label: "Proprietario", value: "proprietario" },
@@ -253,6 +265,8 @@ export default function SimuladorIaPage() {
   const [canal, setCanal] = useState("whatsapp");
   const [simulacaoIniciada, setSimulacaoIniciada] = useState(false);
   const [mensagem, setMensagem] = useState("");
+  const [enviandoMensagem, setEnviandoMensagem] = useState(false);
+  const [modoResposta, setModoResposta] = useState<ModoResposta>("uce");
   const [mensagens, setMensagens] = useState<ChatMessage[]>([]);
   const [contexto, setContexto] = useState<LeadContext>(() =>
     contextoConfigurado({
@@ -289,6 +303,13 @@ export default function SimuladorIaPage() {
   const [ultimoPacoteExtraido, setUltimoPacoteExtraido] = useState<ExtractedInfo>(
     {},
   );
+  const [llmStatus, setLlmStatus] = useState<LLMStatus>({
+    modo: "uce",
+    openaiUsed: false,
+    fallbackUsed: false,
+    guardrailsApproved: null,
+    error: null,
+  });
   const fimChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -479,6 +500,13 @@ export default function SimuladorIaPage() {
     setKnowledgeResults([]);
     setKnowledgeSummary("");
     setUltimoPacoteExtraido({});
+    setLlmStatus({
+      modo: modoResposta,
+      openaiUsed: false,
+      fallbackUsed: false,
+      guardrailsApproved: null,
+      error: null,
+    });
   }
 
   function reiniciarSimulacao() {
@@ -499,6 +527,13 @@ export default function SimuladorIaPage() {
     setKnowledgeResults([]);
     setKnowledgeSummary("");
     setUltimoPacoteExtraido({});
+    setLlmStatus({
+      modo: modoResposta,
+      openaiUsed: false,
+      fallbackUsed: false,
+      guardrailsApproved: null,
+      error: null,
+    });
     setContexto(
       contextoConfigurado({
         tipoLead,
@@ -509,10 +544,22 @@ export default function SimuladorIaPage() {
     );
   }
 
-  function enviarMensagem() {
+  function statusFromLLM(output: UCELLMOutput): LLMStatus {
+    return {
+      modo: "openai",
+      openaiUsed: output.openaiUsed,
+      fallbackUsed: output.fallbackUsed,
+      guardrailsApproved: output.guardrails.valid,
+      error: output.error,
+    };
+  }
+
+  async function enviarMensagem() {
     const texto = mensagem.trim();
 
-    if (!texto || !simulacaoIniciada) return;
+    if (!texto || !simulacaoIniciada || enviandoMensagem) return;
+
+    setEnviandoMensagem(true);
 
     const resultado = processarTurno({
       mensagemUsuario: texto,
@@ -521,11 +568,42 @@ export default function SimuladorIaPage() {
       origem,
       canal,
     });
+    let respostaIa = resultado.respostaIa;
+    let statusResposta: LLMStatus = {
+      modo: modoResposta,
+      openaiUsed: false,
+      fallbackUsed: false,
+      guardrailsApproved: modoResposta === "uce" ? null : false,
+      error: null,
+    };
+
+    if (modoResposta === "openai") {
+      try {
+        const llmOutput = await gerarRespostaOpenAIAssistida({
+          uceResult: resultado.uceResult,
+          userMessage: texto,
+        });
+
+        respostaIa = llmOutput.text;
+        statusResposta = statusFromLLM(llmOutput);
+      } catch (error) {
+        statusResposta = {
+          modo: "openai",
+          openaiUsed: false,
+          fallbackUsed: true,
+          guardrailsApproved: false,
+          error:
+            error instanceof Error
+              ? error.message
+              : "Falha ao acionar OpenAI assistida.",
+        };
+      }
+    }
 
     setMensagens((mensagensAtuais) => [
       ...mensagensAtuais,
       novaMensagem("usuario", texto),
-      novaMensagem("ia", resultado.respostaIa),
+      novaMensagem("ia", respostaIa),
     ]);
     setContexto(resultado.contexto);
     setLeituraComercial({
@@ -547,7 +625,9 @@ export default function SimuladorIaPage() {
     setKnowledgeResults(resultado.knowledgeResults);
     setKnowledgeSummary(resultado.knowledgeSummary);
     setUltimoPacoteExtraido(resultado.informacoesExtraidas);
+    setLlmStatus(statusResposta);
     setMensagem("");
+    setEnviandoMensagem(false);
     window.requestAnimationFrame(() => textareaRef.current?.focus());
   }
 
@@ -696,6 +776,20 @@ export default function SimuladorIaPage() {
                         {labelTexto(item)}
                       </option>
                     ))}
+                  </select>
+                </label>
+
+                <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+                  Modo de resposta
+                  <select
+                    value={modoResposta}
+                    onChange={(event) =>
+                      setModoResposta(event.target.value as ModoResposta)
+                    }
+                    className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
+                  >
+                    <option value="uce">UCE puro</option>
+                    <option value="openai">OpenAI assistida</option>
                   </select>
                 </label>
               </div>
@@ -859,17 +953,21 @@ export default function SimuladorIaPage() {
                         value={mensagem}
                         onChange={(event) => setMensagem(event.target.value)}
                         onKeyDown={enviarComEnter}
-                        disabled={!simulacaoIniciada}
+                        disabled={!simulacaoIniciada || enviandoMensagem}
                         rows={2}
                         placeholder="Responda como cliente. Enter envia, Shift+Enter quebra linha..."
                         className="min-h-16 flex-1 resize-none rounded-2xl border border-transparent bg-white px-4 py-3 text-sm text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C] disabled:cursor-not-allowed disabled:bg-white/60"
                       />
                       <button
                         type="submit"
-                        disabled={!simulacaoIniciada || !mensagem.trim()}
+                        disabled={
+                          !simulacaoIniciada ||
+                          !mensagem.trim() ||
+                          enviandoMensagem
+                        }
                         className="inline-flex items-center justify-center gap-2 rounded-2xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A] disabled:cursor-not-allowed disabled:bg-[#071E36]/40"
                       >
-                        Enviar
+                        {enviandoMensagem ? "Enviando" : "Enviar"}
                         <Send size={16} />
                       </button>
                     </div>
@@ -924,6 +1022,45 @@ export default function SimuladorIaPage() {
                             {specialist
                               ? `${specialist.label} - ${specialist.objective}`
                               : "Aguardando objetivo do cliente"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#071E36]">
+                            Modo ativo
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {llmStatus.modo === "openai"
+                              ? "OpenAI assistida"
+                              : "UCE puro"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#071E36]">
+                            OpenAI usada
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {llmStatus.openaiUsed ? "sim" : "nao"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#071E36]">
+                            Fallback acionado
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {llmStatus.fallbackUsed ? "sim" : "nao"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#071E36]">
+                            Guardrails
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {llmStatus.guardrailsApproved === null
+                              ? "nao aplicavel"
+                              : llmStatus.guardrailsApproved
+                                ? "aprovados"
+                                : "reprovados"}
+                            {llmStatus.error ? ` - ${llmStatus.error}` : ""}
                           </p>
                         </div>
                         <div>
