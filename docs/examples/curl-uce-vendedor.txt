@@ -1,0 +1,3 @@
+curl -X POST http://localhost:3000/api/uce/chat ^
+  -H "Content-Type: application/json" ^
+  -d "{\"message\":\"Quero vender uma casa no Poço com 180m2 e 3 quartos\",\"channel\":\"whatsapp\",\"origin\":\"site\",\"leadType\":\"vendedor\",\"city\":\"Maceió\",\"responseMode\":\"uce_puro\",\"context\":{}}"

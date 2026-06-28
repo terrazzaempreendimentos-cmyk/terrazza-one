@@ -168,6 +168,36 @@ Essas ações são sugestões estruturadas. O n8n decidirá, em sprint futura, c
 executar cada etapa. A API ainda não cria lead, não registra timeline e não
 notifica especialistas automaticamente.
 
+## Validação antes do n8n
+
+Antes de conectar WhatsApp, Meta ou workflow n8n, valide a API diretamente via
+curl ou pelo script local.
+
+Endpoint local:
+
+```text
+http://localhost:3000/api/uce/chat
+```
+
+Endpoint de produção:
+
+```text
+https://www.terrazzacrm.com.br/api/uce/chat
+```
+
+Arquivos de apoio:
+
+- `docs/API_TESTES_UCE.md`
+- `docs/examples/curl-uce-inquilino.txt`
+- `docs/examples/curl-uce-comprador.txt`
+- `docs/examples/curl-uce-proprietario.txt`
+- `docs/examples/curl-uce-vendedor.txt`
+- `scripts/test-uce-api.mjs`
+
+O teste deve confirmar que a API retorna `reply`, `specialist`,
+`conversationStatus`, `score`, `handoffReady`, `nextQuestion`, `context` e
+`actions` sem salvar dados no banco e sem enviar mensagens reais.
+
 ## Arquivos de Exemplo
 
 - `docs/examples/n8n-uce-chat-request.json`
