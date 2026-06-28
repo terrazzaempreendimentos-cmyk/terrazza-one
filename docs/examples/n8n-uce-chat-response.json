@@ -1,0 +1,42 @@
+{
+  "ok": true,
+  "conversationId": "8e5a5db8-8f37-47d0-a8f2-0d7cc4575f47",
+  "reply": "Perfeito. Você procura apartamento na Ponta Verde até 3500. Quantos quartos você precisa?",
+  "conversationStatus": "coletando",
+  "specialist": "Especialista Locação",
+  "score": 68,
+  "temperature": "morno",
+  "handoffReady": false,
+  "nextQuestion": "Quantos quartos você precisa?",
+  "context": {
+    "tipoLead": "inquilino",
+    "cidade": "Maceió",
+    "bairro": "Ponta Verde",
+    "tipoImovel": "apartamento",
+    "valor": 3500,
+    "objetivo": "locacao",
+    "canal": "whatsapp",
+    "origem": "instagram",
+    "ultimaPerguntaCampo": "quartos"
+  },
+  "briefing": {
+    "summary": "Especialista Locação. Objetivo: locacao. Local: Maceió, Ponta Verde. Score UCE: 68/100 (morno).",
+    "fields": {
+      "cidade": "Maceió",
+      "bairro": "Ponta Verde",
+      "tipoImovel": "apartamento",
+      "valor": 3500
+    },
+    "hypotheses": [],
+    "pendingFields": ["quartos", "pet", "moradores", "urgencia", "documentacao"]
+  },
+  "knowledgeSummary": "Base territorial e comercial consultada pelo UCE para locação em Maceió.",
+  "llm": {
+    "usedOpenAI": false,
+    "fallbackUsed": false,
+    "guardrailsApproved": true,
+    "estimatedTotalTokens": 0,
+    "model": null
+  },
+  "actions": []
+}

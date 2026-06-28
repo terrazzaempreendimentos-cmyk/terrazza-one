@@ -1,0 +1,9 @@
+{
+  "message": "Quero alugar apartamento na Ponta Verde até 3500",
+  "channel": "whatsapp",
+  "origin": "instagram",
+  "leadType": "inquilino",
+  "city": "Maceió",
+  "responseMode": "uce_puro",
+  "context": {}
+}

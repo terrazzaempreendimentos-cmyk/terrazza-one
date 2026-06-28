@@ -150,3 +150,26 @@ O n8n podera chamar esta rota em um node HTTP Request, armazenar
 
 WhatsApp real, workflow n8n, persistencia em banco e criacao de leads ficam para
 sprints futuras.
+
+## Uso com n8n
+
+A ponte n8n deve chamar `POST /api/uce/chat`, guardar o `conversationId`
+retornado e reenviar o `context` completo em cada nova mensagem. Assim, o n8n
+mantem memoria temporaria sem que a API grave dados no banco.
+
+Use `responseMode: "uce_puro"` como padrao para validar fluxo e
+`responseMode: "openai_assistida"` apenas quando quiser testar melhoria de
+linguagem com guardrails e fallback.
+
+Se `UCE_API_KEY` estiver configurada, o node HTTP Request do n8n deve enviar o
+header `x-uce-api-key` com o mesmo valor.
+
+Quando `handoffReady=true`, o n8n pode ler `actions` para decidir proximas
+etapas, como notificar especialista, criar/atualizar lead ou registrar timeline.
+Essas actions continuam sendo sugestoes; a rota nao executa automacoes.
+
+Documentacao completa da ponte:
+
+- `docs/N8N_UCE_BRIDGE.md`
+- `docs/examples/n8n-uce-chat-request.json`
+- `docs/examples/n8n-uce-chat-response.json`

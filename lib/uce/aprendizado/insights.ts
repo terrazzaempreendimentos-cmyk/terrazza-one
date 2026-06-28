@@ -12,7 +12,7 @@ export function gerarInsightsAprendizado(
       id: "insight-familia-3-quartos",
       titulo: "Perfil familiar identificado",
       descricao: "Priorizar imoveis com 3 quartos ou mais, rotina pratica e bairro conveniente.",
-      prioridade: "media",
+      prioridade: "medio",
     });
   }
 
@@ -21,7 +21,7 @@ export function gerarInsightsAprendizado(
       id: "insight-urgencia-alta",
       titulo: "Urgencia alta",
       descricao: "Evitar excesso de opcoes e priorizar acao rapida.",
-      prioridade: "alta",
+      prioridade: "alto",
     });
   }
 
@@ -30,7 +30,7 @@ export function gerarInsightsAprendizado(
       id: "insight-proprietario-inseguro",
       titulo: "Proprietario inseguro",
       descricao: "Reforcar seguranca, garantias e gestao profissional.",
-      prioridade: "alta",
+      prioridade: "alto",
     });
   }
 
@@ -39,7 +39,7 @@ export function gerarInsightsAprendizado(
       id: "insight-investidor",
       titulo: "Cliente investidor",
       descricao: "Destacar liquidez, potencial de valorizacao e retorno.",
-      prioridade: "alta",
+      prioridade: "alto",
     });
   }
 
@@ -48,7 +48,7 @@ export function gerarInsightsAprendizado(
       id: "insight-correspondencia-forte",
       titulo: "Correspondencia forte encontrada",
       descricao: "Ha oportunidade compativel para apresentar ou encaminhar ao especialista.",
-      prioridade: "alta",
+      prioridade: "alto",
     });
   }
 

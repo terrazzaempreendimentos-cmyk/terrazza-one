@@ -19,7 +19,7 @@ export function gerarRecomendacoesAprendizado(
       id: "encaminhar_para_especialista",
       titulo: "Encaminhar para especialista",
       descricao: "Acionar especialista humano para evitar perda de timing ou risco comercial.",
-      prioridade: "alta",
+      prioridade: "alto",
     });
   }
 
@@ -28,13 +28,13 @@ export function gerarRecomendacoesAprendizado(
       id: "nutrir_lead",
       titulo: "Nutrir lead",
       descricao: "Manter follow-up consultivo com informacoes e oportunidades compativeis.",
-      prioridade: "media",
+      prioridade: "medio",
     });
     add({
       id: "criar_follow_up",
       titulo: "Criar follow-up",
       descricao: "Registrar proximo contato para manter relacionamento ativo.",
-      prioridade: "media",
+      prioridade: "medio",
     });
   }
 
@@ -43,7 +43,7 @@ export function gerarRecomendacoesAprendizado(
       id: "solicitar_documentacao",
       titulo: "Solicitar documentacao",
       descricao: "Orientar documentos iniciais e etapas de financiamento sem prometer aprovacao.",
-      prioridade: "alta",
+      prioridade: "alto",
     });
   }
 
@@ -52,7 +52,7 @@ export function gerarRecomendacoesAprendizado(
       id: "sugerir_visita",
       titulo: "Sugerir visita",
       descricao: "Tentar converter rapidamente para visita ou atendimento humano.",
-      prioridade: "alta",
+      prioridade: "alto",
     });
   }
 
@@ -69,7 +69,7 @@ export function gerarRecomendacoesAprendizado(
     id: "registrar_memoria",
     titulo: "Registrar memoria",
     descricao: "Guardar sinais importantes para melhorar proximos atendimentos.",
-    prioridade: "media",
+    prioridade: "medio",
   });
 
   if (padroes.some((pattern) => pattern.id.includes("proprietario"))) {
@@ -77,7 +77,7 @@ export function gerarRecomendacoesAprendizado(
       id: "avaliar_imovel",
       titulo: "Avaliar imovel",
       descricao: "Preparar avaliacao comercial ou patrimonial conforme objetivo do proprietario.",
-      prioridade: "alta",
+      prioridade: "alto",
     });
   }
 
