@@ -54,7 +54,16 @@ export function getSpecialistPendingFields(
 ) {
   return specialist.questions
     .map((question) => question.field)
-    .filter((field) => !hasValue(context.fields[field]));
+    .filter((field) => {
+      if (
+        (field === "cidade" || field === "bairro") &&
+        (hasValue(context.fields.cidade) || hasValue(context.fields.bairro))
+      ) {
+        return false;
+      }
+
+      return !hasValue(context.fields[field]);
+    });
 }
 
 export function getNextSpecialistQuestion(
@@ -75,8 +84,16 @@ export function getNextSpecialistQuestion(
   }
 
   return (
-    specialist.questions.find((question) => !hasValue(context.fields[question.field])) ??
-    null
+    specialist.questions.find((question) => {
+      if (
+        (question.field === "cidade" || question.field === "bairro") &&
+        (hasValue(context.fields.cidade) || hasValue(context.fields.bairro))
+      ) {
+        return false;
+      }
+
+      return !hasValue(context.fields[question.field]);
+    }) ?? null
   );
 }
 

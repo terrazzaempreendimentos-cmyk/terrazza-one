@@ -3,14 +3,17 @@ import type { UCEContext } from "../../core/types";
 
 function missingLocacaoFields(context: UCEContext) {
   return [
-    !hasValue(context.fields.cidade) ? "cidade" : null,
-    !hasValue(context.fields.bairro) ? "bairro" : null,
+    !hasValue(context.fields.cidade) && !hasValue(context.fields.bairro)
+      ? "cidade_ou_bairro"
+      : null,
     !hasValue(context.fields.tipoImovel) ? "tipoImovel" : null,
     !hasValue(context.fields.valor) ? "valor" : null,
     !hasValue(context.fields.quartos) ? "quartos" : null,
     !hasValue(context.fields.pet) ? "pet" : null,
     !hasValue(context.fields.moradores) ? "moradores" : null,
-    !hasValue(context.fields.prazoMudanca) ? "prazoMudanca" : null,
+    !hasValue(context.fields.urgencia) && !hasValue(context.fields.prazoMudanca)
+      ? "urgencia_ou_prazo"
+      : null,
   ].filter(Boolean) as string[];
 }
 

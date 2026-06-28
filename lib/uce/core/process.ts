@@ -56,15 +56,28 @@ function has(text: string, terms: string[]) {
 }
 
 function parseMoney(text: string) {
-  const mil = text.match(/(\d+(?:[.,]\d+)?)\s*mil/);
+  const sanitized = text
+    .replace(/\b\d+(?:[.,]\d+)?\s*(?:m2|m²|metros quadrados|metros)\b/g, " ")
+    .replace(/\b(?:area|área)\s*\d+(?:[.,]\d+)?\b/g, " ")
+    .replace(/\b\d+\s*(?:quarto|quartos|suite|suites|vaga|vagas|banheiro|banheiros)\b/g, " ");
+  const mil = sanitized.match(/(\d+(?:[.,]\d+)?)\s*mil/);
   if (mil?.[1]) {
     return Math.round(Number(mil[1].replace(",", ".")) * 1000);
   }
 
-  const currency = text.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+|\d{4,6}|\d{3,6})(?:,\d{2})?/);
+  const currency = sanitized.match(/(?:r\$\s*)?(\d{1,3}(?:\.\d{3})+|\d{4,6})(?:,\d{2})?/);
   if (!currency?.[1]) return null;
 
   return Number(currency[1].replace(/\./g, ""));
+}
+
+function parseAreaM2(text: string) {
+  const match = text.match(
+    /(?:\barea\s*)?(\d{2,4})(?:\s*(?:m2|m²|metros quadrados|metros)\b)|\barea\s+(\d{2,4})\b/,
+  );
+  const value = match?.[1] ?? match?.[2];
+
+  return value ? Number(value) : null;
 }
 
 function parseNumberWords(text: string) {
@@ -87,6 +100,47 @@ function parsePeopleCount(text: string) {
   if (has(text, ["eu", "so eu", "só eu"])) return 1;
   if (has(text, ["casal"])) return 2;
   if (has(text, ["familia", "família"])) return 3;
+
+  return null;
+}
+
+function parseVagas(text: string) {
+  const standaloneNumber = text.match(/^\s*(\d{1,2})\s*$/);
+  if (standaloneNumber?.[1]) return Number(standaloneNumber[1]);
+
+  const match = text.match(/(\d+)\s*(?:vaga|vagas|garagem|garagens)/);
+  if (match?.[1]) return Number(match[1]);
+  if (has(text, ["garagem", "vaga"])) return 1;
+
+  return null;
+}
+
+function parseBathrooms(text: string) {
+  const match = text.match(/(\d+)\s*(?:banheiro|banheiros|wc)/);
+
+  return match?.[1] ? Number(match[1]) : null;
+}
+
+function parseOccupancy(text: string) {
+  if (has(text, ["vazio", "desocupado", "livre", "sem inquilino"])) {
+    return "desocupado";
+  }
+
+  if (has(text, ["ocupado", "alugado", "tem inquilino"])) {
+    return "ocupado";
+  }
+
+  return null;
+}
+
+function parseDocumentation(text: string) {
+  if (has(text, ["documentacao ok", "documentos ok", "tenho documentacao"])) {
+    return true;
+  }
+
+  if (has(text, ["sem documentacao", "documentacao pendente", "nao tenho documentacao"])) {
+    return false;
+  }
 
   return null;
 }
@@ -138,6 +192,86 @@ function parseGeneralRealEstateFields(message: string) {
   return fields;
 }
 
+export function extractCompositeInformation(
+  message: string,
+  context: UCEContext,
+) {
+  void context;
+
+  const text = normalize(message);
+  const fields: Record<string, unknown> = {};
+
+  if (has(text, ["alugar", "aluguel", "locacao", "locar"])) {
+    fields.objetivo = "locacao";
+  } else if (has(text, ["administrar", "administracao"])) {
+    fields.objetivo = "administracao";
+  } else if (has(text, ["anunciar", "captar", "captacao"])) {
+    fields.objetivo = "captacao";
+  } else if (has(text, ["vender", "venda"])) {
+    fields.objetivo = "venda";
+  } else if (has(text, ["comprar", "compra"])) {
+    fields.objetivo = "compra";
+  }
+
+  const city = detectarCidade(message);
+  if (city) fields.cidade = city;
+
+  const bairro = detectarBairro(message);
+  if (bairro) fields.bairro = bairro;
+
+  if (has(text, ["apartamento", "apto"])) fields.tipoImovel = "apartamento";
+  if (has(text, ["casa"])) fields.tipoImovel = "casa";
+  if (has(text, ["sala"])) fields.tipoImovel = "sala";
+  if (has(text, ["terreno"])) fields.tipoImovel = "terreno";
+  if (has(text, ["lote"])) fields.tipoImovel = "lote";
+  if (has(text, ["comercial"])) fields.tipoImovel = "comercial";
+
+  const quartos = parseNumberWords(text);
+  if (quartos) fields.quartos = quartos;
+
+  const banheiros = parseBathrooms(text);
+  if (banheiros) fields.banheiros = banheiros;
+
+  const vagas = parseVagas(text);
+  if (vagas) {
+    fields.vagas = vagas;
+    fields.garagem = true;
+  }
+
+  const areaM2 = parseAreaM2(text);
+  if (areaM2) fields.areaM2 = areaM2;
+
+  const valor = parseMoney(text);
+  if (valor) fields.valor = valor;
+
+  if (has(text, ["cachorro", "gato", "tenho pet", "com pet"])) fields.pet = true;
+  if (has(text, ["sem pet", "nao tenho pet", "não tenho pet"])) fields.pet = false;
+
+  const occupancy = parseOccupancy(text);
+  if (occupancy) {
+    fields.ocupacao = occupancy;
+    fields.imovelOcupado = occupancy === "ocupado";
+    fields.alugado = occupancy === "ocupado";
+  }
+
+  const documentation = parseDocumentation(text);
+  if (documentation !== null) fields.documentacao = documentation;
+
+  if (has(text, ["financiamento", "financiado", "vou financiar"])) {
+    fields.financiamento = true;
+  }
+  if (has(text, ["a vista", "à vista"])) fields.financiamento = false;
+  if (has(text, ["fgts"])) fields.fgts = true;
+
+  const temporal = interpretTemporalExpression(message);
+  if (temporal.urgency !== "indefinida" || temporal.asksForSpecificDeadline) {
+    fields.urgencia = temporal.urgency;
+    fields.prazoMudanca = temporal.deadlineText;
+  }
+
+  return fields;
+}
+
 function specialistSnapshot(specialist: UCESpecialistConfig) {
   return {
     id: specialist.id,
@@ -178,6 +312,7 @@ function parseActiveQuestionValue(field: string, message: string) {
     "condominioValor",
     "iptu",
     "entradaDisponivel",
+    "areaM2",
   ];
   const booleanFields = [
     "financiamento",
@@ -205,7 +340,17 @@ function parseActiveQuestionValue(field: string, message: string) {
     return parseNumberWords(text);
   }
 
+  if (field === "vagas") {
+    return parseVagas(text);
+  }
+
   if (moneyFields.includes(field)) {
+    if (field === "areaM2") {
+      const standaloneNumber = text.match(/^\s*(\d{2,4})\s*$/);
+
+      return parseAreaM2(text) ?? (standaloneNumber?.[1] ? Number(standaloneNumber[1]) : null);
+    }
+
     return parseMoney(text);
   }
 
@@ -594,6 +739,20 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     );
   }
 
+  const compositeFields = extractCompositeInformation(input.message, input.context);
+
+  Object.entries(compositeFields).forEach(([field, value]) => {
+    fields[field] = value;
+    interpretedFields.push(
+      fieldConfidence(
+        field,
+        value,
+        88,
+        "Informacao extraida por leitura composta da mensagem.",
+      ),
+    );
+  });
+
   const activeQuestion =
     input.context.activeQuestion ??
     (input.context.lastQuestionField
@@ -603,10 +762,14 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
           reason: "Campo herdado da ultima pergunta.",
         }
       : null);
+  const unresolvedActiveQuestion =
+    activeQuestion && !isFilled(fields[activeQuestion.field])
+      ? activeQuestion
+      : null;
   const activeResolution = resolveActiveQuestionAnswer(
     input.message,
-    input.context,
-    activeQuestion,
+    { ...input.context, fields },
+    unresolvedActiveQuestion,
   );
 
   if (activeResolution) {
@@ -767,6 +930,10 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
       return;
     }
 
+    if (isFilled(fields[field])) {
+      return;
+    }
+
     fields[field] = value;
     interpretedFields.push(
       fieldConfidence(field, value, 82, "Informacao extraida por regras gerais UCE."),
@@ -786,6 +953,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     fields,
     metadata: {
       ...input.context.metadata,
+      lastCompositeFields: compositeFields,
       activeSpecialist: undefined,
     },
   };
@@ -801,6 +969,7 @@ export function processUCE(input: UCEProcessInput): UCEProcessResult {
     ],
     metadata: {
       ...input.context.metadata,
+      lastCompositeFields: compositeFields,
       activeSpecialist,
     },
   };

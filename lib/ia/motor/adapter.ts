@@ -22,6 +22,7 @@ const camposLegados: Array<keyof LeadContext> = [
   "tipoImovel",
   "quartos",
   "banheiros",
+  "areaM2",
   "valor",
   "pet",
   "financiamento",
@@ -33,6 +34,7 @@ const camposLegados: Array<keyof LeadContext> = [
   "documentacaoObservacao",
   "entradaDisponivel",
   "garagem",
+  "vagas",
   "condominioAceita",
   "prazoCompra",
   "valorEsperado",
@@ -116,6 +118,7 @@ function uceToLeadContext({
     tipoImovel: (uceContext.fields.tipoImovel as string | null) ?? null,
     quartos: (uceContext.fields.quartos as number | null) ?? null,
     banheiros: (uceContext.fields.banheiros as number | null) ?? null,
+    areaM2: (uceContext.fields.areaM2 as number | null) ?? null,
     valor: (uceContext.fields.valor as number | null) ?? null,
     pet:
       typeof uceContext.fields.pet === "boolean"
@@ -144,6 +147,7 @@ function uceToLeadContext({
       typeof uceContext.fields.garagem === "boolean"
         ? uceContext.fields.garagem
         : contextoAtual.garagem,
+    vagas: (uceContext.fields.vagas as number | null) ?? null,
     condominioAceita:
       typeof uceContext.fields.condominioAceita === "boolean"
         ? uceContext.fields.condominioAceita
@@ -246,6 +250,7 @@ function resumoDoQueEntendeu(informacoes: ExtractedInfo) {
     informacoes.tipoImovel ? `imovel ${informacoes.tipoImovel}` : null,
     informacoes.quartos ? `${informacoes.quartos} quarto(s)` : null,
     informacoes.valor ? `faixa de valor ${informacoes.valor}` : null,
+    informacoes.areaM2 ? `area aproximada ${informacoes.areaM2}m2` : null,
     Object.prototype.hasOwnProperty.call(informacoes, "pet")
       ? informacoes.pet
         ? "pet registrado"

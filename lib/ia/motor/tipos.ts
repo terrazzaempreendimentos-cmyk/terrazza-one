@@ -28,6 +28,7 @@ export type CampoPergunta =
   | "bairro"
   | "tipoImovel"
   | "valor"
+  | "areaM2"
   | "pet"
   | "urgencia"
   | "objetivo"
@@ -38,6 +39,7 @@ export type CampoPergunta =
   | "entradaDisponivel"
   | "garagem"
   | "condominioAceita"
+  | "vagas"
   | "prazoCompra"
   | "valorEsperado"
   | "motivoVenda"
@@ -63,6 +65,7 @@ export type LeadContext = {
   tipoImovel: string | null;
   quartos: number | null;
   banheiros: number | null;
+  areaM2: number | null;
   valor: number | null;
   pet: boolean | null;
   financiamento: boolean | null;
@@ -76,6 +79,7 @@ export type LeadContext = {
   documentacaoObservacao: string | null;
   entradaDisponivel: number | null;
   garagem: boolean | null;
+  vagas: number | null;
   condominioAceita: boolean | null;
   prazoCompra: string | null;
   valorEsperado: number | null;

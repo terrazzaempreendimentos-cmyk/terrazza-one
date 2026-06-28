@@ -46,6 +46,7 @@ import {
   type CampoConfianca,
   type ChatMessage,
   type EstadoCognitivo,
+  type ExtractedInfo,
   type LeadContext,
 } from "../../../../../lib/ia/motor";
 import { processarTurno } from "../../../../../lib/ia/motor/adapter";
@@ -96,10 +97,28 @@ const camposResumo: Array<CampoConfianca["campo"]> = [
   "bairro",
   "tipoImovel",
   "valor",
+  "areaM2",
   "objetivo",
   "urgencia",
   "documentacao",
 ];
+
+function valorPainel(valor: unknown) {
+  if (valor === null || valor === undefined || valor === "") return "nao informado";
+  if (typeof valor === "boolean") return valor ? "sim" : "nao";
+
+  return String(valor);
+}
+
+function pacoteExtraidoTexto(pacote: ExtractedInfo) {
+  const entries = Object.entries(pacote).filter(
+    ([, value]) => value !== null && value !== undefined && value !== "",
+  );
+
+  if (entries.length === 0) return "Nenhum campo extraido na ultima mensagem.";
+
+  return entries.map(([field, value]) => `${field}: ${valorPainel(value)}`).join(", ");
+}
 
 function labelTexto(valor: string) {
   return valor.replaceAll("_", " ");
@@ -267,6 +286,9 @@ export default function SimuladorIaPage() {
     [],
   );
   const [knowledgeSummary, setKnowledgeSummary] = useState("");
+  const [ultimoPacoteExtraido, setUltimoPacoteExtraido] = useState<ExtractedInfo>(
+    {},
+  );
   const fimChatRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -371,8 +393,12 @@ export default function SimuladorIaPage() {
           .filter(Boolean)
           .join(" / ") || "nao informado"}`,
         `Imovel desejado: ${contexto.tipoImovel ?? "nao informado"}`,
+        `Area aproximada: ${
+          contexto.areaM2 ? `${contexto.areaM2}m²` : "nao informada"
+        }`,
         `Valor: ${contexto.valor ?? "nao informado"}`,
         `Quartos: ${contexto.quartos ?? "nao informado"}`,
+        `Vagas: ${contexto.vagas ?? "nao informado"}`,
         `Pet: ${
           contexto.pet === null ? "nao informado" : contexto.pet ? "sim" : "nao"
         }`,
@@ -452,6 +478,7 @@ export default function SimuladorIaPage() {
     setSpecialist(especialista);
     setKnowledgeResults([]);
     setKnowledgeSummary("");
+    setUltimoPacoteExtraido({});
   }
 
   function reiniciarSimulacao() {
@@ -471,6 +498,7 @@ export default function SimuladorIaPage() {
     setSpecialist(null);
     setKnowledgeResults([]);
     setKnowledgeSummary("");
+    setUltimoPacoteExtraido({});
     setContexto(
       contextoConfigurado({
         tipoLead,
@@ -518,6 +546,7 @@ export default function SimuladorIaPage() {
     setSpecialist(resultado.specialist);
     setKnowledgeResults(resultado.knowledgeResults);
     setKnowledgeSummary(resultado.knowledgeSummary);
+    setUltimoPacoteExtraido(resultado.informacoesExtraidas);
     setMensagem("");
     window.requestAnimationFrame(() => textareaRef.current?.focus());
   }
@@ -917,6 +946,22 @@ export default function SimuladorIaPage() {
                             temporalDebug?.savedValue === undefined
                               ? "sem valor"
                               : String(temporalDebug.savedValue)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#071E36]">
+                            Area aproximada
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {contexto.areaM2 ? `${contexto.areaM2}m²` : "nao informada"}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-[#071E36]">
+                            Ultimo pacote extraido
+                          </p>
+                          <p className="mt-1 text-[#64736D]">
+                            {pacoteExtraidoTexto(ultimoPacoteExtraido)}
                           </p>
                         </div>
                         <div>

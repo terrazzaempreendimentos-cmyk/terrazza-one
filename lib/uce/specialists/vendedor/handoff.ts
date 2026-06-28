@@ -3,14 +3,16 @@ import type { UCEContext } from "../../core/types";
 
 function missingVendedorFields(context: UCEContext) {
   return [
-    !hasValue(context.fields.cidade) ? "cidade" : null,
-    !hasValue(context.fields.bairro) ? "bairro" : null,
+    !hasValue(context.fields.cidade) && !hasValue(context.fields.bairro)
+      ? "cidade_ou_bairro"
+      : null,
     !hasValue(context.fields.tipoImovel) ? "tipoImovel" : null,
-    !hasValue(context.fields.valorEsperado) ? "valorEsperado" : null,
-    !hasValue(context.fields.motivoVenda) ? "motivoVenda" : null,
-    !hasValue(context.fields.imovelFinanciado) ? "imovelFinanciado" : null,
+    !hasValue(context.fields.areaM2) ? "areaM2" : null,
+    !hasValue(context.fields.quartos) ? "quartos" : null,
+    !hasValue(context.fields.vagas) ? "vagas" : null,
+    !hasValue(context.fields.valor) ? "valor" : null,
+    !hasValue(context.fields.ocupacao) ? "ocupacao" : null,
     !hasValue(context.fields.documentacao) ? "documentacao" : null,
-    !hasValue(context.fields.imovelOcupado) ? "imovelOcupado" : null,
     !hasValue(context.fields.urgencia) ? "urgencia" : null,
   ].filter(Boolean) as string[];
 }

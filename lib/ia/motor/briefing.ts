@@ -46,6 +46,9 @@ export function gerarBriefing({
     `Cidade: ${valorTexto(contexto.cidade)}`,
     `Bairro: ${valorTexto(contexto.bairro)}`,
     `Tipo de imovel: ${valorTexto(contexto.tipoImovel)}`,
+    `Area aproximada: ${
+      contexto.areaM2 ? `${contexto.areaM2}m²` : valorTexto(contexto.areaM2)
+    }`,
     `Valor: ${valorTexto(contexto.valor)}`,
     `Pet: ${valorTexto(contexto.pet)}`,
     `Mudanca: ${valorTexto(contexto.prazoMudanca)}`,
