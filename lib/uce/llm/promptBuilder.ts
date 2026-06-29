@@ -1,4 +1,5 @@
 import type { UCEProcessResult } from "../core";
+import { buildHumanizerPromptSection } from "../humanizer";
 import { estimateTextTokens } from "./tokenBudget";
 
 export const DEFAULT_LLM_TOKEN_BUDGET = 2500;
@@ -120,6 +121,8 @@ export function buildLLMPrompt(
     "",
     "# Tom da persona",
     uceResult.commercialStrategy.tone,
+    "",
+    buildHumanizerPromptSection(uceResult),
     "",
     "# Regras de segurança",
     "- O UCE decide especialista, fluxo, score, handoff e próxima pergunta.",

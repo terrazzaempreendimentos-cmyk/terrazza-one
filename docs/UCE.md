@@ -632,3 +632,46 @@ LLM em `llm.usedOpenAI`, `llm.fallbackUsed`, `llm.guardrailsApproved`,
 `llm.estimatedTotalTokens` e `llm.model`. No simulador, o painel
 `Diagnóstico LLM` mostra o modo ativo, uso de OpenAI, fallback, guardrails,
 tokens estimados, modelo e latência.
+
+## HUMANIZAÇÃO COGNITIVA
+
+A humanização cognitiva fica em `lib/uce/humanizer` e atua somente na camada de
+linguagem da OpenAI assistida.
+
+A regra central é:
+
+- o UCE decide;
+- a OpenAI humaniza;
+- a OpenAI nunca altera o raciocínio do UCE.
+
+O UCE continua responsável por especialista, score, handoff, fluxo e próxima
+pergunta. A OpenAI recebe a decisão pronta e transforma a resposta em uma
+conversa mais natural, elegante e consultiva.
+
+Essa camada orienta a OpenAI a:
+
+- variar aberturas, evitando repetir sempre "Perfeito", "Excelente",
+  "Entendi" ou "Ótimo";
+- usar transições naturais, como "Agora quero entender um pouco melhor..." ou
+  "Vou apenas confirmar mais um detalhe.";
+- confirmar informações já fornecidas quando o cliente envia múltiplos dados;
+- demonstrar memória conversacional, citando bairro, orçamento, moradores,
+  garagem, pet ou urgência quando esses dados já estiverem no contexto;
+- evitar perguntas com aparência de formulário;
+- transformar perguntas secas em perguntas consultivas, sem mudar o campo que o
+  UCE decidiu coletar;
+- montar encerramentos mais completos, com resumo do perfil antes do handoff.
+
+Exemplos de humanização:
+
+- "Você possui pet?" pode virar "Existe algum pet que também fará parte da
+  mudança?";
+- "Quantas pessoas vão morar?" pode virar "Quantas pessoas irão morar no
+  imóvel?";
+- "Qual o número de quartos?" pode virar "Quantos quartos você considera
+  ideais?".
+
+Os guardrails continuam valendo. A OpenAI não pode inventar imóveis, bairros,
+preços, disponibilidade, condições comerciais, aprovações, especialistas ou
+perguntas fora da decisão do UCE. Se isso acontecer, a resposta é reprovada e o
+fallback seguro do UCE é usado.

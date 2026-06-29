@@ -13,3 +13,4 @@ export * from "./knowledge";
 export * from "./correspondencias";
 export * from "./perfil";
 export * from "./aprendizado";
+export * from "./humanizer";
