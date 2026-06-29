@@ -597,3 +597,38 @@ Essa camada prepara o UCE para futuras analises estatisticas e aprendizado
 continuo. Ela sera util tanto para a Terrazza quanto para a Unita, mantendo a
 regra central: o UCE aprende padroes para apoiar a decisao, sem depender de
 automacoes externas nesta etapa.
+
+## OpenAI Assistida em Produção Interna
+
+O modo OpenAI assistida existe para melhorar a linguagem das respostas dentro
+do simulador e da rota `/api/uce/chat`, sem transferir decisão para o modelo.
+
+A regra central permanece:
+
+- o UCE decide especialista, fluxo, próxima pergunta, score, handoff e status;
+- a OpenAI apenas escreve uma resposta mais natural, profissional e acolhedora;
+- se `OPENAI_API_KEY` não estiver configurada, o UCE usa fallback seguro;
+- se a OpenAI falhar, o UCE usa fallback seguro;
+- se os guardrails reprovarem a resposta, o UCE descarta o texto da OpenAI e
+  usa fallback;
+- WhatsApp, Meta e n8n ficam para etapas posteriores.
+
+O prompt enviado ao LLM contém apenas contexto essencial: especialista ativo,
+status da conversa, próxima decisão do UCE, campos relevantes, briefing
+resumido, `knowledgeSummary`, perfil comportamental e regras de segurança.
+Nunca deve enviar todo o conhecimento proprietário sem necessidade.
+
+Os guardrails validam se a resposta:
+
+- não inventa imóvel, disponibilidade, preço, condomínio ou agenda;
+- não promete aprovação de crédito, cadastro, financiamento ou garantia;
+- não dá parecer jurídico definitivo;
+- não muda especialista nem fluxo;
+- não pergunta algo diferente da próxima pergunta definida pelo UCE;
+- não contradiz `handoff_pronto` ou `encerrado`.
+
+Na API, quando `responseMode="openai_assistida"`, o retorno inclui diagnóstico
+LLM em `llm.usedOpenAI`, `llm.fallbackUsed`, `llm.guardrailsApproved`,
+`llm.estimatedTotalTokens` e `llm.model`. No simulador, o painel
+`Diagnóstico LLM` mostra o modo ativo, uso de OpenAI, fallback, guardrails,
+tokens estimados, modelo e latência.

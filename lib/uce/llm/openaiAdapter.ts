@@ -11,7 +11,7 @@ let openaiClient: OpenAI | null = null;
 
 function getOpenAIClient() {
   if (!process.env.OPENAI_API_KEY) {
-    throw new Error("OPENAI_API_KEY nao configurada.");
+    return null;
   }
 
   if (!openaiClient) {
@@ -122,7 +122,8 @@ export async function generateNaturalResponse(
   input: UCELLMInput,
 ): Promise<UCELLMOutput> {
   const startedAt = Date.now();
-  const prompt = input.prompt ?? buildLLMPrompt(input.uceResult);
+  const prompt =
+    input.prompt ?? buildLLMPrompt(input.uceResult, DEFAULT_LLM_TOKEN_BUDGET, input.userMessage);
   const provider = input.provider ?? "mock";
 
   if (provider !== "openai") {
@@ -141,6 +142,21 @@ export async function generateNaturalResponse(
 
   try {
     const client = getOpenAIClient();
+
+    if (!client) {
+      return buildOutput({
+        text: generateFallbackResponse(input.uceResult, "erro_openai"),
+        input,
+        prompt,
+        provider,
+        simulated: false,
+        openaiUsed: false,
+        fallbackUsed: true,
+        error: "OPENAI_API_KEY não configurada. Fallback UCE puro acionado.",
+        latencyMs: Date.now() - startedAt,
+      });
+    }
+
     const response = await client.responses.create({
       model: input.model ?? DEFAULT_MODEL,
       input: prompt,

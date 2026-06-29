@@ -1108,7 +1108,7 @@ export default function SimuladorIaPage() {
                             OpenAI usada
                           </p>
                           <p className="mt-1 text-[#64736D]">
-                            {llmStatus.openaiUsed ? "sim" : "nao"}
+                            {llmStatus.openaiUsed ? "sim" : "não"}
                           </p>
                         </div>
                         <div>
@@ -1116,7 +1116,7 @@ export default function SimuladorIaPage() {
                             Fallback acionado
                           </p>
                           <p className="mt-1 text-[#64736D]">
-                            {llmStatus.fallbackUsed ? "sim" : "nao"}
+                            {llmStatus.fallbackUsed ? "sim" : "não"}
                           </p>
                         </div>
                         <div>
@@ -1125,7 +1125,7 @@ export default function SimuladorIaPage() {
                           </p>
                           <p className="mt-1 text-[#64736D]">
                             {llmStatus.guardrailsApproved === null
-                              ? "nao aplicavel"
+                              ? "não aplicável"
                               : llmStatus.guardrailsApproved
                                 ? "aprovados"
                                 : "reprovados"}
@@ -1199,15 +1199,15 @@ export default function SimuladorIaPage() {
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
                           <p className="font-semibold text-[#071E36]">
-                            Diagnostico LLM
+                            Diagnóstico LLM
                           </p>
                           <p className="mt-1 text-[#64736D]">
                             Modo:{" "}
                             {llmStatus.modo === "openai"
-                              ? "OpenAI assistida"
-                              : "UCE puro"}{" "}
-                            | OpenAI usada: {llmStatus.openaiUsed ? "sim" : "nao"} |
-                            Fallback: {llmStatus.fallbackUsed ? "sim" : "nao"}
+                              ? "Modo OpenAI assistida"
+                              : "Modo UCE puro"}{" "}
+                            | OpenAI usada: {llmStatus.openaiUsed ? "sim" : "não"} |
+                            Fallback usado: {llmStatus.fallbackUsed ? "sim" : "não"}
                           </p>
                         </div>
                         <span className="rounded-full bg-[#F7F3ED] px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6827]">

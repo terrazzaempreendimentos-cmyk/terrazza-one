@@ -1,9 +1,5 @@
 import type { UCEProcessResult } from "../core";
-import { formatKnowledgeForPrompt } from "../knowledge";
-import {
-  estimateTextTokens,
-  trimKnowledgeForBudget,
-} from "./tokenBudget";
+import { estimateTextTokens } from "./tokenBudget";
 
 export const DEFAULT_LLM_TOKEN_BUDGET = 2500;
 
@@ -49,16 +45,6 @@ function formatFields(fields: Record<string, unknown>) {
   return entries.map(([field, value]) => `- ${field}: ${String(value)}`).join("\n");
 }
 
-function formatHistory(uceResult: UCEProcessResult) {
-  const history = uceResult.context.memory.slice(-4);
-
-  if (history.length === 0) return "Sem historico recente.";
-
-  return history
-    .map((message) => `- ${message.role}: ${message.content.slice(0, 220)}`)
-    .join("\n");
-}
-
 function summarizeBriefing(uceResult: UCEProcessResult) {
   return [
     `Resumo: ${uceResult.briefing.summary}`,
@@ -69,6 +55,20 @@ function summarizeBriefing(uceResult: UCEProcessResult) {
     }`,
     `Score: ${uceResult.score}`,
     `Temperatura: ${uceResult.temperature}`,
+  ].join("\n");
+}
+
+function formatPerfilComportamental(uceResult: UCEProcessResult) {
+  const perfil = uceResult.perfilComportamental;
+
+  if (!perfil) return "Perfil comportamental ainda nao calculado.";
+
+  return [
+    `Perfil principal: ${perfil.perfilPrincipal}`,
+    `Estilo de decisao: ${perfil.estiloDecisao}`,
+    `Urgencia: ${perfil.nivelUrgencia}`,
+    `Risco de perda: ${perfil.riscoPerda}`,
+    `Resumo: ${perfil.resumoPerfil}`,
   ].join("\n");
 }
 
@@ -83,19 +83,16 @@ function trimPromptToBudget(prompt: string, budget: number) {
 export function buildLLMPrompt(
   uceResult: UCEProcessResult,
   promptBudget = DEFAULT_LLM_TOKEN_BUDGET,
+  userMessage?: string,
 ) {
   const nextQuestion = uceResult.decision.nextQuestion;
   const specialist = uceResult.specialist;
-  const userMessage = lastUserMessage(uceResult);
-  const knowledgeBudget = Math.min(900, Math.floor(promptBudget * 0.35));
-  const knowledgeResults = trimKnowledgeForBudget(
-    uceResult.knowledgeResults,
-    knowledgeBudget,
-  );
+  const currentUserMessage = userMessage?.trim() || lastUserMessage(uceResult);
   const prompt = [
     "# Papel",
-    "Voce e a camada de linguagem natural da UCE para a Terrazza.",
-    "A UCE ja decidiu o fluxo. Reescreva apenas a decisao em linguagem clara, curta e comercial.",
+    "Você é a camada de linguagem natural da UCE para a Terrazza.",
+    "A UCE já decidiu o fluxo. Escreva apenas uma resposta natural, curta, profissional, humana e acolhedora.",
+    "Não aja como formulário: contextualize em uma frase breve e siga exatamente a próxima decisão da UCE.",
     "",
     "# Especialista ativo",
     `${specialist.label} (${specialist.id})`,
@@ -104,37 +101,39 @@ export function buildLLMPrompt(
     "# Status da conversa",
     uceResult.conversationStatus,
     "",
-    "# Proxima pergunta decidida pelo UCE",
+    "# Próxima decisão do UCE",
     nextQuestion
       ? `Campo: ${nextQuestion.field}\nPergunta: ${nextQuestion.text}\nMotivo: ${nextQuestion.reason}`
-      : "Nenhuma. A UCE nao autorizou nova pergunta.",
+      : "Nenhuma. A UCE não autorizou nova pergunta.",
     "",
     "# Contexto essencial coletado",
     formatFields(uceResult.context.fields),
     "",
-    "# Historico recente",
-    formatHistory(uceResult),
-    "",
     "# Briefing resumido",
     summarizeBriefing(uceResult),
     "",
-    "# Knowledge consultado",
-    formatKnowledgeForPrompt(knowledgeResults),
+    "# Knowledge summary",
+    uceResult.knowledgeSummary || "Nenhum resumo de conhecimento disponível.",
+    "",
+    "# Perfil comportamental",
+    formatPerfilComportamental(uceResult),
     "",
     "# Tom da persona",
     uceResult.commercialStrategy.tone,
     "",
-    "# Restricoes",
-    "- Nao decidir especialista, fluxo, score, handoff ou proxima pergunta.",
-    "- Nao pedir campo diferente do campo definido pela UCE.",
-    "- Nao inventar imovel, disponibilidade, preco, condominio, condicao comercial ou agenda.",
-    "- Nao prometer aprovacao de cadastro, credito, financiamento, garantia ou proposta.",
-    "- Nao dar parecer juridico definitivo.",
-    "- Nao contrariar handoff quando a UCE marcar atendimento pronto ou encerrado.",
+    "# Regras de segurança",
+    "- O UCE decide especialista, fluxo, score, handoff e próxima pergunta.",
+    "- A OpenAI apenas escreve melhor a decisão do UCE.",
+    "- Se houver próxima pergunta, faça somente essa pergunta, sem adicionar outra.",
+    "- Se não houver próxima pergunta, não faça pergunta.",
+    "- Não inventar imóvel, disponibilidade, preço, condomínio, condição comercial ou agenda.",
+    "- Não prometer aprovação de cadastro, crédito, financiamento, garantia ou proposta.",
+    "- Não dar parecer jurídico definitivo.",
+    "- Não contrariar handoff quando a UCE marcar atendimento pronto ou encerrado.",
     "- Evitar linguagem agressiva, pressionadora ou excessivamente informal.",
     "",
-    "# Mensagem do usuario",
-    userMessage || "Mensagem nao informada.",
+    "# Mensagem do usuário",
+    currentUserMessage || "Mensagem não informada.",
   ].join("\n");
 
   return trimPromptToBudget(prompt, promptBudget);

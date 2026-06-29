@@ -17,6 +17,13 @@ function asksQuestion(text: string) {
   return text.includes("?");
 }
 
+function questionSentences(text: string) {
+  return text
+    .split(/(?<=\?)/)
+    .map((part) => part.trim())
+    .filter((part) => part.includes("?"));
+}
+
 function hasAny(text: string, terms: string[]) {
   return terms.some((term) => text.includes(term));
 }
@@ -64,29 +71,35 @@ function questionMatchesUCE(text: string, expectedField: string, expectedQuestio
   const field = normalize(expectedField);
   const words = normalize(expectedQuestion)
     .split(/\s+/)
-    .filter((word) => word.length > 4);
+    .filter((word) => word.length > 4 && !["perfeito", "alguma", "algum"].includes(word));
   const fieldAliases: Record<string, string[]> = {
     bairro: ["bairro", "regiao", "local"],
     cidade: ["cidade"],
     tipoimovel: ["tipo", "imovel", "apartamento", "casa"],
     valor: ["valor", "orcamento", "faixa", "preco"],
+    valoresperado: ["valor", "espera", "venda", "preco"],
+    valoraluguelatual: ["aluguel", "valor", "imagina"],
+    condominiovalor: ["condominio", "valor"],
+    iptu: ["iptu"],
     quartos: ["quartos", "dormitorios"],
+    vagas: ["vaga", "garagem"],
     pet: ["pet", "animal"],
     moradores: ["pessoas", "moradores", "morar"],
     urgencia: ["urgencia", "prazo", "quando"],
     prazomudanca: ["prazo", "mudanca", "quando"],
+    prazocompra: ["prazo", "comprar", "quando"],
     financiamento: ["financiar", "financiamento"],
     fgts: ["fgts"],
+    entradadisponivel: ["entrada", "reservado", "valor"],
     documentacao: ["documentacao", "documentos"],
     ocupacao: ["ocupado", "desocupado", "ocupacao"],
-    finalidadeanuncio: ["venda", "locacao", "anuncio"],
+    finalidadeanuncio: ["venda", "locacao", "administracao", "anuncio"],
   };
   const aliases = fieldAliases[field] ?? [field];
+  const aliasMatches = aliases.some((alias) => normalized.includes(alias));
+  const wordMatches = words.filter((word) => normalized.includes(word)).length;
 
-  return (
-    aliases.some((alias) => normalized.includes(alias)) ||
-    words.some((word) => normalized.includes(word))
-  );
+  return aliasMatches || wordMatches >= Math.min(2, words.length || 2);
 }
 
 export function validateLLMOutput(
@@ -152,12 +165,16 @@ export function validateLLMOutput(
     reasons.push("Pergunta nao autorizada pela UCE.");
   }
 
-  if (
-    nextQuestion &&
-    asksQuestion(output.text) &&
-    !questionMatchesUCE(output.text, nextQuestion.field, nextQuestion.text)
-  ) {
-    reasons.push("Pergunta diferente da definida pela UCE.");
+  if (nextQuestion && asksQuestion(output.text)) {
+    const questions = questionSentences(output.text);
+    const mismatchedQuestion = questions.some(
+      (question) =>
+        !questionMatchesUCE(question, nextQuestion.field, nextQuestion.text),
+    );
+
+    if (mismatchedQuestion) {
+      reasons.push("Pergunta diferente da definida pela UCE.");
+    }
   }
 
   if (
