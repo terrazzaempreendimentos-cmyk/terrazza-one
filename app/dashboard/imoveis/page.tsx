@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
+import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { supabase } from "../../../lib/supabase";
 
 type Proprietario = {
@@ -14,12 +16,24 @@ type Imovel = {
   tipo: string | null;
   cidade: string | null;
   bairro: string | null;
+  condominio: string | null;
+  quartos: number | string | null;
+  banheiros: number | string | null;
+  garagem: boolean | null;
+  metragem: number | string | null;
   aluguel_pretendido: number | string | null;
   valor_condominio: number | string | null;
   valor_iptu: number | string | null;
   taxa_bombeiro: number | string | null;
   situacao: string | null;
 };
+
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function paramValue(searchParams: SearchParams, key: string) {
+  const value = searchParams[key];
+  return Array.isArray(value) ? value[0] : value;
+}
 
 function valorTexto(formData: FormData, campo: string) {
   return String(formData.get(campo) ?? "").trim();
@@ -47,10 +61,18 @@ function formatarMoeda(valor: number | string | null) {
   }).format(numero);
 }
 
-export default async function ImoveisPage() {
-  async function cadastrarImovel(formData: FormData) {
+export default async function ImoveisPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const editId = paramValue(resolvedSearchParams, "edit") ?? "";
+
+  async function salvarImovel(formData: FormData) {
     "use server";
 
+    const id = valorTexto(formData, "id");
     const proprietarioId = valorTexto(formData, "proprietario_id");
     const tipo = valorTexto(formData, "tipo");
     const cidade = valorTexto(formData, "cidade");
@@ -62,7 +84,7 @@ export default async function ImoveisPage() {
       throw new Error("Selecione um proprietário para o imóvel.");
     }
 
-    const { error } = await supabase.from("imoveis").insert({
+    const payload = {
       proprietario_id: proprietarioId,
       tipo: tipo || null,
       cidade: cidade || null,
@@ -77,10 +99,38 @@ export default async function ImoveisPage() {
       valor_condominio: valorNumero(formData, "valor_condominio"),
       valor_iptu: valorNumero(formData, "valor_iptu"),
       taxa_bombeiro: valorNumero(formData, "taxa_bombeiro"),
-    });
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = id
+      ? await supabase.from("imoveis").update(payload).eq("id", id)
+      : await supabase.from("imoveis").insert(payload);
 
     if (error) {
       throw new Error("Não foi possível salvar o imóvel.");
+    }
+
+    revalidatePath("/dashboard/imoveis");
+    revalidatePath("/dashboard");
+    redirect("/dashboard/imoveis");
+  }
+
+  async function excluirImovel(formData: FormData) {
+    "use server";
+
+    const id = valorTexto(formData, "id");
+
+    if (!id) {
+      throw new Error("Imovel nao informado.");
+    }
+
+    const { error } = await supabase
+      .from("imoveis")
+      .update({ ativo: false, updated_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) {
+      throw new Error("Nao foi possivel excluir logicamente o imovel.");
     }
 
     revalidatePath("/dashboard/imoveis");
@@ -95,12 +145,14 @@ export default async function ImoveisPage() {
     supabase
       .from("imoveis")
       .select(
-        "id, proprietario_id, tipo, cidade, bairro, aluguel_pretendido, valor_condominio, valor_iptu, taxa_bombeiro, situacao",
-      ),
+        "id, proprietario_id, tipo, cidade, bairro, condominio, quartos, banheiros, garagem, metragem, aluguel_pretendido, valor_condominio, valor_iptu, taxa_bombeiro, situacao",
+      )
+      .eq("ativo", true),
   ]);
 
   const proprietarios = (proprietariosResult.data ?? []) as Proprietario[];
   const imoveis = (imoveisResult.data ?? []) as Imovel[];
+  const imovelEmEdicao = imoveis.find((imovel) => imovel.id === editId) ?? null;
   const proprietariosPorId = new Map(
     proprietarios.map((proprietario) => [proprietario.id, proprietario.nome]),
   );
@@ -128,14 +180,15 @@ export default async function ImoveisPage() {
         <section className="mt-10 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-xl font-semibold text-[#071E36]">Novo imóvel</h2>
 
-          <form action={cadastrarImovel} className="mt-6 grid gap-5 md:grid-cols-3">
+          <form action={salvarImovel} className="mt-6 grid gap-5 md:grid-cols-3">
+            <input type="hidden" name="id" value={imovelEmEdicao?.id ?? ""} />
             <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Proprietário
               <select
                 name="proprietario_id"
                 required
+                defaultValue={imovelEmEdicao?.proprietario_id ?? ""}
                 className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
-                defaultValue=""
               >
                 <option value="" disabled>
                   Selecione um proprietário
@@ -152,6 +205,7 @@ export default async function ImoveisPage() {
               Tipo
               <input
                 name="tipo"
+                defaultValue={imovelEmEdicao?.tipo ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Apartamento, casa, studio..."
               />
@@ -161,6 +215,7 @@ export default async function ImoveisPage() {
               Situação
               <input
                 name="situacao"
+                defaultValue={imovelEmEdicao?.situacao ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Disponível, ocupado..."
               />
@@ -170,6 +225,7 @@ export default async function ImoveisPage() {
               Cidade
               <input
                 name="cidade"
+                defaultValue={imovelEmEdicao?.cidade ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Cidade"
               />
@@ -179,6 +235,7 @@ export default async function ImoveisPage() {
               Bairro
               <input
                 name="bairro"
+                defaultValue={imovelEmEdicao?.bairro ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Bairro"
               />
@@ -188,6 +245,7 @@ export default async function ImoveisPage() {
               Condomínio
               <input
                 name="condominio"
+                defaultValue={imovelEmEdicao?.condominio ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Nome do condomínio"
               />
@@ -199,6 +257,7 @@ export default async function ImoveisPage() {
                 name="quartos"
                 type="number"
                 min="0"
+                defaultValue={imovelEmEdicao?.quartos ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="0"
               />
@@ -210,6 +269,7 @@ export default async function ImoveisPage() {
                 name="banheiros"
                 type="number"
                 min="0"
+                defaultValue={imovelEmEdicao?.banheiros ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="0"
               />
@@ -222,6 +282,7 @@ export default async function ImoveisPage() {
                 type="number"
                 min="0"
                 step="0.01"
+                defaultValue={imovelEmEdicao?.metragem ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="0"
               />
@@ -234,6 +295,7 @@ export default async function ImoveisPage() {
                 type="number"
                 min="0"
                 step="0.01"
+                defaultValue={imovelEmEdicao?.aluguel_pretendido ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="R$ 0,00"
               />
@@ -246,6 +308,7 @@ export default async function ImoveisPage() {
                 type="number"
                 min="0"
                 step="0.01"
+                defaultValue={imovelEmEdicao?.valor_condominio ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="R$ 0,00"
               />
@@ -258,6 +321,7 @@ export default async function ImoveisPage() {
                 type="number"
                 min="0"
                 step="0.01"
+                defaultValue={imovelEmEdicao?.valor_iptu ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="R$ 0,00"
               />
@@ -270,6 +334,7 @@ export default async function ImoveisPage() {
                 type="number"
                 min="0"
                 step="0.01"
+                defaultValue={imovelEmEdicao?.taxa_bombeiro ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="R$ 0,00"
               />
@@ -279,6 +344,7 @@ export default async function ImoveisPage() {
               <input
                 name="garagem"
                 type="checkbox"
+                defaultChecked={Boolean(imovelEmEdicao?.garagem)}
                 className="size-4 accent-[#C89B3C]"
               />
               Possui garagem
@@ -289,8 +355,16 @@ export default async function ImoveisPage() {
                 type="submit"
                 className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
               >
-                Salvar Imóvel
+                {imovelEmEdicao ? "Salvar alteracoes" : "Salvar Imovel"}
               </button>
+              {imovelEmEdicao ? (
+                <Link
+                  href="/dashboard/imoveis"
+                  className="ml-3 inline-flex rounded-xl border border-[#E8DDCB] bg-white px-5 py-3 text-sm font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+                >
+                  Cancelar edicao
+                </Link>
+              ) : null}
             </div>
           </form>
         </section>
@@ -325,6 +399,7 @@ export default async function ImoveisPage() {
                     <th className="px-4 py-3 font-medium">Aluguel pretendido</th>
                     <th className="px-4 py-3 font-medium">Condomínio</th>
                     <th className="px-4 py-3 font-medium">IPTU</th>
+                    <th className="px-4 py-3 font-medium">Acoes</th>
                     <th className="px-4 py-3 font-medium">Taxa bombeiro</th>
                     <th className="px-4 py-3 font-medium">Situação</th>
                   </tr>
@@ -348,6 +423,25 @@ export default async function ImoveisPage() {
                       </td>
                       <td className="px-4 py-4">
                         {formatarMoeda(imovel.valor_iptu)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            href={`/dashboard/imoveis?edit=${imovel.id}`}
+                            className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+                          >
+                            Editar
+                          </Link>
+                          <form action={excluirImovel}>
+                            <input type="hidden" name="id" value={imovel.id} />
+                            <ConfirmSubmitButton
+                              message="Confirmar exclusao logica deste imovel?"
+                              className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                            >
+                              Excluir
+                            </ConfirmSubmitButton>
+                          </form>
+                        </div>
                       </td>
                       <td className="px-4 py-4">
                         {formatarMoeda(imovel.taxa_bombeiro)}

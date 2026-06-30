@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
+import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
 import { supabase } from "../../../../lib/supabase";
 
 type Corretor = {
@@ -12,6 +14,13 @@ type Corretor = {
   ativo: boolean | null;
   created_at: string | null;
 };
+
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function paramValue(searchParams: SearchParams, key: string) {
+  const value = searchParams[key];
+  return Array.isArray(value) ? value[0] : value;
+}
 
 function valorTexto(formData: FormData, campo: string) {
   return String(formData.get(campo) ?? "").trim();
@@ -25,26 +34,61 @@ function formatarData(data: string | null) {
   }).format(new Date(data));
 }
 
-export default async function CorretoresPage() {
-  async function cadastrarCorretor(formData: FormData) {
+export default async function CorretoresPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const editId = paramValue(resolvedSearchParams, "edit") ?? "";
+
+  async function salvarCorretor(formData: FormData) {
     "use server";
 
+    const id = valorTexto(formData, "id");
     const nome = valorTexto(formData, "nome");
 
     if (!nome) {
       throw new Error("O nome do corretor é obrigatório.");
     }
 
-    const { error } = await supabase.from("corretores").insert({
+    const payload = {
       nome,
       telefone: valorTexto(formData, "telefone") || null,
       email: valorTexto(formData, "email") || null,
       creci: valorTexto(formData, "creci") || null,
       ativo: formData.get("ativo") === "on",
-    });
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = id
+      ? await supabase.from("corretores").update(payload).eq("id", id)
+      : await supabase.from("corretores").insert(payload);
 
     if (error) {
       throw new Error("Não foi possível salvar o corretor.");
+    }
+
+    revalidatePath("/dashboard/crm/corretores");
+    redirect("/dashboard/crm/corretores");
+  }
+
+  async function excluirCorretor(formData: FormData) {
+    "use server";
+
+    const id = valorTexto(formData, "id");
+
+    if (!id) {
+      throw new Error("Corretor nao informado.");
+    }
+
+    const { error } = await supabase
+      .from("corretores")
+      .update({ ativo: false, updated_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) {
+      throw new Error("Nao foi possivel excluir logicamente o corretor.");
     }
 
     revalidatePath("/dashboard/crm/corretores");
@@ -53,9 +97,12 @@ export default async function CorretoresPage() {
   const { data, error } = await supabase
     .from("corretores")
     .select("id, nome, telefone, email, creci, ativo, created_at")
+    .eq("ativo", true)
     .order("created_at", { ascending: false });
 
   const corretores = (data ?? []) as Corretor[];
+  const corretorEmEdicao =
+    corretores.find((corretor) => corretor.id === editId) ?? null;
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -84,12 +131,14 @@ export default async function CorretoresPage() {
             Novo corretor
           </h2>
 
-          <form action={cadastrarCorretor} className="mt-6 grid gap-5 md:grid-cols-4">
+          <form action={salvarCorretor} className="mt-6 grid gap-5 md:grid-cols-4">
+            <input type="hidden" name="id" value={corretorEmEdicao?.id ?? ""} />
             <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Nome
               <input
                 name="nome"
                 required
+                defaultValue={corretorEmEdicao?.nome ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Nome completo"
               />
@@ -100,6 +149,7 @@ export default async function CorretoresPage() {
               <input
                 name="telefone"
                 type="tel"
+                defaultValue={corretorEmEdicao?.telefone ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="(00) 00000-0000"
               />
@@ -110,6 +160,7 @@ export default async function CorretoresPage() {
               <input
                 name="email"
                 type="email"
+                defaultValue={corretorEmEdicao?.email ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="nome@exemplo.com"
               />
@@ -119,6 +170,7 @@ export default async function CorretoresPage() {
               CRECI
               <input
                 name="creci"
+                defaultValue={corretorEmEdicao?.creci ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="CRECI"
               />
@@ -128,7 +180,7 @@ export default async function CorretoresPage() {
               <input
                 name="ativo"
                 type="checkbox"
-                defaultChecked
+                defaultChecked={corretorEmEdicao?.ativo ?? true}
                 className="size-4 accent-[#C89B3C]"
               />
               Corretor ativo
@@ -139,8 +191,16 @@ export default async function CorretoresPage() {
                 type="submit"
                 className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
               >
-                Salvar Corretor
+                {corretorEmEdicao ? "Salvar alteracoes" : "Salvar Corretor"}
               </button>
+              {corretorEmEdicao ? (
+                <Link
+                  href="/dashboard/crm/corretores"
+                  className="ml-3 inline-flex rounded-xl border border-[#E8DDCB] bg-white px-5 py-3 text-sm font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+                >
+                  Cancelar edicao
+                </Link>
+              ) : null}
             </div>
           </form>
         </section>
@@ -174,6 +234,7 @@ export default async function CorretoresPage() {
                     <th className="px-4 py-3 font-medium">CRECI</th>
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium">Data</th>
+                    <th className="px-4 py-3 font-medium">Acoes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eee7dc] text-[#102A27]">
@@ -192,6 +253,25 @@ export default async function CorretoresPage() {
                       </td>
                       <td className="px-4 py-4">
                         {formatarData(corretor.created_at)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            href={`/dashboard/crm/corretores?edit=${corretor.id}`}
+                            className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+                          >
+                            Editar
+                          </Link>
+                          <form action={excluirCorretor}>
+                            <input type="hidden" name="id" value={corretor.id} />
+                            <ConfirmSubmitButton
+                              message="Confirmar exclusao logica deste corretor?"
+                              className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                            >
+                              Excluir
+                            </ConfirmSubmitButton>
+                          </form>
+                        </div>
                       </td>
                     </tr>
                   ))}

@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
+import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { supabase } from "../../../lib/supabase";
 
 type Inquilino = {
@@ -18,6 +20,13 @@ type Inquilino = {
   observacao: string | null;
   created_at: string | null;
 };
+
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function paramValue(searchParams: SearchParams, key: string) {
+  const value = searchParams[key];
+  return Array.isArray(value) ? value[0] : value;
+}
 
 const statusInquilinos = ["prospect", "em_analise", "aprovado", "perdido"];
 
@@ -69,17 +78,25 @@ function labelStatus(status: string | null) {
   return status.replaceAll("_", " ");
 }
 
-export default async function InquilinosPage() {
-  async function cadastrarInquilino(formData: FormData) {
+export default async function InquilinosPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const editId = paramValue(resolvedSearchParams, "edit") ?? "";
+
+  async function salvarInquilino(formData: FormData) {
     "use server";
 
+    const id = valorTexto(formData, "id");
     const nome = valorTexto(formData, "nome");
 
     if (!nome) {
       throw new Error("O nome do inquilino é obrigatório.");
     }
 
-    const { error } = await supabase.from("inquilinos").insert({
+    const payload = {
       nome,
       telefone: valorTexto(formData, "telefone") || null,
       email: valorTexto(formData, "email") || null,
@@ -91,10 +108,37 @@ export default async function InquilinosPage() {
       possui_pet: formData.get("possui_pet") === "on",
       status: valorTexto(formData, "status") || "prospect",
       observacao: valorTexto(formData, "observacao") || null,
-    });
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = id
+      ? await supabase.from("inquilinos").update(payload).eq("id", id)
+      : await supabase.from("inquilinos").insert(payload);
 
     if (error) {
       throw new Error("Não foi possível salvar o inquilino.");
+    }
+
+    revalidatePath("/dashboard/inquilinos");
+    redirect("/dashboard/inquilinos");
+  }
+
+  async function excluirInquilino(formData: FormData) {
+    "use server";
+
+    const id = valorTexto(formData, "id");
+
+    if (!id) {
+      throw new Error("Inquilino nao informado.");
+    }
+
+    const { error } = await supabase
+      .from("inquilinos")
+      .update({ ativo: false, updated_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) {
+      throw new Error("Nao foi possivel excluir logicamente o inquilino.");
     }
 
     revalidatePath("/dashboard/inquilinos");
@@ -105,9 +149,12 @@ export default async function InquilinosPage() {
     .select(
       "id, nome, telefone, email, cpf, cidade_interesse, bairro_interesse, faixa_aluguel, quartos_desejados, possui_pet, status, observacao, created_at",
     )
+    .eq("ativo", true)
     .order("created_at", { ascending: false });
 
   const inquilinos = (data ?? []) as Inquilino[];
+  const inquilinoEmEdicao =
+    inquilinos.find((inquilino) => inquilino.id === editId) ?? null;
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -136,12 +183,14 @@ export default async function InquilinosPage() {
             Novo inquilino
           </h2>
 
-          <form action={cadastrarInquilino} className="mt-6 grid gap-5 md:grid-cols-3">
+          <form action={salvarInquilino} className="mt-6 grid gap-5 md:grid-cols-3">
+            <input type="hidden" name="id" value={inquilinoEmEdicao?.id ?? ""} />
             <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Nome
               <input
                 name="nome"
                 required
+                defaultValue={inquilinoEmEdicao?.nome ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Nome completo"
               />
@@ -152,6 +201,7 @@ export default async function InquilinosPage() {
               <input
                 name="telefone"
                 type="tel"
+                defaultValue={inquilinoEmEdicao?.telefone ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="(00) 00000-0000"
               />
@@ -162,6 +212,7 @@ export default async function InquilinosPage() {
               <input
                 name="email"
                 type="email"
+                defaultValue={inquilinoEmEdicao?.email ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="nome@exemplo.com"
               />
@@ -171,6 +222,7 @@ export default async function InquilinosPage() {
               CPF
               <input
                 name="cpf"
+                defaultValue={inquilinoEmEdicao?.cpf ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="000.000.000-00"
               />
@@ -180,6 +232,7 @@ export default async function InquilinosPage() {
               Cidade de interesse
               <input
                 name="cidade_interesse"
+                defaultValue={inquilinoEmEdicao?.cidade_interesse ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Cidade"
               />
@@ -189,6 +242,7 @@ export default async function InquilinosPage() {
               Bairro de interesse
               <input
                 name="bairro_interesse"
+                defaultValue={inquilinoEmEdicao?.bairro_interesse ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Bairro"
               />
@@ -201,6 +255,7 @@ export default async function InquilinosPage() {
                 type="number"
                 min="0"
                 step="0.01"
+                defaultValue={inquilinoEmEdicao?.faixa_aluguel ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="R$ 0,00"
               />
@@ -212,6 +267,7 @@ export default async function InquilinosPage() {
                 name="quartos_desejados"
                 type="number"
                 min="0"
+                defaultValue={inquilinoEmEdicao?.quartos_desejados ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="0"
               />
@@ -221,7 +277,7 @@ export default async function InquilinosPage() {
               Status
               <select
                 name="status"
-                defaultValue="prospect"
+                defaultValue={inquilinoEmEdicao?.status ?? "prospect"}
                 className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
               >
                 {statusInquilinos.map((status) => (
@@ -236,6 +292,7 @@ export default async function InquilinosPage() {
               <input
                 name="possui_pet"
                 type="checkbox"
+                defaultChecked={Boolean(inquilinoEmEdicao?.possui_pet)}
                 className="size-4 accent-[#C89B3C]"
               />
               Possui pet
@@ -246,6 +303,7 @@ export default async function InquilinosPage() {
               <textarea
                 name="observacao"
                 rows={4}
+                defaultValue={inquilinoEmEdicao?.observacao ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Preferências, perfil, restrições e próximos passos..."
               />
@@ -256,8 +314,16 @@ export default async function InquilinosPage() {
                 type="submit"
                 className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
               >
-                Salvar Inquilino
+                {inquilinoEmEdicao ? "Salvar alteracoes" : "Salvar Inquilino"}
               </button>
+              {inquilinoEmEdicao ? (
+                <Link
+                  href="/dashboard/inquilinos"
+                  className="ml-3 inline-flex rounded-xl border border-[#E8DDCB] bg-white px-5 py-3 text-sm font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+                >
+                  Cancelar edicao
+                </Link>
+              ) : null}
             </div>
           </form>
         </section>
@@ -293,6 +359,7 @@ export default async function InquilinosPage() {
                     <th className="px-4 py-3 font-medium">Pet</th>
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium">Data</th>
+                    <th className="px-4 py-3 font-medium">Acoes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eee7dc] text-[#102A27]">
@@ -319,6 +386,25 @@ export default async function InquilinosPage() {
                       <td className="px-4 py-4">{labelStatus(inquilino.status)}</td>
                       <td className="px-4 py-4">
                         {formatarData(inquilino.created_at)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            href={`/dashboard/inquilinos?edit=${inquilino.id}`}
+                            className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+                          >
+                            Editar
+                          </Link>
+                          <form action={excluirInquilino}>
+                            <input type="hidden" name="id" value={inquilino.id} />
+                            <ConfirmSubmitButton
+                              message="Confirmar exclusao logica deste inquilino?"
+                              className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                            >
+                              Excluir
+                            </ConfirmSubmitButton>
+                          </form>
+                        </div>
                       </td>
                     </tr>
                   ))}

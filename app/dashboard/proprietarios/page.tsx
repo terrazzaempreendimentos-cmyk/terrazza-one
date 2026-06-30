@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
+import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { supabase } from "../../../lib/supabase";
 
 type Proprietario = {
@@ -11,6 +13,13 @@ type Proprietario = {
   created_at: string | null;
 };
 
+type SearchParams = Record<string, string | string[] | undefined>;
+
+function paramValue(searchParams: SearchParams, key: string) {
+  const value = searchParams[key];
+  return Array.isArray(value) ? value[0] : value;
+}
+
 function formatarData(data: string | null) {
   if (!data) return "—";
 
@@ -19,10 +28,18 @@ function formatarData(data: string | null) {
   }).format(new Date(data));
 }
 
-export default async function ProprietariosPage() {
-  async function cadastrarProprietario(formData: FormData) {
+export default async function ProprietariosPage({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>;
+}) {
+  const resolvedSearchParams = (await searchParams) ?? {};
+  const editId = paramValue(resolvedSearchParams, "edit") ?? "";
+
+  async function salvarProprietario(formData: FormData) {
     "use server";
 
+    const id = String(formData.get("id") ?? "").trim();
     const nome = String(formData.get("nome") ?? "").trim();
     const telefone = String(formData.get("telefone") ?? "").trim();
     const email = String(formData.get("email") ?? "").trim();
@@ -31,14 +48,42 @@ export default async function ProprietariosPage() {
       throw new Error("O nome do proprietário é obrigatório.");
     }
 
-    const { error } = await supabase.from("proprietarios").insert({
+    const payload = {
       nome,
       telefone: telefone || null,
       email: email || null,
-    });
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error } = id
+      ? await supabase.from("proprietarios").update(payload).eq("id", id)
+      : await supabase.from("proprietarios").insert(payload);
 
     if (error) {
       throw new Error("Não foi possível salvar o proprietário.");
+    }
+
+    revalidatePath("/dashboard/proprietarios");
+    revalidatePath("/dashboard");
+    redirect("/dashboard/proprietarios");
+  }
+
+  async function excluirProprietario(formData: FormData) {
+    "use server";
+
+    const id = String(formData.get("id") ?? "").trim();
+
+    if (!id) {
+      throw new Error("Proprietario nao informado.");
+    }
+
+    const { error } = await supabase
+      .from("proprietarios")
+      .update({ ativo: false, updated_at: new Date().toISOString() })
+      .eq("id", id);
+
+    if (error) {
+      throw new Error("Nao foi possivel excluir logicamente o proprietario.");
     }
 
     revalidatePath("/dashboard/proprietarios");
@@ -48,9 +93,12 @@ export default async function ProprietariosPage() {
   const { data: proprietarios, error } = await supabase
     .from("proprietarios")
     .select("id, nome, telefone, email, created_at")
+    .eq("ativo", true)
     .order("created_at", { ascending: false });
 
   const listaProprietarios = (proprietarios ?? []) as Proprietario[];
+  const proprietarioEmEdicao =
+    listaProprietarios.find((proprietario) => proprietario.id === editId) ?? null;
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -77,12 +125,14 @@ export default async function ProprietariosPage() {
             Novo proprietário
           </h2>
 
-          <form action={cadastrarProprietario} className="mt-6 grid gap-5 md:grid-cols-3">
+          <form action={salvarProprietario} className="mt-6 grid gap-5 md:grid-cols-3">
+            <input type="hidden" name="id" value={proprietarioEmEdicao?.id ?? ""} />
             <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Nome
               <input
                 name="nome"
                 required
+                defaultValue={proprietarioEmEdicao?.nome ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="Nome completo"
               />
@@ -93,6 +143,7 @@ export default async function ProprietariosPage() {
               <input
                 name="telefone"
                 type="tel"
+                defaultValue={proprietarioEmEdicao?.telefone ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="(00) 00000-0000"
               />
@@ -103,6 +154,7 @@ export default async function ProprietariosPage() {
               <input
                 name="email"
                 type="email"
+                defaultValue={proprietarioEmEdicao?.email ?? ""}
                 className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
                 placeholder="nome@exemplo.com"
               />
@@ -113,8 +165,16 @@ export default async function ProprietariosPage() {
                 type="submit"
                 className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
               >
-                Salvar Proprietário
+                {proprietarioEmEdicao ? "Salvar alteracoes" : "Salvar Proprietario"}
               </button>
+              {proprietarioEmEdicao ? (
+                <Link
+                  href="/dashboard/proprietarios"
+                  className="ml-3 inline-flex rounded-xl border border-[#E8DDCB] bg-white px-5 py-3 text-sm font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+                >
+                  Cancelar edicao
+                </Link>
+              ) : null}
             </div>
           </form>
         </section>
@@ -146,6 +206,7 @@ export default async function ProprietariosPage() {
                     <th className="px-4 py-3 font-medium">Telefone</th>
                     <th className="px-4 py-3 font-medium">E-mail</th>
                     <th className="px-4 py-3 font-medium">Data de cadastro</th>
+                    <th className="px-4 py-3 font-medium">Acoes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eee7dc] text-[#102A27]">
@@ -158,6 +219,25 @@ export default async function ProprietariosPage() {
                       <td className="px-4 py-4">{proprietario.email || "—"}</td>
                       <td className="px-4 py-4">
                         {formatarData(proprietario.created_at)}
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            href={`/dashboard/proprietarios?edit=${proprietario.id}`}
+                            className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+                          >
+                            Editar
+                          </Link>
+                          <form action={excluirProprietario}>
+                            <input type="hidden" name="id" value={proprietario.id} />
+                            <ConfirmSubmitButton
+                              message="Confirmar exclusao logica deste proprietario?"
+                              className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
+                            >
+                              Excluir
+                            </ConfirmSubmitButton>
+                          </form>
+                        </div>
                       </td>
                     </tr>
                   ))}
