@@ -13,6 +13,12 @@ import {
 
 import { supabase } from "../../../../lib/supabase";
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
+import {
+  createOperationalMemoryFromMaintenance,
+  searchMemories,
+  type UCEMemory,
+  type UCEMemoryEntityType,
+} from "../../../../lib/uce/memory/persistent";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -45,6 +51,12 @@ type CasoOperacional = {
   data_prazo: string | null;
   data_conclusao: string | null;
   created_at: string | null;
+};
+
+type MemoryRelatedEntity = {
+  entityType: UCEMemoryEntityType;
+  entityId?: string | null;
+  entityLabel?: string | null;
 };
 
 const tipos = ["manutencao", "conflito"];
@@ -148,6 +160,64 @@ function statusClassName(status: string | null | undefined) {
   return "bg-[#F7F3ED] text-[#071E36]";
 }
 
+async function getRelatedEntityLabel(
+  table: "inquilinos" | "proprietarios" | "imoveis",
+  id: string | null,
+) {
+  if (!id) return null;
+
+  const selectFields = table === "imoveis" ? "tipo, cidade, bairro" : "nome";
+  const { data } = await supabase.from(table).select(selectFields).eq("id", id).maybeSingle();
+
+  if (!data) return null;
+
+  if (table === "imoveis") {
+    const imovel = data as CadastroBasico;
+    return nomeImovel(imovel);
+  }
+
+  return (data as CadastroBasico).nome ?? null;
+}
+
+async function buildRelatedMemoryEntities(input: {
+  inquilinoId: string | null;
+  proprietarioId: string | null;
+  imovelId: string | null;
+}) {
+  const [inquilinoLabel, proprietarioLabel, imovelLabel] = await Promise.all([
+    getRelatedEntityLabel("inquilinos", input.inquilinoId),
+    getRelatedEntityLabel("proprietarios", input.proprietarioId),
+    getRelatedEntityLabel("imoveis", input.imovelId),
+  ]);
+  const entities: MemoryRelatedEntity[] = [];
+
+  if (input.inquilinoId) {
+    entities.push({
+      entityType: "inquilino",
+      entityId: input.inquilinoId,
+      entityLabel: inquilinoLabel,
+    });
+  }
+
+  if (input.proprietarioId) {
+    entities.push({
+      entityType: "proprietario",
+      entityId: input.proprietarioId,
+      entityLabel: proprietarioLabel,
+    });
+  }
+
+  if (input.imovelId) {
+    entities.push({
+      entityType: "imovel",
+      entityId: input.imovelId,
+      entityLabel: imovelLabel,
+    });
+  }
+
+  return entities;
+}
+
 export default async function ManutencoesPage({
   searchParams,
 }: {
@@ -190,12 +260,41 @@ export default async function ManutencoesPage({
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = id
-      ? await supabase.from("manutencoes_conflitos").update(payload).eq("id", id)
-      : await supabase.from("manutencoes_conflitos").insert(payload);
+    const result = id
+      ? await supabase
+          .from("manutencoes_conflitos")
+          .update(payload)
+          .eq("id", id)
+          .select("id")
+          .single()
+      : await supabase
+          .from("manutencoes_conflitos")
+          .insert(payload)
+          .select("id")
+          .single();
 
-    if (error) {
+    if (result.error) {
       throw new Error("Nao foi possivel salvar o caso operacional.");
+    }
+
+    if (!id) {
+      const relatedEntities = await buildRelatedMemoryEntities({
+        inquilinoId: payload.inquilino_id,
+        proprietarioId: payload.proprietario_id,
+        imovelId: payload.imovel_id,
+      });
+
+      await createOperationalMemoryFromMaintenance({
+        tipo: payload.tipo,
+        categoria: payload.categoria,
+        titulo: payload.titulo,
+        resumo: payload.resumo,
+        descricao: payload.descricao,
+        status: payload.status,
+        prioridade: payload.prioridade,
+        proximaAcao: payload.proxima_acao,
+        relatedEntities,
+      });
     }
 
     revalidatePath("/dashboard/crm/manutencoes");
@@ -245,6 +344,7 @@ export default async function ManutencoesPage({
     proprietariosResult,
     inquilinosResult,
     corretoresResult,
+    memoriesResult,
   ] = await Promise.all([
     casosQuery,
     supabase
@@ -258,6 +358,7 @@ export default async function ManutencoesPage({
     supabase.from("proprietarios").select("id, nome").order("nome", { ascending: true }),
     supabase.from("inquilinos").select("id, nome").order("nome", { ascending: true }),
     supabase.from("corretores").select("id, nome").order("nome", { ascending: true }),
+    searchMemories({ limit: 120 }).catch(() => [] as UCEMemory[]),
   ]);
 
   const casos = (casosResult.data ?? []) as CasoOperacional[];
@@ -269,6 +370,9 @@ export default async function ManutencoesPage({
   const proprietarios = (proprietariosResult.data ?? []) as CadastroBasico[];
   const inquilinos = (inquilinosResult.data ?? []) as CadastroBasico[];
   const corretores = (corretoresResult.data ?? []) as CadastroBasico[];
+  const memories = ((memoriesResult ?? []) as UCEMemory[]).filter(
+    (memory) => memory.source === "crm_manutencoes",
+  );
   const casoEmEdicao = casos.find((caso) => caso.id === editId) ?? null;
   const casoDestaque = casoEmEdicao ?? casos[0] ?? null;
 
@@ -282,6 +386,13 @@ export default async function ManutencoesPage({
   const corretoresPorId = new Map(
     corretores.map((corretor) => [corretor.id, corretor.nome ?? "-"]),
   );
+  const memoriesByTitle = new Map<string, UCEMemory[]>();
+
+  for (const memory of memories) {
+    const currentMemories = memoriesByTitle.get(memory.title) ?? [];
+    currentMemories.push(memory);
+    memoriesByTitle.set(memory.title, currentMemories);
+  }
 
   const resumo = [
     {
@@ -720,13 +831,14 @@ export default async function ManutencoesPage({
                   <th className="px-4 py-3 font-medium">Data</th>
                   <th className="px-4 py-3 font-medium">Responsavel</th>
                   <th className="px-4 py-3 font-medium">Resumo</th>
+                  <th className="px-4 py-3 font-medium">UCE Memoria</th>
                   <th className="px-4 py-3 font-medium">Acoes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#eee7dc] text-[#102A27]">
                 {casos.length === 0 ? (
                   <tr>
-                    <td colSpan={12} className="px-4 py-10 text-center text-[#64736D]">
+                    <td colSpan={13} className="px-4 py-10 text-center text-[#64736D]">
                       Nenhum caso encontrado.
                     </td>
                   </tr>
@@ -774,6 +886,45 @@ export default async function ManutencoesPage({
                       </td>
                       <td className="max-w-xs px-4 py-4 text-[#64736D]">
                         {caso.resumo || caso.descricao || "-"}
+                      </td>
+                      <td className="px-4 py-4">
+                        {(() => {
+                          const casoMemories = memoriesByTitle.get(caso.titulo) ?? [];
+                          const principal =
+                            casoMemories.find(
+                              (memory) =>
+                                memory.entity_type === "manutencao" ||
+                                memory.entity_type === "conflito",
+                            ) ?? casoMemories[0];
+
+                          if (!principal) {
+                            return (
+                              <div className="rounded-2xl border border-dashed border-[#E8DDCB] bg-[#F7F3ED] p-3 text-xs text-[#64736D]">
+                                Memoria pendente para novos registros.
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <div className="min-w-[220px] rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] p-3 text-xs text-[#64736D]">
+                              <p className="font-semibold text-[#071E36]">
+                                memoria registrada
+                              </p>
+                              <p className="mt-1">
+                                Entidade: {labelTexto(principal.entity_type)}{" "}
+                                {principal.entity_label ? `- ${principal.entity_label}` : ""}
+                              </p>
+                              <p>Importancia: {principal.importance}</p>
+                              <p>Sentimento: {principal.sentiment || "-"}</p>
+                              <p>Origem: {principal.source || "-"}</p>
+                              {casoMemories.length > 1 ? (
+                                <p className="mt-1 font-semibold text-[#8B6827]">
+                                  +{casoMemories.length - 1} relacionadas
+                                </p>
+                              ) : null}
+                            </div>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-4">
                         <div className="flex flex-wrap gap-2">

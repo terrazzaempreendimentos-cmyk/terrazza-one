@@ -121,3 +121,39 @@ O UCE podera futuramente fazer pre-atendimento de manutencoes e conflitos, colet
 ### Automacoes futuras
 
 n8n e WhatsApp poderao abrir solicitacoes automaticamente, registrar eventos na timeline, acionar responsaveis e atualizar status. Essa sprint nao cria automacao, nao conecta WhatsApp e nao altera banco.
+
+## CRM-2.4 - Manutencoes conectadas a UCE Memoria
+
+Cada manutencao ou conflito cadastrado passa a alimentar a UCE Memoria automaticamente. Isso transforma ocorrencias operacionais em historico consultavel da administracao imobiliaria.
+
+### Historico por caso
+
+Ao criar uma manutencao ou conflito, o CRM registra uma memoria principal com tipo, categoria, status, prioridade, resumo, descricao e proxima acao. A origem fica marcada como `crm_manutencoes`.
+
+### Historico por entidade
+
+Quando o caso possui inquilino, proprietario ou imovel vinculado, o CRM tambem registra memorias relacionadas nessas entidades. Assim, o historico deixa de ficar preso ao chamado e passa a acompanhar as pessoas e o imovel.
+
+### Uso futuro
+
+O pre-atendimento futuro podera consultar essas memorias antes de responder uma nova solicitacao. Isso prepara a Terrazza para identificar reincidencia, risco operacional, conflitos recorrentes e pontos sensiveis na administracao.
+
+### Gestao inteligente
+
+Com a UCE Memoria alimentada por manutencoes e conflitos, a administracao imobiliaria ganha base para decisoes mais consistentes, menos perda de contexto e melhor acompanhamento entre inquilinos, proprietarios e imoveis.
+
+## CRM-2.5 - Cadastro Universal de Pessoas
+
+Pessoa passa a ser a entidade base de relacionamento do CRM. Uma mesma pessoa pode ter multiplos papeis, como proprietario, inquilino, comprador, vendedor, corretor, parceiro, prestador e investidor.
+
+### Por que existe
+
+O cadastro universal reduz duplicidade e evita que a mesma pessoa seja cadastrada varias vezes em fluxos diferentes. Jose pode ser proprietario e investidor; Maria pode ser inquilina e compradora; Carlos pode ser corretor e proprietario.
+
+### Relacao com modulos futuros
+
+Pessoas prepara a integracao futura com UCE, imoveis, negocios, atendimentos, timeline, documentos e WhatsApp. O historico de uma pessoa podera acompanhar todos os papeis dela dentro da operacao.
+
+### Preservacao dos cadastros antigos
+
+Proprietarios, inquilinos e corretores continuam preservados nesta etapa. Nao ha migracao automatica, exclusao de tabelas antigas ou alteracao do relacionamento de imoveis.
