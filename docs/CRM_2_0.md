@@ -177,3 +177,22 @@ O modulo inclui listagem em cards, busca avancada, filtros principais, criacao, 
 O modulo esta preparado para conversar com Leads, Timeline, Manutencoes, CRM e UCE Memoria. Nesta etapa nao ha integracao com UCE, OpenAI, WhatsApp ou n8n.
 
 Documento complementar: `docs/MODULO_IMOVEIS.md`.
+
+## CRM-2.7 - Dashboard e Cadastros Premium
+
+O Dashboard geral passa a funcionar como uma visao executiva da operacao. Ele consolida resumo operacional, prioridades do dia, visao comercial e destaques futuros do UCE em um painel mais util para acompanhamento diario.
+
+Pessoas segue como cadastro matriz. Proprietarios e Inquilinos continuam sendo visoes operacionais filtradas por papel dentro de `pessoas`, evitando duplicidade de dados e mantendo o relacionamento centralizado.
+
+Imoveis permanece como entidade propria, relacionada a Pessoas e preparada para conexoes futuras com Leads, Timeline, Manutencoes e CRM.
+
+O UCE aparece como apoio contextual, com blocos de memoria, insights, correspondencias e alertas inteligentes em formato placeholder. Ele nao se torna obrigatorio em todos os modulos e nao altera a responsabilidade operacional do CRM.
+
+O menu de Cadastros passa a priorizar Pessoas antes das visoes filtradas:
+
+- Pessoas.
+- Proprietarios.
+- Inquilinos.
+- Imoveis.
+- Corretores.
+- Parceiros.

@@ -11,7 +11,7 @@ import {
 } from "../../../lib/crm/pessoas/papeis";
 import { supabase } from "../../../lib/supabase";
 
-type PessoaInquilino = {
+type Inquilino = {
   id: string;
   nome: string;
   telefone: string | null;
@@ -22,73 +22,55 @@ type PessoaInquilino = {
   cidade: string | null;
   bairro: string | null;
   status: string | null;
+  temperatura: string | null;
+  score_relacionamento: number | null;
+  responsavel_id: string | null;
   observacoes: string | null;
   papeis: string[] | null;
   created_at: string | null;
 };
 
-type Inquilino = PessoaInquilino & {
-  cpf: string | null;
-  cidade_interesse: string | null;
-  bairro_interesse: string | null;
-  faixa_aluguel: number | string | null;
-  quartos_desejados: number | null;
-  possui_pet: boolean | null;
-  observacao: string | null;
+type Corretor = {
+  id: string;
+  nome: string;
 };
 
 type SearchParams = Record<string, string | string[] | undefined>;
+
+const statusInquilinos = ["prospect", "em_atendimento", "em_analise", "aprovado", "pendente", "perdido"];
 
 function paramValue(searchParams: SearchParams, key: string) {
   const value = searchParams[key];
   return Array.isArray(value) ? value[0] : value;
 }
 
-const statusInquilinos = ["prospect", "em_analise", "aprovado", "perdido"];
-
 function valorTexto(formData: FormData, campo: string) {
   return String(formData.get(campo) ?? "").trim();
 }
 
-function formatarData(data: string | null) {
-  if (!data) return "—";
+function valorNumero(formData: FormData, campo: string) {
+  const value = valorTexto(formData, campo);
+  if (!value) return 0;
 
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "medium",
-  }).format(new Date(data));
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
 }
 
-function formatarMoeda(valor: number | string | null) {
-  if (valor === null || valor === "") return "—";
-
-  const numero = Number(valor);
-
-  if (!Number.isFinite(numero)) return "—";
-
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(numero);
+function normalizar(value: unknown) {
+  return String(value ?? "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
-function labelStatus(status: string | null) {
-  if (!status) return "—";
-
-  return status.replaceAll("_", " ");
+function telefonePrincipal(pessoa: Inquilino) {
+  return pessoa.whatsapp || pessoa.celular || pessoa.telefone;
 }
 
-function pessoaToInquilino(pessoa: PessoaInquilino): Inquilino {
-  return {
-    ...pessoa,
-    telefone: pessoa.telefone || pessoa.celular || pessoa.whatsapp,
-    cpf: pessoa.cpf_cnpj,
-    cidade_interesse: pessoa.cidade,
-    bairro_interesse: pessoa.bairro,
-    faixa_aluguel: null,
-    quartos_desejados: null,
-    possui_pet: null,
-    observacao: pessoa.observacoes,
-  };
+function badgeClass(value: string | null | undefined) {
+  if (value === "quente") return "bg-[#C89B3C]/15 text-[#8B6827] border-[#C89B3C]/25";
+  if (value === "frio") return "bg-slate-100 text-slate-600 border-slate-200";
+  return "bg-[#071E36]/8 text-[#071E36] border-[#071E36]/10";
 }
 
 export default async function InquilinosPage({
@@ -98,6 +80,12 @@ export default async function InquilinosPage({
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const editId = paramValue(resolvedSearchParams, "edit") ?? "";
+  const viewId = paramValue(resolvedSearchParams, "view") ?? "";
+  const busca = paramValue(resolvedSearchParams, "busca") ?? "";
+  const cidade = paramValue(resolvedSearchParams, "cidade") ?? "";
+  const status = paramValue(resolvedSearchParams, "status") ?? "";
+  const responsavel = paramValue(resolvedSearchParams, "responsavel") ?? "";
+  const temperatura = paramValue(resolvedSearchParams, "temperatura") ?? "";
 
   async function salvarInquilino(formData: FormData) {
     "use server";
@@ -106,7 +94,7 @@ export default async function InquilinosPage({
     const nome = valorTexto(formData, "nome");
 
     if (!nome) {
-      throw new Error("O nome do inquilino é obrigatório.");
+      throw new Error("O nome do inquilino e obrigatorio.");
     }
 
     const { data: pessoaAtual } = id
@@ -120,18 +108,25 @@ export default async function InquilinosPage({
       valorTexto(formData, "quartos_desejados")
         ? `Quartos desejados: ${valorTexto(formData, "quartos_desejados")}`
         : null,
-      formData.get("possui_pet") === "on" ? "Possui pet" : null,
+      formData.get("possui_pet") === "on" ? "Possui pet" : "Sem pet informado",
+      valorTexto(formData, "imovel_relacionado")
+        ? `Imovel relacionado: ${valorTexto(formData, "imovel_relacionado")}`
+        : null,
     ].filter(Boolean);
-    const observacao = valorTexto(formData, "observacao");
+    const observacao = valorTexto(formData, "observacoes");
 
     const payload = {
       nome,
       telefone: valorTexto(formData, "telefone") || null,
+      whatsapp: valorTexto(formData, "whatsapp") || valorTexto(formData, "telefone") || null,
       email: valorTexto(formData, "email") || null,
-      cpf_cnpj: valorTexto(formData, "cpf") || null,
-      cidade: valorTexto(formData, "cidade_interesse") || null,
-      bairro: valorTexto(formData, "bairro_interesse") || null,
+      cpf_cnpj: valorTexto(formData, "cpf_cnpj") || null,
+      cidade: valorTexto(formData, "cidade") || null,
+      bairro: valorTexto(formData, "bairro") || null,
       status: valorTexto(formData, "status") || "prospect",
+      temperatura: valorTexto(formData, "temperatura") || null,
+      responsavel_id: valorTexto(formData, "responsavel_id") || null,
+      score_relacionamento: valorNumero(formData, "score_relacionamento"),
       observacoes: [observacao, ...detalhes].filter(Boolean).join("\n") || null,
       papeis: addPapel(
         (pessoaAtual as { papeis?: string[] | null } | null)?.papeis,
@@ -146,11 +141,10 @@ export default async function InquilinosPage({
       ? await supabase.from("pessoas").update(payload).eq("id", id)
       : await supabase.from("pessoas").insert(payload);
 
-    if (error) {
-      throw new Error("Não foi possível salvar o inquilino.");
-    }
+    if (error) throw new Error("Nao foi possivel salvar o inquilino.");
 
     revalidatePath("/dashboard/inquilinos");
+    revalidatePath("/dashboard");
     redirect("/dashboard/inquilinos");
   }
 
@@ -158,10 +152,7 @@ export default async function InquilinosPage({
     "use server";
 
     const id = valorTexto(formData, "id");
-
-    if (!id) {
-      throw new Error("Inquilino nao informado.");
-    }
+    if (!id) throw new Error("Inquilino nao informado.");
 
     const { data: pessoa, error: pessoaError } = await supabase
       .from("pessoas")
@@ -169,9 +160,7 @@ export default async function InquilinosPage({
       .eq("id", id)
       .single();
 
-    if (pessoaError) {
-      throw new Error("Nao foi possivel localizar o inquilino.");
-    }
+    if (pessoaError) throw new Error("Nao foi possivel localizar o inquilino.");
 
     const papeis = (pessoa as { papeis?: string[] | null }).papeis;
     const payload = isOnlyPapel(papeis, "inquilino")
@@ -182,27 +171,46 @@ export default async function InquilinosPage({
         };
 
     const { error } = await supabase.from("pessoas").update(payload).eq("id", id);
-
-    if (error) {
-      throw new Error("Nao foi possivel excluir logicamente o inquilino.");
-    }
+    if (error) throw new Error("Nao foi possivel excluir logicamente o inquilino.");
 
     revalidatePath("/dashboard/inquilinos");
+    revalidatePath("/dashboard");
   }
 
-  const { data, error } = await supabase
-    .from("pessoas")
-    .select(
-      "id, nome, telefone, celular, whatsapp, email, cpf_cnpj, cidade, bairro, status, observacoes, papeis, created_at",
-    )
-    .eq("ativo", true)
-    .order("created_at", { ascending: false });
+  const [pessoasResult, corretoresResult] = await Promise.all([
+    supabase
+      .from("pessoas")
+      .select(
+        "id, nome, telefone, celular, whatsapp, email, cpf_cnpj, cidade, bairro, status, temperatura, score_relacionamento, responsavel_id, observacoes, papeis, created_at",
+      )
+      .eq("ativo", true)
+      .order("created_at", { ascending: false }),
+    supabase.from("corretores").select("id, nome").eq("ativo", true).order("nome"),
+  ]);
 
-  const inquilinos = ((data ?? []) as PessoaInquilino[])
-    .filter((pessoa) => hasPapel(pessoa, "inquilino"))
-    .map(pessoaToInquilino);
-  const inquilinoEmEdicao =
-    inquilinos.find((inquilino) => inquilino.id === editId) ?? null;
+  const corretores = (corretoresResult.data ?? []) as Corretor[];
+  const corretoresPorId = new Map(corretores.map((corretor) => [corretor.id, corretor.nome]));
+  const inquilinos = ((pessoasResult.data ?? []) as Inquilino[]).filter((pessoa) =>
+    hasPapel(pessoa, "inquilino"),
+  );
+  const inquilinosFiltrados = inquilinos.filter((pessoa) => {
+    const texto = normalizar(
+      [pessoa.nome, telefonePrincipal(pessoa), pessoa.email, pessoa.cidade, pessoa.bairro].join(" "),
+    );
+
+    return (
+      (!busca || texto.includes(normalizar(busca))) &&
+      (!cidade || normalizar(pessoa.cidade).includes(normalizar(cidade))) &&
+      (!status || pessoa.status === status) &&
+      (!responsavel || pessoa.responsavel_id === responsavel) &&
+      (!temperatura || pessoa.temperatura === temperatura)
+    );
+  });
+  const inquilinoEmEdicao = inquilinos.find((inquilino) => inquilino.id === editId) ?? null;
+  const inquilinoVisualizado = inquilinos.find((inquilino) => inquilino.id === viewId) ?? null;
+  const ativos = inquilinos.filter((pessoa) => pessoa.status !== "inativo").length;
+  const emAtendimento = inquilinos.filter((pessoa) => pessoa.status === "em_atendimento").length;
+  const pendencias = inquilinos.filter((pessoa) => pessoa.status === "pendente").length;
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -211,255 +219,204 @@ export default async function InquilinosPage({
           href="/dashboard"
           className="inline-flex rounded-xl border border-[#E8DDCB] bg-white px-4 py-2 text-sm font-medium text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
         >
-          ← Voltar ao Dashboard
+          Voltar ao Dashboard
         </Link>
 
-        <div className="mt-8">
-          <span className="rounded-full border border-[#C89B3C]/35 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#8B6827]">
-            Cadastros
+        <header className="mt-8 rounded-[2rem] border border-[#E8DDCB] bg-white p-8 shadow-sm">
+          <span className="rounded-full border border-[#C89B3C]/35 bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#8B6827]">
+            Cadastros premium
           </span>
-          <h1 className="mt-5 text-4xl font-bold text-[#071E36]">
-            Inquilinos
-          </h1>
-          <p className="mt-2 text-[#64736D]">
-            Cadastro e acompanhamento dos inquilinos da Terrazza.
+          <h1 className="mt-5 text-4xl font-bold text-[#071E36]">Inquilinos</h1>
+          <p className="mt-2 max-w-3xl text-[#64736D]">
+            Visao operacional de Pessoas com papel inquilino, conectando locacao,
+            relacionamento, historico e futuras manutencoes.
           </p>
-        </div>
+        </header>
 
-        <section className="mt-10 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
+        <section className="mt-8 grid gap-4 md:grid-cols-5">
+          {[
+            ["Total", inquilinos.length, "inquilinos na matriz"],
+            ["Ativos", ativos, "relacionamentos ativos"],
+            ["Em atendimento", emAtendimento, "fluxos em andamento"],
+            ["Manutencao aberta", 0, "placeholder operacional"],
+            ["Pendencias", pendencias, "casos a acompanhar"],
+          ].map(([title, value, subtitle]) => (
+            <div key={title} className="rounded-2xl border border-[#E8DDCB] bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-[#102A27]">{title}</p>
+              <strong className="mt-3 block text-3xl text-[#071E36]">{value}</strong>
+              <p className="mt-1 text-xs text-[#64736D]">{subtitle}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-[#E8DDCB] bg-white p-5 shadow-sm">
+          <form className="grid gap-4 lg:grid-cols-6">
+            <input name="busca" defaultValue={busca} className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C] lg:col-span-2" placeholder="Nome, telefone, WhatsApp ou email" />
+            <input name="cidade" defaultValue={cidade} className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C]" placeholder="Cidade" />
+            <select name="status" defaultValue={status} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C]">
+              <option value="">Status</option>
+              {statusInquilinos.map((item) => (
+                <option key={item} value={item}>{item.replaceAll("_", " ")}</option>
+              ))}
+            </select>
+            <select name="responsavel" defaultValue={responsavel} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C]">
+              <option value="">Responsavel</option>
+              {corretores.map((corretor) => (
+                <option key={corretor.id} value={corretor.id}>{corretor.nome}</option>
+              ))}
+            </select>
+            <select name="temperatura" defaultValue={temperatura} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C]">
+              <option value="">Temperatura</option>
+              {["frio", "morno", "quente"].map((item) => (
+                <option key={item} value={item}>{item}</option>
+              ))}
+            </select>
+            <button className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0A2A4A]">
+              Filtrar
+            </button>
+            <Link href="/dashboard/inquilinos" className="rounded-xl border border-[#E8DDCB] px-5 py-3 text-center text-sm font-semibold text-[#071E36] hover:bg-[#F7F3ED]">
+              Limpar
+            </Link>
+          </form>
+        </section>
+
+        {inquilinoVisualizado ? (
+          <section className="mt-6 rounded-2xl border border-[#C89B3C]/35 bg-[#071E36] p-6 text-white">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#E1B866]">
+              Visualizacao
+            </p>
+            <h2 className="mt-2 text-2xl font-bold">{inquilinoVisualizado.nome}</h2>
+            <p className="mt-2 text-white/70">
+              {telefonePrincipal(inquilinoVisualizado) || "Sem telefone"} ·{" "}
+              {inquilinoVisualizado.email || "Sem email"}
+            </p>
+          </section>
+        ) : null}
+
+        <section className="mt-6 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm">
           <h2 className="text-xl font-semibold text-[#071E36]">
-            Novo inquilino
+            {inquilinoEmEdicao ? "Editar inquilino" : "Novo inquilino"}
           </h2>
-
-          <form action={salvarInquilino} className="mt-6 grid gap-5 md:grid-cols-3">
+          <form action={salvarInquilino} className="mt-5 grid gap-5 md:grid-cols-3">
             <input type="hidden" name="id" value={inquilinoEmEdicao?.id ?? ""} />
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              Nome
-              <input
-                name="nome"
-                required
-                defaultValue={inquilinoEmEdicao?.nome ?? ""}
-                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                placeholder="Nome completo"
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              Telefone
-              <input
-                name="telefone"
-                type="tel"
-                defaultValue={inquilinoEmEdicao?.telefone ?? ""}
-                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                placeholder="(00) 00000-0000"
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              E-mail
-              <input
-                name="email"
-                type="email"
-                defaultValue={inquilinoEmEdicao?.email ?? ""}
-                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                placeholder="nome@exemplo.com"
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              CPF
-              <input
-                name="cpf"
-                defaultValue={inquilinoEmEdicao?.cpf ?? ""}
-                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                placeholder="000.000.000-00"
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              Cidade de interesse
-              <input
-                name="cidade_interesse"
-                defaultValue={inquilinoEmEdicao?.cidade_interesse ?? ""}
-                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                placeholder="Cidade"
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              Bairro de interesse
-              <input
-                name="bairro_interesse"
-                defaultValue={inquilinoEmEdicao?.bairro_interesse ?? ""}
-                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                placeholder="Bairro"
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              Faixa de aluguel
-              <input
-                name="faixa_aluguel"
-                type="number"
-                min="0"
-                step="0.01"
-                defaultValue={inquilinoEmEdicao?.faixa_aluguel ?? ""}
-                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                placeholder="R$ 0,00"
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              Quartos desejados
-              <input
-                name="quartos_desejados"
-                type="number"
-                min="0"
-                defaultValue={inquilinoEmEdicao?.quartos_desejados ?? ""}
-                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                placeholder="0"
-              />
-            </label>
-
+            {[
+              ["Nome", "nome", inquilinoEmEdicao?.nome, "text"],
+              ["Telefone", "telefone", inquilinoEmEdicao?.telefone, "tel"],
+              ["WhatsApp", "whatsapp", inquilinoEmEdicao?.whatsapp, "tel"],
+              ["E-mail", "email", inquilinoEmEdicao?.email, "email"],
+              ["CPF/CNPJ", "cpf_cnpj", inquilinoEmEdicao?.cpf_cnpj, "text"],
+              ["Cidade", "cidade", inquilinoEmEdicao?.cidade, "text"],
+              ["Bairro", "bairro", inquilinoEmEdicao?.bairro, "text"],
+              ["Faixa aluguel", "faixa_aluguel", "", "number"],
+              ["Quartos desejados", "quartos_desejados", "", "number"],
+              ["Imovel relacionado", "imovel_relacionado", "", "text"],
+              ["Score relacionamento", "score_relacionamento", inquilinoEmEdicao?.score_relacionamento, "number"],
+            ].map(([label, name, value, type]) => (
+              <label key={String(name)} className="grid gap-2 text-sm font-medium text-[#102A27]">
+                {label}
+                <input name={String(name)} type={String(type)} defaultValue={String(value ?? "")} className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]" />
+              </label>
+            ))}
             <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Status
-              <select
-                name="status"
-                defaultValue={inquilinoEmEdicao?.status ?? "prospect"}
-                className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
-              >
-                {statusInquilinos.map((status) => (
-                  <option key={status} value={status}>
-                    {labelStatus(status)}
-                  </option>
+              <select name="status" defaultValue={inquilinoEmEdicao?.status ?? "prospect"} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]">
+                {statusInquilinos.map((item) => (
+                  <option key={item} value={item}>{item.replaceAll("_", " ")}</option>
                 ))}
               </select>
             </label>
-
-            <label className="flex items-center gap-3 self-end rounded-xl border border-[#E8DDCB] px-4 py-3 text-sm font-medium text-[#102A27]">
-              <input
-                name="possui_pet"
-                type="checkbox"
-                defaultChecked={Boolean(inquilinoEmEdicao?.possui_pet)}
-                className="size-4 accent-[#C89B3C]"
-              />
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+              Temperatura
+              <select name="temperatura" defaultValue={inquilinoEmEdicao?.temperatura ?? ""} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]">
+                <option value="">Sem temperatura</option>
+                {["frio", "morno", "quente"].map((item) => (
+                  <option key={item} value={item}>{item}</option>
+                ))}
+              </select>
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+              Responsavel
+              <select name="responsavel_id" defaultValue={inquilinoEmEdicao?.responsavel_id ?? ""} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]">
+                <option value="">Sem responsavel</option>
+                {corretores.map((corretor) => (
+                  <option key={corretor.id} value={corretor.id}>{corretor.nome}</option>
+                ))}
+              </select>
+            </label>
+            <label className="flex items-center gap-3 rounded-xl border border-[#E8DDCB] px-4 py-3 text-sm font-medium text-[#102A27]">
+              <input name="possui_pet" type="checkbox" className="size-4 accent-[#C89B3C]" />
               Possui pet
             </label>
-
             <label className="grid gap-2 text-sm font-medium text-[#102A27] md:col-span-3">
-              Observação
-              <textarea
-                name="observacao"
-                rows={4}
-                defaultValue={inquilinoEmEdicao?.observacao ?? ""}
-                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                placeholder="Preferências, perfil, restrições e próximos passos..."
-              />
+              Observacoes
+              <textarea name="observacoes" rows={4} defaultValue={inquilinoEmEdicao?.observacoes ?? ""} className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]" />
             </label>
-
             <div className="md:col-span-3">
-              <button
-                type="submit"
-                className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
-              >
-                {inquilinoEmEdicao ? "Salvar alteracoes" : "Salvar Inquilino"}
+              <button type="submit" className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0A2A4A]">
+                {inquilinoEmEdicao ? "Salvar alteracoes" : "Salvar inquilino"}
               </button>
               {inquilinoEmEdicao ? (
-                <Link
-                  href="/dashboard/inquilinos"
-                  className="ml-3 inline-flex rounded-xl border border-[#E8DDCB] bg-white px-5 py-3 text-sm font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
-                >
-                  Cancelar edicao
+                <Link href="/dashboard/inquilinos" className="ml-3 inline-flex rounded-xl border border-[#E8DDCB] px-5 py-3 text-sm font-semibold text-[#071E36] hover:bg-[#F7F3ED]">
+                  Cancelar
                 </Link>
               ) : null}
             </div>
           </form>
         </section>
 
-        <section className="mt-6 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex items-baseline justify-between gap-4">
-            <h2 className="text-xl font-semibold text-[#071E36]">
-              Inquilinos cadastrados
-            </h2>
-            <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-sm font-medium text-[#8B6827]">
-              {inquilinos.length} cadastrado{inquilinos.length === 1 ? "" : "s"}
-            </span>
-          </div>
-
-          {error ? (
-            <p className="mt-6 rounded-xl bg-[#fbebe7] px-4 py-3 text-sm text-[#8a2e1c]">
-              Não foi possível carregar os inquilinos. Verifique se a tabela já foi criada.
+        <section className="mt-6 grid gap-5 lg:grid-cols-3">
+          {pessoasResult.error ? (
+            <p className="rounded-2xl border border-red-100 bg-red-50 p-6 text-sm text-red-700 lg:col-span-3">
+              Nao foi possivel carregar inquilinos.
             </p>
-          ) : inquilinos.length === 0 ? (
-            <p className="mt-6 rounded-xl bg-[#F7F3ED] px-4 py-8 text-center text-sm text-[#64736D]">
-              Nenhum inquilino cadastrado até o momento.
+          ) : inquilinosFiltrados.length === 0 ? (
+            <p className="rounded-2xl border border-[#E8DDCB] bg-white p-8 text-center text-sm text-[#64736D] lg:col-span-3">
+              Nenhum inquilino encontrado.
             </p>
           ) : (
-            <div className="mt-6 overflow-x-auto">
-              <table className="w-full min-w-[920px] text-left text-sm">
-                <thead className="border-b border-[#E8DDCB] text-[#64736D]">
-                  <tr>
-                    <th className="px-4 py-3 font-medium">Nome</th>
-                    <th className="px-4 py-3 font-medium">Telefone</th>
-                    <th className="px-4 py-3 font-medium">Cidade/Bairro</th>
-                    <th className="px-4 py-3 font-medium">Faixa aluguel</th>
-                    <th className="px-4 py-3 font-medium">Quartos</th>
-                    <th className="px-4 py-3 font-medium">Pet</th>
-                    <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Data</th>
-                    <th className="px-4 py-3 font-medium">Acoes</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#eee7dc] text-[#102A27]">
-                  {inquilinos.map((inquilino) => (
-                    <tr key={inquilino.id}>
-                      <td className="px-4 py-4 font-medium text-[#071E36]">
-                        {inquilino.nome}
-                      </td>
-                      <td className="px-4 py-4">{inquilino.telefone || "—"}</td>
-                      <td className="px-4 py-4">
-                        {[inquilino.cidade_interesse, inquilino.bairro_interesse]
-                          .filter(Boolean)
-                          .join(" / ") || "—"}
-                      </td>
-                      <td className="px-4 py-4">
-                        {formatarMoeda(inquilino.faixa_aluguel)}
-                      </td>
-                      <td className="px-4 py-4">
-                        {inquilino.quartos_desejados ?? "—"}
-                      </td>
-                      <td className="px-4 py-4">
-                        {inquilino.possui_pet ? "Sim" : "Não"}
-                      </td>
-                      <td className="px-4 py-4">{labelStatus(inquilino.status)}</td>
-                      <td className="px-4 py-4">
-                        {formatarData(inquilino.created_at)}
-                      </td>
-                      <td className="px-4 py-4">
-                        <div className="flex flex-wrap gap-2">
-                          <Link
-                            href={`/dashboard/inquilinos?edit=${inquilino.id}`}
-                            className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
-                          >
-                            Editar
-                          </Link>
-                          <form action={excluirInquilino}>
-                            <input type="hidden" name="id" value={inquilino.id} />
-                            <ConfirmSubmitButton
-                              message="Confirmar exclusao logica deste inquilino?"
-                              className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"
-                            >
-                              Excluir
-                            </ConfirmSubmitButton>
-                          </form>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            inquilinosFiltrados.map((inquilino) => (
+              <article key={inquilino.id} className="rounded-2xl border border-[#E8DDCB] bg-white p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-lg font-bold text-[#071E36]">{inquilino.nome}</h2>
+                    <p className="mt-1 text-sm text-[#64736D]">
+                      {telefonePrincipal(inquilino) || "Sem telefone"} · {inquilino.email || "Sem email"}
+                    </p>
+                  </div>
+                  <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${badgeClass(inquilino.temperatura)}`}>
+                    {inquilino.temperatura || "sem temp."}
+                  </span>
+                </div>
+                <div className="mt-4 grid gap-2 text-sm text-[#102A27]">
+                  <p>{[inquilino.cidade, inquilino.bairro].filter(Boolean).join(" / ") || "Cidade nao informada"}</p>
+                  <p>Imovel relacionado: <strong>placeholder</strong></p>
+                  <p>Responsavel: {corretoresPorId.get(inquilino.responsavel_id ?? "") || "-"}</p>
+                  <p>Score: {inquilino.score_relacionamento ?? 0}</p>
+                  <p>Status: {inquilino.status || "prospect"}</p>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <Link href={`/dashboard/inquilinos?view=${inquilino.id}`} className="rounded-full border border-[#E8DDCB] px-3 py-1 text-xs font-semibold text-[#071E36] hover:bg-[#F7F3ED]">Visualizar</Link>
+                  <Link href={`/dashboard/inquilinos?edit=${inquilino.id}`} className="rounded-full border border-[#E8DDCB] px-3 py-1 text-xs font-semibold text-[#071E36] hover:bg-[#F7F3ED]">Editar</Link>
+                  <form action={excluirInquilino}>
+                    <input type="hidden" name="id" value={inquilino.id} />
+                    <ConfirmSubmitButton message="Confirmar exclusao logica deste inquilino?" className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 hover:bg-red-100">
+                      Excluir
+                    </ConfirmSubmitButton>
+                  </form>
+                </div>
+              </article>
+            ))
           )}
+        </section>
+
+        <section className="mt-6 rounded-[2rem] border border-[#C89B3C]/35 bg-[#071E36] p-6 text-white">
+          <span className="rounded-full border border-[#E1B866]/40 bg-[#E1B866]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#E1B866]">
+            Historico e relacionamento
+          </span>
+          <p className="mt-4 max-w-3xl text-sm leading-6 text-white/72">
+            Este bloco sera usado para UCE Memoria, manutencoes, conflitos,
+            pendencias e historico do relacionamento com o inquilino.
+          </p>
         </section>
       </div>
     </main>

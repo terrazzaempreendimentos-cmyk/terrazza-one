@@ -79,8 +79,8 @@ const menuGroups: MenuGroup[] = [
     title: "Cadastros",
     icon: Building2,
     links: [
-      { label: "Proprietários", href: "/dashboard/proprietarios", icon: UsersRound },
       { label: "Pessoas", href: "/dashboard/pessoas", icon: UserCog },
+      { label: "Proprietários", href: "/dashboard/proprietarios", icon: UsersRound },
       { label: "Inquilinos", href: "/dashboard/inquilinos", icon: KeyRound },
       { label: "Imóveis", href: "/dashboard/imoveis", icon: Home },
       { label: "Corretores", href: "/dashboard/crm/corretores", icon: ShieldCheck },
