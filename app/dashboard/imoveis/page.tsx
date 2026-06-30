@@ -394,6 +394,14 @@ export default async function ImoveisPage({
   const filtroStatus = paramValue(resolvedSearchParams, "status") ?? "";
   const filtroCidade = paramValue(resolvedSearchParams, "cidade") ?? "";
   const filtroBairro = paramValue(resolvedSearchParams, "bairro") ?? "";
+  const filtroValorMin = paramValue(resolvedSearchParams, "valor_min") ?? "";
+  const filtroValorMax = paramValue(resolvedSearchParams, "valor_max") ?? "";
+  const filtroDormitorios = paramValue(resolvedSearchParams, "dormitorios") ?? "";
+  const filtroGaragem = paramValue(resolvedSearchParams, "garagem") ?? "";
+  const filtroPiscina = paramValue(resolvedSearchParams, "piscina") ?? "";
+  const filtroPet = paramValue(resolvedSearchParams, "pet") ?? "";
+  const filtroCondominio = paramValue(resolvedSearchParams, "condominio") ?? "";
+  const filtroResponsavel = paramValue(resolvedSearchParams, "responsavel_id") ?? "";
 
   async function salvarImovel(formData: FormData) {
     "use server";
@@ -644,6 +652,11 @@ export default async function ImoveisPage({
   }
 
   const imoveisFiltrados = imoveis.filter((imovel) => {
+    const valorImovel = Number(valorPrincipal(imovel));
+    const valorMinimo = Number(filtroValorMin);
+    const valorMaximo = Number(filtroValorMax);
+    const dormitorios = Number(imovel.dormitorios || imovel.quartos || 0);
+    const garagens = Number(imovel.garagens || (imovel.garagem ? 1 : 0));
     const proprietarios = relacoesPorImovel
       .get(imovel.id)
       ?.map((relacao) => pessoasPorId.get(relacao.pessoa_id)?.nome)
@@ -669,7 +682,25 @@ export default async function ImoveisPage({
       (!filtroFinalidade || imovel.finalidade === filtroFinalidade) &&
       (!filtroStatus || imovel.status === filtroStatus) &&
       (!filtroCidade || normalizarTexto(imovel.cidade).includes(normalizarTexto(filtroCidade))) &&
-      (!filtroBairro || normalizarTexto(imovel.bairro).includes(normalizarTexto(filtroBairro)))
+      (!filtroBairro || normalizarTexto(imovel.bairro).includes(normalizarTexto(filtroBairro))) &&
+      (!filtroValorMin ||
+        (Number.isFinite(valorImovel) &&
+          Number.isFinite(valorMinimo) &&
+          valorImovel >= valorMinimo)) &&
+      (!filtroValorMax ||
+        (Number.isFinite(valorImovel) &&
+          Number.isFinite(valorMaximo) &&
+          valorImovel <= valorMaximo)) &&
+      (!filtroDormitorios || dormitorios >= Number(filtroDormitorios)) &&
+      (!filtroGaragem ||
+        (filtroGaragem === "sim" ? garagens > 0 : garagens === 0)) &&
+      (!filtroPiscina ||
+        (filtroPiscina === "sim" ? Boolean(imovel.piscina) : !imovel.piscina)) &&
+      (!filtroPet ||
+        (filtroPet === "sim" ? Boolean(imovel.aceita_pet) : !imovel.aceita_pet)) &&
+      (!filtroCondominio ||
+        normalizarTexto(imovel.condominio).includes(normalizarTexto(filtroCondominio))) &&
+      (!filtroResponsavel || imovel.responsavel_id === filtroResponsavel)
     );
   });
 
@@ -754,6 +785,61 @@ export default async function ImoveisPage({
               {["rascunho", "ativo", "reservado", "vendido", "locado", "inativo"].map((status) => (
                 <option key={status} value={status}>
                   {status}
+                </option>
+              ))}
+            </select>
+            <input
+              name="valor_min"
+              type="number"
+              defaultValue={filtroValorMin}
+              className={inputClass()}
+              placeholder="Valor min."
+            />
+            <input
+              name="valor_max"
+              type="number"
+              defaultValue={filtroValorMax}
+              className={inputClass()}
+              placeholder="Valor max."
+            />
+            <input
+              name="dormitorios"
+              type="number"
+              min="0"
+              defaultValue={filtroDormitorios}
+              className={inputClass()}
+              placeholder="Dormitorios"
+            />
+            <select name="garagem" defaultValue={filtroGaragem} className={inputClass()}>
+              <option value="">Garagem</option>
+              <option value="sim">Com garagem</option>
+              <option value="nao">Sem garagem</option>
+            </select>
+            <select name="piscina" defaultValue={filtroPiscina} className={inputClass()}>
+              <option value="">Piscina</option>
+              <option value="sim">Com piscina</option>
+              <option value="nao">Sem piscina</option>
+            </select>
+            <select name="pet" defaultValue={filtroPet} className={inputClass()}>
+              <option value="">Pet</option>
+              <option value="sim">Aceita pet</option>
+              <option value="nao">Nao aceita pet</option>
+            </select>
+            <input
+              name="condominio"
+              defaultValue={filtroCondominio}
+              className={inputClass()}
+              placeholder="Condominio"
+            />
+            <select
+              name="responsavel_id"
+              defaultValue={filtroResponsavel}
+              className={`${inputClass()} lg:col-span-2`}
+            >
+              <option value="">Todos os responsaveis</option>
+              {corretores.map((corretor) => (
+                <option key={corretor.id} value={corretor.id}>
+                  {corretor.nome}
                 </option>
               ))}
             </select>

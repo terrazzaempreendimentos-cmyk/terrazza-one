@@ -62,7 +62,7 @@ A listagem passa a usar cards premium com:
 
 A busca considera codigo, titulo, bairro, cidade, proprietario, responsavel, status, finalidade e tipo.
 
-Os filtros iniciais incluem tipo, finalidade, cidade, bairro e status. A estrutura esta preparada para evoluir com faixa de valor, dormitorios, garagem, piscina, pet, condominio e responsavel.
+Os filtros incluem tipo, finalidade, cidade, bairro, faixa de valor, dormitorios, garagem, piscina, pet, condominio, status e responsavel.
 
 ## CRUD
 
