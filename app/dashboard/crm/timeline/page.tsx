@@ -34,6 +34,18 @@ type Corretor = {
   nome: string;
 };
 
+const tiposEventosOperacionais = [
+  "lead criado",
+  "mensagem recebida",
+  "resposta enviada",
+  "handoff UCE",
+  "tarefa criada",
+  "visita agendada",
+  "proposta enviada",
+  "manutencao registrada",
+  "atendimento concluido",
+];
+
 function nomeImovel(imovel: Imovel) {
   return (
     [imovel.tipo, imovel.cidade, imovel.bairro].filter(Boolean).join(" • ") ||
@@ -158,6 +170,24 @@ export default async function TimelinePage() {
                 <p className="mt-1 text-sm text-[#64736D]">{card.descricao}</p>
               </article>
             ))}
+          </section>
+        ) : null}
+
+        {!erroCarregamento ? (
+          <section className="mt-6 rounded-3xl border border-[#E8DDCB] bg-white p-5 shadow-sm">
+            <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#071E36]">
+              Eventos operacionais
+            </h2>
+            <div className="mt-4 flex flex-wrap gap-2">
+              {tiposEventosOperacionais.map((tipo) => (
+                <span
+                  key={tipo}
+                  className="rounded-full border border-[#E8DDCB] bg-[#F7F3ED] px-3 py-1 text-xs font-semibold text-[#64736D]"
+                >
+                  {tipo}
+                </span>
+              ))}
+            </div>
           </section>
         ) : null}
 

@@ -125,13 +125,16 @@ export function labelGrupoData(data: string | null) {
   const chaveEvento = dateKey(dataEvento);
   const agora = new Date();
   const hoje = dateKey(agora);
-  const ontem = new Date(agora);
-  ontem.setDate(ontem.getDate() - 1);
 
   if (chaveEvento === hoje) return "Hoje";
-  if (chaveEvento === dateKey(ontem)) return "Ontem";
 
-  return formatarDataCurtaTimeline(data);
+  const inicioSemana = new Date(agora);
+  inicioSemana.setDate(agora.getDate() - 6);
+  inicioSemana.setHours(0, 0, 0, 0);
+
+  if (dataEvento >= inicioSemana && dataEvento <= agora) return "Esta semana";
+
+  return "Anteriores";
 }
 
 export function descricaoResumo(descricao: string | null, limite = 220) {

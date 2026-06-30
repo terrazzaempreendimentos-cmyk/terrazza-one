@@ -64,3 +64,30 @@ Cadastro operacional da equipe comercial. Pode permanecer em Cadastros, enquanto
 ## Estado atual
 
 Nesta fase, o CRM recebe estrutura visual e operacional premium, com dados existentes e placeholders controlados. Nao ha alteracao de banco, UCE, OpenAI, n8n ou WhatsApp.
+
+## CRM 2.1 — Relacionamento Operacional
+
+O CRM 2.1 aproxima visualmente Leads, Atendimentos e Timeline para que a operacao comece a funcionar como uma central real de relacionamento.
+
+### Lead
+
+Lead e a entidade comercial principal. Ele concentra dados de identificacao, origem, temperatura, status, responsavel, ultimo contato, proxima acao e especialista UCE sugerido.
+
+### Atendimento
+
+Atendimento e a conversa ou processo em andamento. Ele representa o relacionamento vivo com o cliente, podendo estar em andamento, aguardando cliente, aguardando corretor, pronto para handoff ou concluido.
+
+### Timeline
+
+Timeline e o historico dos acontecimentos. Ela registra eventos como lead criado, mensagem recebida, resposta enviada, handoff UCE, tarefa criada, visita agendada, proposta enviada, manutencao registrada e atendimento concluido.
+
+### Papel futuro do UCE
+
+O UCE devera alimentar esses tres modulos futuramente:
+
+- Atualizando o contexto do lead.
+- Sugerindo especialista, temperatura e proximos passos.
+- Registrando eventos na timeline.
+- Indicando quando um atendimento esta pronto para handoff.
+
+Nesta etapa, a integracao e apenas visual e estrutural. Nao ha automacao, API externa, WhatsApp, n8n ou alteracao de banco.

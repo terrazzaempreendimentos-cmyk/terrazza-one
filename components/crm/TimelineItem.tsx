@@ -120,7 +120,7 @@ export function TimelineItem({ evento }: { evento: TimelineItemData }) {
         </p>
       )}
 
-      <div className="mt-5 grid gap-3 border-t border-[#E8DDCB]/70 pt-4 pl-2 text-sm md:grid-cols-3">
+      <div className="mt-5 grid gap-3 border-t border-[#E8DDCB]/70 pt-4 pl-2 text-sm md:grid-cols-4">
         <div>
           <p className="font-semibold uppercase tracking-[0.14em] text-[#64736D]">
             Responsável
@@ -143,6 +143,12 @@ export function TimelineItem({ evento }: { evento: TimelineItemData }) {
             Data
           </p>
           <p className="mt-1 font-semibold text-[#071E36]">{evento.dataCurta}</p>
+        </div>
+        <div>
+          <p className="font-semibold uppercase tracking-[0.14em] text-[#64736D]">
+            Status
+          </p>
+          <p className="mt-1 font-semibold text-[#071E36]">Registrado</p>
         </div>
       </div>
 

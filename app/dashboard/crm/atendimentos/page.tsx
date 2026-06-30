@@ -1,42 +1,150 @@
+import Link from "next/link";
 import {
+  CheckCircle2,
   Clock3,
-  MessageCircle,
+  Flame,
   MessageSquareText,
   ShieldCheck,
 } from "lucide-react";
 
-const resumoAtendimentos = [
-  { titulo: "Abertos", valor: 8, detalhe: "Conversas em triagem", icon: MessageSquareText },
-  { titulo: "Aguardando corretor", valor: 3, detalhe: "Handoff pendente", icon: ShieldCheck },
-  { titulo: "Aguardando cliente", valor: 5, detalhe: "Retorno solicitado", icon: Clock3 },
-  { titulo: "Concluídos", valor: 14, detalhe: "Atendimentos finalizados", icon: MessageCircle },
+type AtendimentoStatus =
+  | "em_andamento"
+  | "aguardando_cliente"
+  | "aguardando_corretor"
+  | "pronto_handoff"
+  | "concluido";
+
+type Atendimento = {
+  id: string;
+  leadId: string | null;
+  nome: string;
+  canal: string;
+  origem: string;
+  status: AtendimentoStatus;
+  especialista: string;
+  temperatura: "frio" | "morno" | "quente";
+  ultimaMensagem: string;
+  proximoPasso: string;
+};
+
+const colunas: Array<{
+  id: AtendimentoStatus;
+  titulo: string;
+  descricao: string;
+  icon: typeof MessageSquareText;
+}> = [
+  {
+    id: "em_andamento",
+    titulo: "Em andamento",
+    descricao: "Conversas ativas",
+    icon: MessageSquareText,
+  },
+  {
+    id: "aguardando_cliente",
+    titulo: "Aguardando cliente",
+    descricao: "Retorno solicitado",
+    icon: Clock3,
+  },
+  {
+    id: "aguardando_corretor",
+    titulo: "Aguardando corretor",
+    descricao: "Humano deve assumir",
+    icon: ShieldCheck,
+  },
+  {
+    id: "pronto_handoff",
+    titulo: "Pronto para handoff",
+    descricao: "Qualificado para encaminhar",
+    icon: Flame,
+  },
+  {
+    id: "concluido",
+    titulo: "Concluido",
+    descricao: "Atendimento finalizado",
+    icon: CheckCircle2,
+  },
 ];
 
-const atendimentos = [
+const atendimentos: Atendimento[] = [
   {
-    cliente: "Mariana Alves",
-    origem: "WhatsApp",
-    status: "aguardando corretor",
-    especialista: "Locação",
-    responsavel: "Equipe comercial",
-  },
-  {
-    cliente: "Carlos Henrique",
+    id: "atd-001",
+    leadId: null,
+    nome: "Mariana Alves",
+    canal: "WhatsApp",
     origem: "Instagram",
-    status: "aguardando cliente",
-    especialista: "Compra",
-    responsavel: "Plantão Terrazza",
+    status: "aguardando_corretor",
+    especialista: "Locacao",
+    temperatura: "quente",
+    ultimaMensagem: "Busca apartamento na Ponta Verde ate R$ 3.500.",
+    proximoPasso: "Corretor deve validar opcoes compativeis.",
   },
   {
-    cliente: "Ana Paula",
-    origem: "Site",
-    status: "aberto",
-    especialista: "Administração",
-    responsavel: "A definir",
+    id: "atd-002",
+    leadId: null,
+    nome: "Carlos Henrique",
+    canal: "Instagram",
+    origem: "Facebook",
+    status: "aguardando_cliente",
+    especialista: "Compra",
+    temperatura: "morno",
+    ultimaMensagem: "Quer comparar opcoes antes de visitar.",
+    proximoPasso: "Enviar selecao curta e pedir confirmacao.",
+  },
+  {
+    id: "atd-003",
+    leadId: null,
+    nome: "Ana Paula",
+    canal: "Site",
+    origem: "Manual",
+    status: "em_andamento",
+    especialista: "Administracao",
+    temperatura: "morno",
+    ultimaMensagem: "Possui imovel no Farol para administracao.",
+    proximoPasso: "Confirmar ocupacao e documentacao.",
+  },
+  {
+    id: "atd-004",
+    leadId: null,
+    nome: "Roberto Lima",
+    canal: "WhatsApp",
+    origem: "Portal",
+    status: "pronto_handoff",
+    especialista: "Venda",
+    temperatura: "quente",
+    ultimaMensagem: "Venda de casa com urgencia moderada.",
+    proximoPasso: "Encaminhar para avaliacao comercial.",
+  },
+  {
+    id: "atd-005",
+    leadId: null,
+    nome: "Fernanda Costa",
+    canal: "Manual",
+    origem: "Indicacao",
+    status: "concluido",
+    especialista: "Locacao",
+    temperatura: "frio",
+    ultimaMensagem: "Atendimento encerrado com orientacao registrada.",
+    proximoPasso: "Acompanhar oportunidade futura.",
   },
 ];
+
+function temperaturaClassName(temperatura: Atendimento["temperatura"]) {
+  const classes = {
+    frio: "bg-slate-100 text-slate-700",
+    morno: "bg-amber-50 text-amber-700",
+    quente: "bg-red-50 text-red-700",
+  };
+
+  return `rounded-full px-3 py-1 text-xs font-semibold ${classes[temperatura]}`;
+}
 
 export default function AtendimentosPage() {
+  const resumo = colunas.map((coluna) => ({
+    ...coluna,
+    valor: atendimentos.filter((atendimento) => atendimento.status === coluna.id)
+      .length,
+  }));
+
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
       <div className="mx-auto max-w-7xl">
@@ -48,17 +156,18 @@ export default function AtendimentosPage() {
             Atendimentos
           </h1>
           <p className="mt-2 max-w-3xl leading-6 text-[#64736D]">
-            Central futura dos atendimentos humanos e automatizados da Terrazza.
+            Central operacional de conversas, processos comerciais e futuros
+            handoffs entre UCE e equipe humana.
           </p>
         </header>
 
-        <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {resumoAtendimentos.map((card) => {
+        <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+          {resumo.map((card) => {
             const Icon = card.icon;
 
             return (
               <article
-                key={card.titulo}
+                key={card.id}
                 className="rounded-3xl border border-[#E8DDCB] bg-white p-5 shadow-sm"
               >
                 <div className="flex items-center justify-between gap-4">
@@ -72,57 +181,87 @@ export default function AtendimentosPage() {
                 <h2 className="mt-4 text-sm font-semibold uppercase tracking-[0.14em] text-[#071E36]">
                   {card.titulo}
                 </h2>
-                <p className="mt-1 text-sm text-[#64736D]">{card.detalhe}</p>
+                <p className="mt-1 text-sm text-[#64736D]">{card.descricao}</p>
               </article>
             );
           })}
         </section>
 
-        <section className="mt-6 rounded-3xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
-          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-[#071E36]">
-                Fila operacional
-              </h2>
-              <p className="mt-1 text-sm text-[#64736D]">
-                Placeholder premium para a futura união de WhatsApp, site, Instagram e atendimento manual.
-              </p>
-            </div>
-            <span className="w-fit rounded-full bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6827]">
-              Dados simulados
-            </span>
-          </div>
+        <section className="mt-6 flex gap-5 overflow-x-auto pb-4">
+          {colunas.map((coluna) => {
+            const itens = atendimentos.filter(
+              (atendimento) => atendimento.status === coluna.id,
+            );
 
-          <div className="mt-6 overflow-x-auto">
-            <table className="w-full min-w-[860px] text-left text-sm">
-              <thead className="border-b border-[#E8DDCB] text-[#64736D]">
-                <tr>
-                  <th className="px-4 py-3 font-medium">Cliente</th>
-                  <th className="px-4 py-3 font-medium">Origem</th>
-                  <th className="px-4 py-3 font-medium">Status</th>
-                  <th className="px-4 py-3 font-medium">Especialista UCE sugerido</th>
-                  <th className="px-4 py-3 font-medium">Responsável</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-[#eee7dc] text-[#102A27]">
-                {atendimentos.map((atendimento) => (
-                  <tr key={atendimento.cliente}>
-                    <td className="px-4 py-4 font-semibold text-[#071E36]">
-                      {atendimento.cliente}
-                    </td>
-                    <td className="px-4 py-4">{atendimento.origem}</td>
-                    <td className="px-4 py-4">
-                      <span className="rounded-full bg-[#F7F3ED] px-3 py-1 text-xs font-semibold text-[#8B6827]">
-                        {atendimento.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4">{atendimento.especialista}</td>
-                    <td className="px-4 py-4">{atendimento.responsavel}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+            return (
+              <div
+                key={coluna.id}
+                className="min-w-[300px] flex-1 rounded-3xl border border-[#E8DDCB] bg-white p-4 shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#071E36]">
+                      {coluna.titulo}
+                    </h2>
+                    <p className="mt-1 text-xs text-[#64736D]">{coluna.descricao}</p>
+                  </div>
+                  <span className="rounded-full bg-[#C89B3C]/10 px-2.5 py-1 text-xs font-semibold text-[#8B6827]">
+                    {itens.length}
+                  </span>
+                </div>
+
+                <div className="mt-4 grid gap-3">
+                  {itens.map((atendimento) => (
+                    <article
+                      key={atendimento.id}
+                      className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] p-4 shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <h3 className="font-semibold text-[#071E36]">
+                            {atendimento.nome}
+                          </h3>
+                          <p className="mt-1 text-xs text-[#64736D]">
+                            {atendimento.canal} via {atendimento.origem}
+                          </p>
+                        </div>
+                        <span className={temperaturaClassName(atendimento.temperatura)}>
+                          {atendimento.temperatura}
+                        </span>
+                      </div>
+
+                      <div className="mt-4 grid gap-2 text-xs text-[#64736D]">
+                        <span>Especialista UCE: {atendimento.especialista}</span>
+                        <span>Ultima mensagem: {atendimento.ultimaMensagem}</span>
+                        <span>Proximo passo: {atendimento.proximoPasso}</span>
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap gap-2">
+                        {atendimento.leadId ? (
+                          <Link
+                            href={`/dashboard/crm/leads/${atendimento.leadId}`}
+                            className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+                          >
+                            Ver lead
+                          </Link>
+                        ) : (
+                          <span className="rounded-full border border-dashed border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#64736D]">
+                            Lead em breve
+                          </span>
+                        )}
+                        <Link
+                          href="/dashboard/crm/timeline"
+                          className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+                        >
+                          Ver timeline
+                        </Link>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </section>
       </div>
     </main>

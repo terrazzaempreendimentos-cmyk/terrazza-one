@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 
 import { supabase } from "../../../../lib/supabase";
 
@@ -52,16 +53,39 @@ function temperaturaLead(status: string | null): "frio" | "morno" | "quente" {
   return "frio";
 }
 
-function badgeClassName(tipo: "frio" | "morno" | "quente" | "handoff" | "origem") {
+function badgeClassName(
+  tipo: "frio" | "morno" | "quente" | "handoff" | "origem" | "status",
+) {
   const classes = {
     frio: "bg-slate-100 text-slate-700",
     morno: "bg-amber-50 text-amber-700",
     quente: "bg-red-50 text-red-700",
     handoff: "bg-[#071E36] text-[#E1B866]",
     origem: "bg-[#C89B3C]/10 text-[#8B6827]",
+    status: "bg-[#F7F3ED] text-[#071E36]",
   };
 
   return `rounded-full px-3 py-1 text-xs font-semibold ${classes[tipo]}`;
+}
+
+function especialistaSugerido(lead: Lead) {
+  const tipo = `${lead.tipo_lead ?? ""} ${lead.objetivo ?? ""}`.toLowerCase();
+
+  if (tipo.includes("inquilino") || tipo.includes("alugar")) return "Locacao";
+  if (tipo.includes("comprador") || tipo.includes("comprar")) return "Compra";
+  if (tipo.includes("vendedor") || tipo.includes("vender")) return "Venda";
+  if (tipo.includes("propriet")) return "Administracao";
+
+  return "A definir";
+}
+
+function proximaAcaoLead(lead: Lead) {
+  if (lead.status === "fechado") return "Registrar pos-atendimento";
+  if (lead.status === "corretor") return "Corretor deve continuar";
+  if (lead.status === "ia_qualificando") return "Validar qualificacao";
+  if (lead.status === "perdido") return "Reavaliar oportunidade futura";
+
+  return "Realizar primeiro contato";
 }
 
 export default async function LeadsPage() {
@@ -308,7 +332,7 @@ export default async function LeadsPage() {
             </p>
           ) : (
             <div className="mt-6 overflow-x-auto">
-              <table className="w-full min-w-[960px] text-left text-sm">
+              <table className="w-full min-w-[1320px] text-left text-sm">
                 <thead className="border-b border-[#E8DDCB] text-[#64736D]">
                   <tr>
                     <th className="px-4 py-3 font-medium">Nome</th>
@@ -317,16 +341,25 @@ export default async function LeadsPage() {
                     <th className="px-4 py-3 font-medium">Objetivo</th>
                     <th className="px-4 py-3 font-medium">Cidade</th>
                     <th className="px-4 py-3 font-medium">Origem</th>
+                    <th className="px-4 py-3 font-medium">Temperatura</th>
                     <th className="px-4 py-3 font-medium">Status</th>
                     <th className="px-4 py-3 font-medium">Responsável</th>
-                    <th className="px-4 py-3 font-medium">Data</th>
+                    <th className="px-4 py-3 font-medium">Ultimo contato</th>
+                    <th className="px-4 py-3 font-medium">Proxima acao</th>
+                    <th className="px-4 py-3 font-medium">Especialista UCE</th>
+                    <th className="px-4 py-3 font-medium">Atalhos</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eee7dc] text-[#102A27]">
                   {leads.map((lead) => (
                     <tr key={lead.id}>
                       <td className="px-4 py-4 font-medium text-[#071E36]">
-                        {lead.nome}
+                        <Link
+                          href={`/dashboard/crm/leads/${lead.id}`}
+                          className="transition hover:text-[#8B6827]"
+                        >
+                          {lead.nome}
+                        </Link>
                         <div className="mt-2 flex flex-wrap gap-2">
                           <span className={badgeClassName(temperaturaLead(lead.status))}>
                             {temperaturaLead(lead.status)}
@@ -347,10 +380,37 @@ export default async function LeadsPage() {
                           {lead.origem || "manual"}
                         </span>
                       </td>
+                      <td className="px-4 py-4">
+                        <span className={badgeClassName(temperaturaLead(lead.status))}>
+                          {temperaturaLead(lead.status)}
+                        </span>
+                      </td>
                       <td className="px-4 py-4">{labelTexto(lead.status)}</td>
                       <td className="px-4 py-4">{lead.responsavel || "—"}</td>
                       <td className="px-4 py-4">
                         {formatarData(lead.created_at)}
+                      </td>
+                      <td className="px-4 py-4">{proximaAcaoLead(lead)}</td>
+                      <td className="px-4 py-4">
+                        <span className={badgeClassName("status")}>
+                          {especialistaSugerido(lead)}
+                        </span>
+                      </td>
+                      <td className="px-4 py-4">
+                        <div className="flex flex-wrap gap-2">
+                          <Link
+                            href="/dashboard/crm/atendimentos"
+                            className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+                          >
+                            Ver atendimento
+                          </Link>
+                          <Link
+                            href="/dashboard/crm/timeline"
+                            className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+                          >
+                            Ver timeline
+                          </Link>
+                        </div>
                       </td>
                     </tr>
                   ))}
