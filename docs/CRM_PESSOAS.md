@@ -18,6 +18,30 @@ O cadastro possui blocos principais:
 
 Uma pessoa pode ter multiplos papeis ao mesmo tempo. O campo `papeis` em `pessoas` guarda um array simples para a primeira versao. A tabela `pessoa_papeis` foi criada para evolucao futura com historico e relacoes mais granulares.
 
+## Pessoas como cadastro matriz
+
+A partir do CRM-2.6, Pessoas passa a ser o cadastro matriz para novos registros de relacionamento.
+
+- Proprietarios e uma visao filtrada de pessoas ativas com papel `proprietario`.
+- Inquilinos e uma visao filtrada de pessoas ativas com papel `inquilino`.
+- Corretores e uma visao filtrada de pessoas ativas com papel `corretor`.
+- A edicao nessas telas atualiza o registro em `pessoas`.
+- A exclusao operacional remove apenas o papel correspondente quando a pessoa possui multiplos papeis.
+- Se a pessoa possui somente aquele papel, a exclusao operacional marca `ativo=false`.
+
+As tabelas antigas seguem existindo para compatibilidade e historico. Nenhuma migracao automatica em massa deve ser executada nesta fase.
+
+## Imoveis
+
+Imoveis continuam sendo uma entidade propria. O vinculo legado `imoveis.proprietario_id` ainda aponta para a tabela antiga de proprietarios.
+
+Para preparar a transicao, o select de proprietario em Imoveis passa a mostrar:
+
+- Pessoas ativas com papel `proprietario`.
+- Cadastros legados de proprietarios.
+
+Quando uma Pessoa matriz e escolhida em Imoveis, o sistema cria ou reaproveita um cadastro legado minimo apenas para manter o vinculo atual funcionando. Isso nao substitui uma migracao planejada; e uma ponte de compatibilidade ate a modelagem definitiva.
+
 ## Relacao com modulos futuros
 
 Pessoas devera se conectar futuramente com:
@@ -43,8 +67,8 @@ Pessoas seguem o padrao oficial de CRUD operacional:
 
 ## Proximos passos
 
-1. Mapear campos equivalentes entre pessoas, proprietarios, inquilinos e corretores.
-2. Definir estrategia de migracao sem apagar dados antigos.
-3. Relacionar imoveis e negocios ao cadastro universal.
+1. Definir estrategia de migracao sem apagar dados antigos.
+2. Relacionar imoveis e negocios diretamente ao cadastro universal.
+3. Consolidar campos especificos de inquilino e corretor sem duplicar pessoas.
 4. Integrar atendimentos, timeline e UCE Memoria.
 5. Preparar identificacao por telefone/WhatsApp para reduzir duplicidade.

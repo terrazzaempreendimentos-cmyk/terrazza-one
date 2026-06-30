@@ -3,22 +3,38 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
+import {
+  addPapel,
+  hasPapel,
+  isOnlyPapel,
+  removePapel,
+} from "../../../lib/crm/pessoas/papeis";
 import { supabase } from "../../../lib/supabase";
 
-type Inquilino = {
+type PessoaInquilino = {
   id: string;
   nome: string;
   telefone: string | null;
+  celular: string | null;
+  whatsapp: string | null;
   email: string | null;
+  cpf_cnpj: string | null;
+  cidade: string | null;
+  bairro: string | null;
+  status: string | null;
+  observacoes: string | null;
+  papeis: string[] | null;
+  created_at: string | null;
+};
+
+type Inquilino = PessoaInquilino & {
   cpf: string | null;
   cidade_interesse: string | null;
   bairro_interesse: string | null;
   faixa_aluguel: number | string | null;
   quartos_desejados: number | null;
   possui_pet: boolean | null;
-  status: string | null;
   observacao: string | null;
-  created_at: string | null;
 };
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -32,23 +48,6 @@ const statusInquilinos = ["prospect", "em_analise", "aprovado", "perdido"];
 
 function valorTexto(formData: FormData, campo: string) {
   return String(formData.get(campo) ?? "").trim();
-}
-
-function valorNumero(formData: FormData, campo: string) {
-  const valor = valorTexto(formData, campo);
-
-  if (!valor) return null;
-
-  const numero = Number(valor);
-  return Number.isFinite(numero) ? numero : null;
-}
-
-function valorInteiro(formData: FormData, campo: string) {
-  const numero = valorNumero(formData, campo);
-
-  if (numero === null) return null;
-
-  return Math.trunc(numero);
 }
 
 function formatarData(data: string | null) {
@@ -78,6 +77,20 @@ function labelStatus(status: string | null) {
   return status.replaceAll("_", " ");
 }
 
+function pessoaToInquilino(pessoa: PessoaInquilino): Inquilino {
+  return {
+    ...pessoa,
+    telefone: pessoa.telefone || pessoa.celular || pessoa.whatsapp,
+    cpf: pessoa.cpf_cnpj,
+    cidade_interesse: pessoa.cidade,
+    bairro_interesse: pessoa.bairro,
+    faixa_aluguel: null,
+    quartos_desejados: null,
+    possui_pet: null,
+    observacao: pessoa.observacoes,
+  };
+}
+
 export default async function InquilinosPage({
   searchParams,
 }: {
@@ -96,24 +109,42 @@ export default async function InquilinosPage({
       throw new Error("O nome do inquilino é obrigatório.");
     }
 
+    const { data: pessoaAtual } = id
+      ? await supabase.from("pessoas").select("papeis").eq("id", id).single()
+      : { data: null };
+
+    const detalhes = [
+      valorTexto(formData, "faixa_aluguel")
+        ? `Faixa de aluguel: ${valorTexto(formData, "faixa_aluguel")}`
+        : null,
+      valorTexto(formData, "quartos_desejados")
+        ? `Quartos desejados: ${valorTexto(formData, "quartos_desejados")}`
+        : null,
+      formData.get("possui_pet") === "on" ? "Possui pet" : null,
+    ].filter(Boolean);
+    const observacao = valorTexto(formData, "observacao");
+
     const payload = {
       nome,
       telefone: valorTexto(formData, "telefone") || null,
       email: valorTexto(formData, "email") || null,
-      cpf: valorTexto(formData, "cpf") || null,
-      cidade_interesse: valorTexto(formData, "cidade_interesse") || null,
-      bairro_interesse: valorTexto(formData, "bairro_interesse") || null,
-      faixa_aluguel: valorNumero(formData, "faixa_aluguel"),
-      quartos_desejados: valorInteiro(formData, "quartos_desejados"),
-      possui_pet: formData.get("possui_pet") === "on",
+      cpf_cnpj: valorTexto(formData, "cpf") || null,
+      cidade: valorTexto(formData, "cidade_interesse") || null,
+      bairro: valorTexto(formData, "bairro_interesse") || null,
       status: valorTexto(formData, "status") || "prospect",
-      observacao: valorTexto(formData, "observacao") || null,
+      observacoes: [observacao, ...detalhes].filter(Boolean).join("\n") || null,
+      papeis: addPapel(
+        (pessoaAtual as { papeis?: string[] | null } | null)?.papeis,
+        "inquilino",
+      ),
+      origem: "manual",
+      ativo: true,
       updated_at: new Date().toISOString(),
     };
 
     const { error } = id
-      ? await supabase.from("inquilinos").update(payload).eq("id", id)
-      : await supabase.from("inquilinos").insert(payload);
+      ? await supabase.from("pessoas").update(payload).eq("id", id)
+      : await supabase.from("pessoas").insert(payload);
 
     if (error) {
       throw new Error("Não foi possível salvar o inquilino.");
@@ -132,10 +163,25 @@ export default async function InquilinosPage({
       throw new Error("Inquilino nao informado.");
     }
 
-    const { error } = await supabase
-      .from("inquilinos")
-      .update({ ativo: false, updated_at: new Date().toISOString() })
-      .eq("id", id);
+    const { data: pessoa, error: pessoaError } = await supabase
+      .from("pessoas")
+      .select("papeis")
+      .eq("id", id)
+      .single();
+
+    if (pessoaError) {
+      throw new Error("Nao foi possivel localizar o inquilino.");
+    }
+
+    const papeis = (pessoa as { papeis?: string[] | null }).papeis;
+    const payload = isOnlyPapel(papeis, "inquilino")
+      ? { ativo: false, updated_at: new Date().toISOString() }
+      : {
+          papeis: removePapel(papeis, "inquilino"),
+          updated_at: new Date().toISOString(),
+        };
+
+    const { error } = await supabase.from("pessoas").update(payload).eq("id", id);
 
     if (error) {
       throw new Error("Nao foi possivel excluir logicamente o inquilino.");
@@ -145,14 +191,16 @@ export default async function InquilinosPage({
   }
 
   const { data, error } = await supabase
-    .from("inquilinos")
+    .from("pessoas")
     .select(
-      "id, nome, telefone, email, cpf, cidade_interesse, bairro_interesse, faixa_aluguel, quartos_desejados, possui_pet, status, observacao, created_at",
+      "id, nome, telefone, celular, whatsapp, email, cpf_cnpj, cidade, bairro, status, observacoes, papeis, created_at",
     )
     .eq("ativo", true)
     .order("created_at", { ascending: false });
 
-  const inquilinos = (data ?? []) as Inquilino[];
+  const inquilinos = ((data ?? []) as PessoaInquilino[])
+    .filter((pessoa) => hasPapel(pessoa, "inquilino"))
+    .map(pessoaToInquilino);
   const inquilinoEmEdicao =
     inquilinos.find((inquilino) => inquilino.id === editId) ?? null;
 

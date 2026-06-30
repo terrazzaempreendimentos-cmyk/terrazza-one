@@ -3,15 +3,25 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
+import {
+  addPapel,
+  hasPapel,
+  isOnlyPapel,
+  removePapel,
+} from "../../../../lib/crm/pessoas/papeis";
 import { supabase } from "../../../../lib/supabase";
 
 type Corretor = {
   id: string;
   nome: string;
   telefone: string | null;
+  celular: string | null;
+  whatsapp: string | null;
   email: string | null;
   creci: string | null;
   ativo: boolean | null;
+  observacoes: string | null;
+  papeis: string[] | null;
   created_at: string | null;
 };
 
@@ -34,6 +44,16 @@ function formatarData(data: string | null) {
   }).format(new Date(data));
 }
 
+function telefonePrincipal(corretor: Corretor) {
+  return corretor.telefone || corretor.celular || corretor.whatsapp;
+}
+
+function extrairCreci(observacoes: string | null) {
+  const match = observacoes?.match(/CRECI:\s*(.+)/i);
+
+  return match?.[1]?.trim() ?? null;
+}
+
 export default async function CorretoresPage({
   searchParams,
 }: {
@@ -52,18 +72,29 @@ export default async function CorretoresPage({
       throw new Error("O nome do corretor é obrigatório.");
     }
 
+    const { data: pessoaAtual } = id
+      ? await supabase.from("pessoas").select("papeis").eq("id", id).single()
+      : { data: null };
+
+    const creci = valorTexto(formData, "creci");
     const payload = {
       nome,
       telefone: valorTexto(formData, "telefone") || null,
       email: valorTexto(formData, "email") || null,
-      creci: valorTexto(formData, "creci") || null,
+      observacoes: creci ? `CRECI: ${creci}` : null,
+      papeis: addPapel(
+        (pessoaAtual as { papeis?: string[] | null } | null)?.papeis,
+        "corretor",
+      ),
+      origem: "manual",
+      status: formData.get("ativo") === "on" ? "ativo" : "inativo",
       ativo: formData.get("ativo") === "on",
       updated_at: new Date().toISOString(),
     };
 
     const { error } = id
-      ? await supabase.from("corretores").update(payload).eq("id", id)
-      : await supabase.from("corretores").insert(payload);
+      ? await supabase.from("pessoas").update(payload).eq("id", id)
+      : await supabase.from("pessoas").insert(payload);
 
     if (error) {
       throw new Error("Não foi possível salvar o corretor.");
@@ -82,10 +113,25 @@ export default async function CorretoresPage({
       throw new Error("Corretor nao informado.");
     }
 
-    const { error } = await supabase
-      .from("corretores")
-      .update({ ativo: false, updated_at: new Date().toISOString() })
-      .eq("id", id);
+    const { data: pessoa, error: pessoaError } = await supabase
+      .from("pessoas")
+      .select("papeis")
+      .eq("id", id)
+      .single();
+
+    if (pessoaError) {
+      throw new Error("Nao foi possivel localizar o corretor.");
+    }
+
+    const papeis = (pessoa as { papeis?: string[] | null }).papeis;
+    const payload = isOnlyPapel(papeis, "corretor")
+      ? { ativo: false, updated_at: new Date().toISOString() }
+      : {
+          papeis: removePapel(papeis, "corretor"),
+          updated_at: new Date().toISOString(),
+        };
+
+    const { error } = await supabase.from("pessoas").update(payload).eq("id", id);
 
     if (error) {
       throw new Error("Nao foi possivel excluir logicamente o corretor.");
@@ -95,12 +141,18 @@ export default async function CorretoresPage({
   }
 
   const { data, error } = await supabase
-    .from("corretores")
-    .select("id, nome, telefone, email, creci, ativo, created_at")
+    .from("pessoas")
+    .select("id, nome, telefone, celular, whatsapp, email, observacoes, papeis, ativo, created_at")
     .eq("ativo", true)
     .order("created_at", { ascending: false });
 
-  const corretores = (data ?? []) as Corretor[];
+  const corretores = ((data ?? []) as Corretor[])
+    .filter((corretor) => hasPapel(corretor, "corretor"))
+    .map((corretor) => ({
+      ...corretor,
+      telefone: telefonePrincipal(corretor),
+      creci: extrairCreci(corretor.observacoes),
+    }));
   const corretorEmEdicao =
     corretores.find((corretor) => corretor.id === editId) ?? null;
 

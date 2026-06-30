@@ -3,13 +3,22 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
+import {
+  addPapel,
+  hasPapel,
+  isOnlyPapel,
+  removePapel,
+} from "../../../lib/crm/pessoas/papeis";
 import { supabase } from "../../../lib/supabase";
 
 type Proprietario = {
   id: string;
   nome: string;
   telefone: string | null;
+  celular: string | null;
+  whatsapp: string | null;
   email: string | null;
+  papeis: string[] | null;
   created_at: string | null;
 };
 
@@ -26,6 +35,10 @@ function formatarData(data: string | null) {
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "medium",
   }).format(new Date(data));
+}
+
+function telefonePrincipal(pessoa: Proprietario) {
+  return pessoa.telefone || pessoa.celular || pessoa.whatsapp;
 }
 
 export default async function ProprietariosPage({
@@ -48,16 +61,27 @@ export default async function ProprietariosPage({
       throw new Error("O nome do proprietário é obrigatório.");
     }
 
+    const { data: pessoaAtual } = id
+      ? await supabase.from("pessoas").select("papeis").eq("id", id).single()
+      : { data: null };
+
     const payload = {
       nome,
       telefone: telefone || null,
       email: email || null,
+      papeis: addPapel(
+        (pessoaAtual as { papeis?: string[] | null } | null)?.papeis,
+        "proprietario",
+      ),
+      origem: "manual",
+      status: "ativo",
+      ativo: true,
       updated_at: new Date().toISOString(),
     };
 
     const { error } = id
-      ? await supabase.from("proprietarios").update(payload).eq("id", id)
-      : await supabase.from("proprietarios").insert(payload);
+      ? await supabase.from("pessoas").update(payload).eq("id", id)
+      : await supabase.from("pessoas").insert(payload);
 
     if (error) {
       throw new Error("Não foi possível salvar o proprietário.");
@@ -77,10 +101,25 @@ export default async function ProprietariosPage({
       throw new Error("Proprietario nao informado.");
     }
 
-    const { error } = await supabase
-      .from("proprietarios")
-      .update({ ativo: false, updated_at: new Date().toISOString() })
-      .eq("id", id);
+    const { data: pessoa, error: pessoaError } = await supabase
+      .from("pessoas")
+      .select("papeis")
+      .eq("id", id)
+      .single();
+
+    if (pessoaError) {
+      throw new Error("Nao foi possivel localizar o proprietario.");
+    }
+
+    const papeis = (pessoa as { papeis?: string[] | null }).papeis;
+    const payload = isOnlyPapel(papeis, "proprietario")
+      ? { ativo: false, updated_at: new Date().toISOString() }
+      : {
+          papeis: removePapel(papeis, "proprietario"),
+          updated_at: new Date().toISOString(),
+        };
+
+    const { error } = await supabase.from("pessoas").update(payload).eq("id", id);
 
     if (error) {
       throw new Error("Nao foi possivel excluir logicamente o proprietario.");
@@ -91,12 +130,14 @@ export default async function ProprietariosPage({
   }
 
   const { data: proprietarios, error } = await supabase
-    .from("proprietarios")
-    .select("id, nome, telefone, email, created_at")
+    .from("pessoas")
+    .select("id, nome, telefone, celular, whatsapp, email, papeis, created_at")
     .eq("ativo", true)
     .order("created_at", { ascending: false });
 
-  const listaProprietarios = (proprietarios ?? []) as Proprietario[];
+  const listaProprietarios = ((proprietarios ?? []) as Proprietario[]).filter(
+    (proprietario) => hasPapel(proprietario, "proprietario"),
+  );
   const proprietarioEmEdicao =
     listaProprietarios.find((proprietario) => proprietario.id === editId) ?? null;
 
@@ -215,7 +256,9 @@ export default async function ProprietariosPage({
                       <td className="px-4 py-4 font-medium text-[#071E36]">
                         {proprietario.nome}
                       </td>
-                      <td className="px-4 py-4">{proprietario.telefone || "—"}</td>
+                      <td className="px-4 py-4">
+                        {telefonePrincipal(proprietario) || "—"}
+                      </td>
                       <td className="px-4 py-4">{proprietario.email || "—"}</td>
                       <td className="px-4 py-4">
                         {formatarData(proprietario.created_at)}

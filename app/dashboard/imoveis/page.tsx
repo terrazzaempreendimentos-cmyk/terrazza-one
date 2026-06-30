@@ -3,11 +3,22 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
+import { hasPapel } from "../../../lib/crm/pessoas/papeis";
 import { supabase } from "../../../lib/supabase";
 
 type Proprietario = {
   id: string;
   nome: string;
+};
+
+type PessoaProprietario = {
+  id: string;
+  nome: string;
+  telefone: string | null;
+  celular: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  papeis: string[] | null;
 };
 
 type Imovel = {
@@ -48,6 +59,82 @@ function valorNumero(formData: FormData, campo: string) {
   return Number.isFinite(numero) ? numero : null;
 }
 
+function isPessoaProprietarioValue(value: string) {
+  return value.startsWith("pessoa:");
+}
+
+async function resolverProprietarioId(proprietarioSelecionado: string) {
+  if (!isPessoaProprietarioValue(proprietarioSelecionado)) {
+    return proprietarioSelecionado;
+  }
+
+  const pessoaId = proprietarioSelecionado.replace("pessoa:", "");
+  const { data: pessoa, error: pessoaError } = await supabase
+    .from("pessoas")
+    .select("nome, telefone, celular, whatsapp, email")
+    .eq("id", pessoaId)
+    .single();
+
+  if (pessoaError || !pessoa) {
+    throw new Error("Nao foi possivel localizar a pessoa proprietaria.");
+  }
+
+  const pessoaProprietaria = pessoa as {
+    nome: string;
+    telefone: string | null;
+    celular: string | null;
+    whatsapp: string | null;
+    email: string | null;
+  };
+  const telefone =
+    pessoaProprietaria.telefone ||
+    pessoaProprietaria.celular ||
+    pessoaProprietaria.whatsapp ||
+    null;
+
+  if (pessoaProprietaria.email) {
+    const { data: existentePorEmail } = await supabase
+      .from("proprietarios")
+      .select("id")
+      .eq("email", pessoaProprietaria.email)
+      .maybeSingle();
+
+    if (existentePorEmail?.id) {
+      return existentePorEmail.id as string;
+    }
+  }
+
+  if (telefone) {
+    const { data: existentePorTelefone } = await supabase
+      .from("proprietarios")
+      .select("id")
+      .eq("telefone", telefone)
+      .maybeSingle();
+
+    if (existentePorTelefone?.id) {
+      return existentePorTelefone.id as string;
+    }
+  }
+
+  const { data: proprietarioCriado, error } = await supabase
+    .from("proprietarios")
+    .insert({
+      nome: pessoaProprietaria.nome,
+      telefone,
+      email: pessoaProprietaria.email,
+      ativo: true,
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (error || !proprietarioCriado?.id) {
+    throw new Error("Nao foi possivel criar o vinculo legado do proprietario.");
+  }
+
+  return proprietarioCriado.id as string;
+}
+
 function formatarMoeda(valor: number | string | null) {
   if (valor === null || valor === "") return "—";
 
@@ -84,8 +171,10 @@ export default async function ImoveisPage({
       throw new Error("Selecione um proprietário para o imóvel.");
     }
 
+    const proprietarioIdLegado = await resolverProprietarioId(proprietarioId);
+
     const payload = {
-      proprietario_id: proprietarioId,
+      proprietario_id: proprietarioIdLegado,
       tipo: tipo || null,
       cidade: cidade || null,
       bairro: bairro || null,
@@ -137,10 +226,15 @@ export default async function ImoveisPage({
     revalidatePath("/dashboard");
   }
 
-  const [proprietariosResult, imoveisResult] = await Promise.all([
+  const [proprietariosResult, pessoasResult, imoveisResult] = await Promise.all([
     supabase
       .from("proprietarios")
       .select("id, nome")
+      .order("nome", { ascending: true }),
+    supabase
+      .from("pessoas")
+      .select("id, nome, telefone, celular, whatsapp, email, papeis")
+      .eq("ativo", true)
       .order("nome", { ascending: true }),
     supabase
       .from("imoveis")
@@ -151,6 +245,9 @@ export default async function ImoveisPage({
   ]);
 
   const proprietarios = (proprietariosResult.data ?? []) as Proprietario[];
+  const pessoasProprietarias = ((pessoasResult.data ?? []) as PessoaProprietario[]).filter(
+    (pessoa) => hasPapel(pessoa, "proprietario"),
+  );
   const imoveis = (imoveisResult.data ?? []) as Imovel[];
   const imovelEmEdicao = imoveis.find((imovel) => imovel.id === editId) ?? null;
   const proprietariosPorId = new Map(
@@ -193,11 +290,22 @@ export default async function ImoveisPage({
                 <option value="" disabled>
                   Selecione um proprietário
                 </option>
-                {proprietarios.map((proprietario) => (
-                  <option key={proprietario.id} value={proprietario.id}>
-                    {proprietario.nome}
-                  </option>
-                ))}
+                {pessoasProprietarias.length > 0 ? (
+                  <optgroup label="Pessoas com papel proprietario">
+                    {pessoasProprietarias.map((pessoa) => (
+                      <option key={`pessoa-${pessoa.id}`} value={`pessoa:${pessoa.id}`}>
+                        {pessoa.nome}
+                      </option>
+                    ))}
+                  </optgroup>
+                ) : null}
+                <optgroup label="Cadastros legados">
+                  {proprietarios.map((proprietario) => (
+                    <option key={proprietario.id} value={proprietario.id}>
+                      {proprietario.nome}
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </label>
 
@@ -379,7 +487,7 @@ export default async function ImoveisPage({
             </span>
           </div>
 
-          {proprietariosResult.error || imoveisResult.error ? (
+          {proprietariosResult.error || pessoasResult.error || imoveisResult.error ? (
             <p className="mt-6 rounded-xl bg-[#fbebe7] px-4 py-3 text-sm text-[#8a2e1c]">
               Não foi possível carregar os imóveis. Tente novamente.
             </p>
