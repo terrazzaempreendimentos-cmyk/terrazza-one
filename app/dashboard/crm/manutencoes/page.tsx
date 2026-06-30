@@ -166,17 +166,33 @@ async function getRelatedEntityLabel(
 ) {
   if (!id) return null;
 
-  const selectFields = table === "imoveis" ? "tipo, cidade, bairro" : "nome";
-  const { data } = await supabase.from(table).select(selectFields).eq("id", id).maybeSingle();
-
-  if (!data) return null;
-
   if (table === "imoveis") {
-    const imovel = data as CadastroBasico;
-    return nomeImovel(imovel);
+    const { data } = await supabase
+      .from("imoveis")
+      .select("id, tipo, cidade, bairro")
+      .eq("id", id)
+      .maybeSingle();
+
+    return data ? nomeImovel(data as CadastroBasico) : null;
   }
 
-  return (data as CadastroBasico).nome ?? null;
+  if (table === "inquilinos") {
+    const { data } = await supabase
+      .from("inquilinos")
+      .select("id, nome")
+      .eq("id", id)
+      .maybeSingle();
+
+    return data?.nome ?? null;
+  }
+
+  const { data } = await supabase
+    .from("proprietarios")
+    .select("id, nome")
+    .eq("id", id)
+    .maybeSingle();
+
+  return data?.nome ?? null;
 }
 
 async function buildRelatedMemoryEntities(input: {
