@@ -91,3 +91,33 @@ O UCE devera alimentar esses tres modulos futuramente:
 - Indicando quando um atendimento esta pronto para handoff.
 
 Nesta etapa, a integracao e apenas visual e estrutural. Nao ha automacao, API externa, WhatsApp, n8n ou alteracao de banco.
+
+## CRM-2.2 - Manutencoes e Conflitos
+
+Manutencao e conflito passam a ter uma area operacional clara dentro do CRM. Nesta fase, ainda nao existe tabela nova nem persistencia: a tela prepara a experiencia e os conceitos para a futura entidade operacional.
+
+### Entidade operacional futura
+
+Manutencoes e conflitos deverao representar solicitacoes, pendencias, autorizacoes, orcamentos, execucoes, divergencias e encerramentos ligados a inquilinos, proprietarios e imoveis.
+
+### Papel da UCE Memoria
+
+A UCE Memoria podera ajudar a recuperar historico de:
+
+- Inquilino.
+- Proprietario.
+- Imovel.
+- Prestadores.
+- Manutencoes recorrentes.
+- Conflitos anteriores.
+- Acordos, comunicacoes e riscos.
+
+Isso evita perda de contexto e ajuda a administradora a agir com mais seguranca.
+
+### Pre-atendimento futuro
+
+O UCE podera futuramente fazer pre-atendimento de manutencoes e conflitos, coletando categoria, urgencia, fotos, impacto no uso do imovel, partes envolvidas e proxima acao recomendada.
+
+### Automacoes futuras
+
+n8n e WhatsApp poderao abrir solicitacoes automaticamente, registrar eventos na timeline, acionar responsaveis e atualizar status. Essa sprint nao cria automacao, nao conecta WhatsApp e nao altera banco.

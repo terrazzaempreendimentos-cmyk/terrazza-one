@@ -32,6 +32,7 @@ import {
   Sparkles,
   UserCog,
   UsersRound,
+  Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -102,6 +103,7 @@ const menuGroups: MenuGroup[] = [
       { label: "Roleta Inteligente", href: "/dashboard/crm/roleta", icon: Sparkles },
       { label: "Timeline", href: "/dashboard/crm/timeline", icon: ScrollText },
       { label: "Atendimentos", href: "/dashboard/crm/atendimentos", icon: MessageSquareText },
+      { label: "Manutencoes e Conflitos", href: "/dashboard/crm/manutencoes", icon: Wrench },
     ],
   },
   {
