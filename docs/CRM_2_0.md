@@ -157,3 +157,23 @@ Pessoas prepara a integracao futura com UCE, imoveis, negocios, atendimentos, ti
 ### Preservacao dos cadastros antigos
 
 Proprietarios, inquilinos e corretores continuam preservados nesta etapa. Nao ha migracao automatica, exclusao de tabelas antigas ou alteracao do relacionamento de imoveis.
+
+## Modulo 02 - Imoveis Premium
+
+Imoveis passa a ser um modulo premium do CRM Profissional. O cadastro deixa de ser um formulario simples e passa a ser uma entidade imobiliaria completa, organizada por abas: dados gerais, localizacao, proprietarios, financeiro, caracteristicas, documentacao, midia, publicacao, relacionamentos, timeline, manutencoes e inteligencia.
+
+### Relacao com Pessoas
+
+Pessoas e a base dos proprietarios. A tela de Imoveis busca pessoas ativas com papel `proprietario` e permite relacionar um ou varios proprietarios ao mesmo imovel por meio da tabela `imovel_proprietarios`.
+
+O campo legado `imoveis.proprietario_id` segue existindo para compatibilidade com cadastros antigos. A migracao completa deve ser planejada separadamente, sem apagar historico.
+
+### Operacao imobiliaria
+
+O modulo inclui listagem em cards, busca avancada, filtros principais, criacao, edicao, exclusao logica, visualizacao e duplicacao de imoveis.
+
+### Futuro
+
+O modulo esta preparado para conversar com Leads, Timeline, Manutencoes, CRM e UCE Memoria. Nesta etapa nao ha integracao com UCE, OpenAI, WhatsApp ou n8n.
+
+Documento complementar: `docs/MODULO_IMOVEIS.md`.
