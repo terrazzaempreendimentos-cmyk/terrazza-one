@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ClipboardList,
+  UsersRound,
 } from "lucide-react";
 
 import { AgendaSemanal } from "../../../../components/crm/AgendaSemanal";
@@ -233,9 +234,14 @@ export default async function AgendaPage() {
   const tarefasAbertas = tarefas.filter((tarefa) => tarefa.status !== "concluida");
   const tarefasHoje = tarefasAbertas.filter((tarefa) => tarefa.data === hoje);
   const tarefasProximas = tarefasAbertas.filter(
-    (tarefa) => tarefa.data && tarefa.data !== hoje,
+    (tarefa) => tarefa.data && tarefa.data > hoje,
   );
-  const tarefasSemData = tarefasAbertas.filter((tarefa) => !tarefa.data);
+  const tarefasAtrasadas = tarefasAbertas.filter(
+    (tarefa) => tarefa.data && tarefa.data < hoje,
+  );
+  const responsaveisAtivos = new Set(
+    tarefasAbertas.map((tarefa) => tarefa.responsavel).filter(Boolean),
+  ).size;
   const tarefasConcluidas = tarefas.filter((tarefa) => tarefa.status === "concluida");
   const cardsResumo = [
     {
@@ -253,9 +259,9 @@ export default async function AgendaPage() {
       cor: "bg-sky-50 text-sky-700",
     },
     {
-      titulo: "Pendentes",
-      valor: tarefasSemData.length,
-      descricao: "Sem data definida",
+      titulo: "Atrasadas",
+      valor: tarefasAtrasadas.length,
+      descricao: "Demandas fora do prazo",
       icone: AlertTriangle,
       cor: "bg-amber-50 text-amber-700",
     },
@@ -265,6 +271,13 @@ export default async function AgendaPage() {
       descricao: "Finalizadas",
       icone: CheckCircle2,
       cor: "bg-emerald-50 text-emerald-700",
+    },
+    {
+      titulo: "Responsaveis",
+      valor: responsaveisAtivos,
+      descricao: "Pessoas com tarefas abertas",
+      icone: UsersRound,
+      cor: "bg-[#C89B3C]/10 text-[#8B6827]",
     },
   ];
 
@@ -319,7 +332,7 @@ export default async function AgendaPage() {
           <div className="mt-6 h-px bg-gradient-to-r from-[#C89B3C]/60 via-[#E8DDCB] to-transparent" />
         </header>
 
-        <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {cardsResumo.map((card) => {
             const IconeResumo = card.icone;
 

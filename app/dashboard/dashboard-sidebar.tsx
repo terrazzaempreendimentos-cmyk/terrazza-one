@@ -95,17 +95,13 @@ const menuGroups: MenuGroup[] = [
     title: "CRM",
     icon: Sparkles,
     links: [
+      { label: "CRM Terrazza", href: "/dashboard/crm", icon: Sparkles },
       { label: "Leads", href: "/dashboard/crm/leads", icon: UsersRound },
       { label: "Kanban", href: "/dashboard/crm/kanban", icon: BarChart3 },
       { label: "Agenda Inteligente", href: "/dashboard/crm/agenda", icon: ClipboardCheck },
       { label: "Roleta Inteligente", href: "/dashboard/crm/roleta", icon: Sparkles },
       { label: "Timeline", href: "/dashboard/crm/timeline", icon: ScrollText },
-      {
-        label: "Atendimentos",
-        icon: MessageSquareText,
-        disabled: true,
-        badge: "Em breve",
-      },
+      { label: "Atendimentos", href: "/dashboard/crm/atendimentos", icon: MessageSquareText },
     ],
   },
   {

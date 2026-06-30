@@ -13,12 +13,55 @@ type Lead = {
 };
 
 const colunas = [
-  { status: "novo", title: "Novo" },
-  { status: "ia_qualificando", title: "IA qualificando" },
-  { status: "corretor", title: "Corretor" },
-  { status: "fechado", title: "Fechado" },
-  { status: "perdido", title: "Perdido" },
+  {
+    id: "novo",
+    title: "Novo",
+    description: "Entrada comercial",
+    statusValues: ["novo", ""],
+  },
+  {
+    id: "qualificando",
+    title: "Qualificando",
+    description: "UCE ou equipe coletando contexto",
+    statusValues: ["ia_qualificando"],
+  },
+  {
+    id: "atendimento",
+    title: "Em atendimento",
+    description: "Corretor ou consultor conduzindo",
+    statusValues: ["corretor", "em_atendimento"],
+  },
+  {
+    id: "visita",
+    title: "Visita/avaliacao",
+    description: "Agenda comercial ativa",
+    statusValues: ["visita", "avaliacao", "avaliacao_imovel"],
+  },
+  {
+    id: "proposta",
+    title: "Proposta",
+    description: "Negociacao em andamento",
+    statusValues: ["proposta", "negociacao"],
+  },
+  {
+    id: "fechado",
+    title: "Fechado",
+    description: "Conversao concluida",
+    statusValues: ["fechado"],
+  },
+  {
+    id: "perdido",
+    title: "Perdido",
+    description: "Oportunidade encerrada",
+    statusValues: ["perdido"],
+  },
 ];
+
+function labelTexto(valor: string | null) {
+  if (!valor) return "Nao informado";
+
+  return valor.replaceAll("_", " ");
+}
 
 export default async function KanbanPage() {
   const { data, error } = await supabase
@@ -46,21 +89,26 @@ export default async function KanbanPage() {
             Não foi possível carregar o Kanban. Verifique se a tabela leads já foi criada.
           </p>
         ) : (
-          <section className="mt-10 grid gap-5 xl:grid-cols-5">
+          <section className="mt-10 flex gap-5 overflow-x-auto pb-4">
             {colunas.map((coluna) => {
               const leadsDaColuna = leads.filter(
-                (lead) => (lead.status || "novo") === coluna.status,
+                (lead) => coluna.statusValues.includes(lead.status || ""),
               );
 
               return (
                 <div
-                  key={coluna.status}
-                  className="rounded-2xl border border-[#E8DDCB] bg-white p-4 shadow-sm"
+                  key={coluna.id}
+                  className="min-w-[280px] flex-1 rounded-2xl border border-[#E8DDCB] bg-white p-4 shadow-sm"
                 >
                   <div className="flex items-center justify-between gap-3">
-                    <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#071E36]">
-                      {coluna.title}
-                    </h2>
+                    <div>
+                      <h2 className="text-sm font-semibold uppercase tracking-[0.14em] text-[#071E36]">
+                        {coluna.title}
+                      </h2>
+                      <p className="mt-1 text-xs text-[#64736D]">
+                        {coluna.description}
+                      </p>
+                    </div>
                     <span className="rounded-full bg-[#C89B3C]/10 px-2.5 py-1 text-xs font-semibold text-[#8B6827]">
                       {leadsDaColuna.length}
                     </span>
@@ -87,7 +135,8 @@ export default async function KanbanPage() {
                             <span>{lead.tipo_lead || "Tipo não informado"}</span>
                             <span>{lead.objetivo || "Objetivo não informado"}</span>
                             <span>{lead.cidade || "Cidade não informada"}</span>
-                            <span>{lead.origem || "manual"}</span>
+                            <span>Origem: {lead.origem || "manual"}</span>
+                            <span>Status: {labelTexto(lead.status)}</span>
                             <span>{lead.responsavel || "Sem responsável"}</span>
                           </div>
                         </article>

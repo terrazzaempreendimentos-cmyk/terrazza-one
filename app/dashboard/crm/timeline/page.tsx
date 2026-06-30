@@ -95,6 +95,29 @@ export default async function TimelinePage() {
     imoveisResult.error ||
     corretoresResult.error;
 
+  const resumoTimeline = [
+    {
+      titulo: "Eventos recentes",
+      valor: eventos.length,
+      descricao: "Registros operacionais",
+    },
+    {
+      titulo: "Origens",
+      valor: new Set(eventos.map((evento) => evento.origem).filter(Boolean)).size,
+      descricao: "Canais identificados",
+    },
+    {
+      titulo: "Responsaveis",
+      valor: corretores.length,
+      descricao: "Corretores vinculaveis",
+    },
+    {
+      titulo: "Tipos de evento",
+      valor: new Set(eventos.map((evento) => evento.tipo).filter(Boolean)).size,
+      descricao: "Categorias registradas",
+    },
+  ];
+
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
       <div className="mx-auto max-w-7xl">
@@ -118,6 +141,25 @@ export default async function TimelinePage() {
             Sistema.
           </p>
         </header>
+
+        {!erroCarregamento ? (
+          <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {resumoTimeline.map((card) => (
+              <article
+                key={card.titulo}
+                className="rounded-3xl border border-[#E8DDCB] bg-white p-5 shadow-sm"
+              >
+                <strong className="text-3xl font-bold text-[#071E36]">
+                  {card.valor}
+                </strong>
+                <h2 className="mt-3 text-sm font-semibold uppercase tracking-[0.14em] text-[#071E36]">
+                  {card.titulo}
+                </h2>
+                <p className="mt-1 text-sm text-[#64736D]">{card.descricao}</p>
+              </article>
+            ))}
+          </section>
+        ) : null}
 
         {erroCarregamento ? (
           <p className="mt-10 rounded-xl bg-[#fbebe7] px-4 py-3 text-sm text-[#8a2e1c]">

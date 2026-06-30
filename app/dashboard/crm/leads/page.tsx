@@ -45,6 +45,25 @@ function labelTexto(valor: string | null) {
   return valor.replaceAll("_", " ");
 }
 
+function temperaturaLead(status: string | null): "frio" | "morno" | "quente" {
+  if (status === "corretor" || status === "fechado") return "quente";
+  if (status === "ia_qualificando") return "morno";
+
+  return "frio";
+}
+
+function badgeClassName(tipo: "frio" | "morno" | "quente" | "handoff" | "origem") {
+  const classes = {
+    frio: "bg-slate-100 text-slate-700",
+    morno: "bg-amber-50 text-amber-700",
+    quente: "bg-red-50 text-red-700",
+    handoff: "bg-[#071E36] text-[#E1B866]",
+    origem: "bg-[#C89B3C]/10 text-[#8B6827]",
+  };
+
+  return `rounded-full px-3 py-1 text-xs font-semibold ${classes[tipo]}`;
+}
+
 export default async function LeadsPage() {
   async function cadastrarLead(formData: FormData) {
     "use server";
@@ -83,6 +102,33 @@ export default async function LeadsPage() {
     .order("created_at", { ascending: false });
 
   const leads = (data ?? []) as Lead[];
+  const resumoLeads = [
+    {
+      titulo: "Total",
+      valor: leads.length,
+      descricao: "Leads na base comercial",
+    },
+    {
+      titulo: "Novos",
+      valor: leads.filter((lead) => (lead.status || "novo") === "novo").length,
+      descricao: "Aguardando primeira acao",
+    },
+    {
+      titulo: "Quentes",
+      valor: leads.filter((lead) => temperaturaLead(lead.status) === "quente").length,
+      descricao: "Com potencial imediato",
+    },
+    {
+      titulo: "Aguardando retorno",
+      valor: leads.filter((lead) => lead.status === "ia_qualificando").length,
+      descricao: "Em qualificacao ou retorno",
+    },
+    {
+      titulo: "Convertidos",
+      valor: leads.filter((lead) => lead.status === "fechado").length,
+      descricao: "Fechados na operacao",
+    },
+  ];
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -96,6 +142,23 @@ export default async function LeadsPage() {
             Central comercial da Terrazza CRM.
           </p>
         </div>
+
+        <section className="mt-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {resumoLeads.map((card) => (
+            <article
+              key={card.titulo}
+              className="rounded-3xl border border-[#E8DDCB] bg-white p-5 shadow-sm"
+            >
+              <strong className="text-3xl font-bold text-[#071E36]">
+                {card.valor}
+              </strong>
+              <h2 className="mt-3 text-sm font-semibold uppercase tracking-[0.14em] text-[#071E36]">
+                {card.titulo}
+              </h2>
+              <p className="mt-1 text-sm text-[#64736D]">{card.descricao}</p>
+            </article>
+          ))}
+        </section>
 
         <section className="mt-10 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-xl font-semibold text-[#071E36]">
@@ -264,12 +327,26 @@ export default async function LeadsPage() {
                     <tr key={lead.id}>
                       <td className="px-4 py-4 font-medium text-[#071E36]">
                         {lead.nome}
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          <span className={badgeClassName(temperaturaLead(lead.status))}>
+                            {temperaturaLead(lead.status)}
+                          </span>
+                          {lead.status === "corretor" ? (
+                            <span className={badgeClassName("handoff")}>
+                              handoff UCE
+                            </span>
+                          ) : null}
+                        </div>
                       </td>
                       <td className="px-4 py-4">{lead.telefone || "—"}</td>
                       <td className="px-4 py-4">{lead.tipo_lead || "—"}</td>
                       <td className="px-4 py-4">{lead.objetivo || "—"}</td>
                       <td className="px-4 py-4">{lead.cidade || "—"}</td>
-                      <td className="px-4 py-4">{lead.origem || "—"}</td>
+                      <td className="px-4 py-4">
+                        <span className={badgeClassName("origem")}>
+                          {lead.origem || "manual"}
+                        </span>
+                      </td>
                       <td className="px-4 py-4">{labelTexto(lead.status)}</td>
                       <td className="px-4 py-4">{lead.responsavel || "—"}</td>
                       <td className="px-4 py-4">
