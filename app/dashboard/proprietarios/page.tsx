@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import {
   addPapel,
@@ -10,16 +11,29 @@ import {
   removePapel,
 } from "../../../lib/crm/pessoas/papeis";
 import { supabase } from "../../../lib/supabase";
+import {
+  formatarCNPJ,
+  formatarCPF,
+  validarCNPJ,
+  validarCPF,
+} from "../../../lib/utils/validators";
 
 type Proprietario = {
   id: string;
   nome: string;
+  tipo_pessoa: string | null;
+  cpf_cnpj: string | null;
   telefone: string | null;
   celular: string | null;
   whatsapp: string | null;
   email: string | null;
+  cep: string | null;
+  endereco: string | null;
+  numero: string | null;
+  complemento: string | null;
   cidade: string | null;
   bairro: string | null;
+  estado: string | null;
   status: string | null;
   temperatura: string | null;
   score_relacionamento: number | null;
@@ -100,17 +114,42 @@ export default async function ProprietariosPage({
       throw new Error("O nome do proprietario e obrigatorio.");
     }
 
+    const tipoPessoa = valorTexto(formData, "tipo_pessoa") || "fisica";
+    const documento = valorTexto(formData, "cpf_cnpj");
+
+    if (documento) {
+      const documentoValido =
+        tipoPessoa === "juridica" ? validarCNPJ(documento) : validarCPF(documento);
+
+      if (!documentoValido) {
+        throw new Error(
+          tipoPessoa === "juridica" ? "CNPJ invalido." : "CPF invalido.",
+        );
+      }
+    }
+
     const { data: pessoaAtual } = id
       ? await supabase.from("pessoas").select("papeis").eq("id", id).single()
       : { data: null };
 
     const payload = {
       nome,
+      tipo_pessoa: tipoPessoa,
+      cpf_cnpj: documento
+        ? tipoPessoa === "juridica"
+          ? formatarCNPJ(documento)
+          : formatarCPF(documento)
+        : null,
       telefone: valorTexto(formData, "telefone") || null,
       whatsapp: valorTexto(formData, "whatsapp") || valorTexto(formData, "telefone") || null,
       email: valorTexto(formData, "email") || null,
+      cep: valorTexto(formData, "cep") || null,
+      endereco: valorTexto(formData, "endereco") || null,
+      numero: valorTexto(formData, "numero") || null,
+      complemento: valorTexto(formData, "complemento") || null,
       cidade: valorTexto(formData, "cidade") || null,
       bairro: valorTexto(formData, "bairro") || null,
+      estado: valorTexto(formData, "estado") || null,
       status: valorTexto(formData, "status") || "ativo",
       temperatura: valorTexto(formData, "temperatura") || null,
       responsavel_id: valorTexto(formData, "responsavel_id") || null,
@@ -171,7 +210,7 @@ export default async function ProprietariosPage({
     supabase
       .from("pessoas")
       .select(
-        "id, nome, telefone, celular, whatsapp, email, cidade, bairro, status, temperatura, score_relacionamento, responsavel_id, observacoes, papeis, created_at",
+        "id, nome, tipo_pessoa, cpf_cnpj, telefone, celular, whatsapp, email, cep, endereco, numero, complemento, cidade, bairro, estado, status, temperatura, score_relacionamento, responsavel_id, observacoes, papeis, created_at",
       )
       .eq("ativo", true)
       .order("created_at", { ascending: false }),
@@ -294,11 +333,10 @@ export default async function ProprietariosPage({
             <input type="hidden" name="id" value={proprietarioEmEdicao?.id ?? ""} />
             {[
               ["Nome", "nome", proprietarioEmEdicao?.nome, "text"],
+              ["CPF/CNPJ", "cpf_cnpj", proprietarioEmEdicao?.cpf_cnpj, "text"],
               ["Telefone", "telefone", proprietarioEmEdicao?.telefone, "tel"],
               ["WhatsApp", "whatsapp", proprietarioEmEdicao?.whatsapp, "tel"],
               ["E-mail", "email", proprietarioEmEdicao?.email, "email"],
-              ["Cidade", "cidade", proprietarioEmEdicao?.cidade, "text"],
-              ["Bairro", "bairro", proprietarioEmEdicao?.bairro, "text"],
               ["Score relacionamento", "score_relacionamento", proprietarioEmEdicao?.score_relacionamento, "number"],
             ].map(([label, name, value, type]) => (
               <label key={String(name)} className="grid gap-2 text-sm font-medium text-[#102A27]">
@@ -306,6 +344,13 @@ export default async function ProprietariosPage({
                 <input name={String(name)} type={String(type)} defaultValue={String(value ?? "")} className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]" />
               </label>
             ))}
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+              Tipo pessoa
+              <select name="tipo_pessoa" defaultValue={proprietarioEmEdicao?.tipo_pessoa ?? "fisica"} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]">
+                <option value="fisica">fisica</option>
+                <option value="juridica">juridica</option>
+              </select>
+            </label>
             <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Status
               <select name="status" defaultValue={proprietarioEmEdicao?.status ?? "ativo"} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]">
@@ -336,6 +381,19 @@ export default async function ProprietariosPage({
               Observacoes
               <textarea name="observacoes" rows={4} defaultValue={proprietarioEmEdicao?.observacoes ?? ""} className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]" />
             </label>
+            <div className="md:col-span-3">
+              <AddressFields
+                defaultValues={{
+                  cep: proprietarioEmEdicao?.cep,
+                  endereco: proprietarioEmEdicao?.endereco,
+                  numero: proprietarioEmEdicao?.numero,
+                  complemento: proprietarioEmEdicao?.complemento,
+                  bairro: proprietarioEmEdicao?.bairro,
+                  cidade: proprietarioEmEdicao?.cidade,
+                  estado: proprietarioEmEdicao?.estado,
+                }}
+              />
+            </div>
             <div className="md:col-span-3">
               <button type="submit" className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0A2A4A]">
                 {proprietarioEmEdicao ? "Salvar alteracoes" : "Salvar proprietario"}

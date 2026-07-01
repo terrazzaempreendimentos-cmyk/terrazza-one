@@ -54,6 +54,10 @@ function extrairCreci(observacoes: string | null) {
   return match?.[1]?.trim() ?? null;
 }
 
+function normalizarCreci(creci: string) {
+  return creci.trim().toUpperCase().replace(/\s+/g, "");
+}
+
 export default async function CorretoresPage({
   searchParams,
 }: {
@@ -61,6 +65,8 @@ export default async function CorretoresPage({
 }) {
   const resolvedSearchParams = (await searchParams) ?? {};
   const editId = paramValue(resolvedSearchParams, "edit") ?? "";
+  const busca = paramValue(resolvedSearchParams, "busca") ?? "";
+  const filtroStatus = paramValue(resolvedSearchParams, "status") ?? "";
 
   async function salvarCorretor(formData: FormData) {
     "use server";
@@ -77,6 +83,30 @@ export default async function CorretoresPage({
       : { data: null };
 
     const creci = valorTexto(formData, "creci");
+
+    if (creci) {
+      const { data: corretoresAtivos, error: creciError } = await supabase
+        .from("pessoas")
+        .select("id, observacoes, papeis")
+        .eq("ativo", true);
+
+      if (creciError) {
+        throw new Error("Nao foi possivel validar o CRECI.");
+      }
+
+      const creciJaExiste = ((corretoresAtivos ?? []) as Corretor[]).some(
+        (corretor) =>
+          corretor.id !== id &&
+          hasPapel(corretor, "corretor") &&
+          normalizarCreci(extrairCreci(corretor.observacoes) ?? "") ===
+            normalizarCreci(creci),
+      );
+
+      if (creciJaExiste) {
+        throw new Error("Ja existe um corretor ativo com este CRECI.");
+      }
+    }
+
     const payload = {
       nome,
       telefone: valorTexto(formData, "telefone") || null,
@@ -153,6 +183,17 @@ export default async function CorretoresPage({
       telefone: telefonePrincipal(corretor),
       creci: extrairCreci(corretor.observacoes),
     }));
+  const corretoresFiltrados = corretores.filter((corretor) => {
+    const texto = [corretor.nome, corretor.telefone, corretor.email, corretor.creci]
+      .join(" ")
+      .toLowerCase();
+    const status = corretor.ativo ? "ativo" : "inativo";
+
+    return (
+      (!busca || texto.includes(busca.toLowerCase())) &&
+      (!filtroStatus || status === filtroStatus)
+    );
+  });
   const corretorEmEdicao =
     corretores.find((corretor) => corretor.id === editId) ?? null;
 
@@ -177,6 +218,44 @@ export default async function CorretoresPage({
             Cadastro e acompanhamento dos corretores da Terrazza CRM.
           </p>
         </div>
+
+        <section className="mt-8 grid gap-4 md:grid-cols-4">
+          {[
+            ["Total", corretores.length, "corretores na matriz"],
+            ["Ativos", corretores.filter((corretor) => corretor.ativo).length, "em operacao"],
+            ["Com CRECI", corretores.filter((corretor) => corretor.creci).length, "documentados"],
+            ["Filtrados", corretoresFiltrados.length, "resultado atual"],
+          ].map(([titulo, valor, descricao]) => (
+            <div key={titulo} className="rounded-2xl border border-[#E8DDCB] bg-white p-5 shadow-sm">
+              <p className="text-sm font-semibold text-[#102A27]">{titulo}</p>
+              <strong className="mt-3 block text-3xl text-[#071E36]">{valor}</strong>
+              <p className="mt-1 text-xs text-[#64736D]">{descricao}</p>
+            </div>
+          ))}
+        </section>
+
+        <section className="mt-6 rounded-2xl border border-[#E8DDCB] bg-white p-5 shadow-sm">
+          <form className="grid gap-4 md:grid-cols-4">
+            <input
+              name="busca"
+              defaultValue={busca}
+              className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C] md:col-span-2"
+              placeholder="Nome, telefone, email ou CRECI"
+            />
+            <select
+              name="status"
+              defaultValue={filtroStatus}
+              className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C]"
+            >
+              <option value="">Todos os status</option>
+              <option value="ativo">Ativos</option>
+              <option value="inativo">Inativos</option>
+            </select>
+            <button className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0A2A4A]">
+              Filtrar
+            </button>
+          </form>
+        </section>
 
         <section className="mt-10 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-xl font-semibold text-[#071E36]">
@@ -263,7 +342,7 @@ export default async function CorretoresPage({
               Corretores cadastrados
             </h2>
             <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-sm font-medium text-[#8B6827]">
-              {corretores.length} cadastrado{corretores.length === 1 ? "" : "s"}
+              {corretoresFiltrados.length} cadastrado{corretoresFiltrados.length === 1 ? "" : "s"}
             </span>
           </div>
 
@@ -271,7 +350,7 @@ export default async function CorretoresPage({
             <p className="mt-6 rounded-xl bg-[#fbebe7] px-4 py-3 text-sm text-[#8a2e1c]">
               Não foi possível carregar os corretores. Tente novamente.
             </p>
-          ) : corretores.length === 0 ? (
+          ) : corretoresFiltrados.length === 0 ? (
             <p className="mt-6 rounded-xl bg-[#F7F3ED] px-4 py-8 text-center text-sm text-[#64736D]">
               Nenhum corretor cadastrado até o momento.
             </p>
@@ -290,7 +369,7 @@ export default async function CorretoresPage({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eee7dc] text-[#102A27]">
-                  {corretores.map((corretor) => (
+                  {corretoresFiltrados.map((corretor) => (
                     <tr key={corretor.id}>
                       <td className="px-4 py-4 font-medium text-[#071E36]">
                         {corretor.nome}

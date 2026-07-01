@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { hasPapel } from "../../../lib/crm/pessoas/papeis";
 import { supabase } from "../../../lib/supabase";
@@ -417,10 +418,22 @@ export default async function ImoveisPage({
       throw new Error("Selecione ao menos um proprietario.");
     }
 
+    const codigo = valorTexto(formData, "codigo");
+    const complemento = valorTexto(formData, "complemento");
+    const titulo = valorTexto(formData, "titulo") || complemento;
+
+    if (!codigo) {
+      throw new Error("O codigo do imovel e obrigatorio.");
+    }
+
+    if (!complemento) {
+      throw new Error("O complemento do imovel e obrigatorio.");
+    }
+
     const payload = {
       proprietario_id: proprietarioLegadoId || null,
-      codigo: valorTexto(formData, "codigo") || null,
-      titulo: valorTexto(formData, "titulo") || null,
+      codigo,
+      titulo,
       tipo: valorTexto(formData, "tipo") || null,
       subtipo: valorTexto(formData, "subtipo") || null,
       finalidade: valorTexto(formData, "finalidade") || null,
@@ -434,7 +447,7 @@ export default async function ImoveisPage({
       cep: valorTexto(formData, "cep") || null,
       endereco: valorTexto(formData, "endereco") || null,
       numero: valorTexto(formData, "numero") || null,
-      complemento: valorTexto(formData, "complemento") || null,
+      complemento,
       bairro: valorTexto(formData, "bairro") || null,
       cidade: valorTexto(formData, "cidade") || null,
       estado: valorTexto(formData, "estado") || null,
@@ -706,6 +719,10 @@ export default async function ImoveisPage({
 
   const imovelEmEdicao = imoveis.find((imovel) => imovel.id === editId) ?? null;
   const imovelVisualizado = imoveis.find((imovel) => imovel.id === viewId) ?? null;
+  const imovelParaHistorico = imovelEmEdicao ?? imovelVisualizado;
+  const manutencoesHref = imovelParaHistorico
+    ? `/dashboard/crm/manutencoes?imovel_id=${imovelParaHistorico.id}`
+    : "/dashboard/crm/manutencoes";
   const relacoesEmEdicao = imovelEmEdicao
     ? relacoesPorImovel.get(imovelEmEdicao.id) ?? []
     : [];
@@ -1020,7 +1037,15 @@ export default async function ImoveisPage({
           <input type="hidden" name="id" value={imovelEmEdicao?.id ?? ""} />
 
           <Section id="dados" title="Dados gerais">
-            <Field label="Codigo" name="codigo" defaultValue={imovelEmEdicao?.codigo} />
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+              Codigo
+              <input
+                name="codigo"
+                required
+                defaultValue={fieldValue(imovelEmEdicao?.codigo)}
+                className={inputClass()}
+              />
+            </label>
             <Field label="Titulo" name="titulo" defaultValue={imovelEmEdicao?.titulo} />
             <SelectField
               label="Tipo"
@@ -1077,13 +1102,20 @@ export default async function ImoveisPage({
           </Section>
 
           <Section id="localizacao" title="Localizacao">
-            <Field label="CEP" name="cep" defaultValue={imovelEmEdicao?.cep} />
-            <Field label="Endereco" name="endereco" defaultValue={imovelEmEdicao?.endereco} />
-            <Field label="Numero" name="numero" defaultValue={imovelEmEdicao?.numero} />
-            <Field label="Complemento" name="complemento" defaultValue={imovelEmEdicao?.complemento} />
-            <Field label="Bairro" name="bairro" defaultValue={imovelEmEdicao?.bairro} />
-            <Field label="Cidade" name="cidade" defaultValue={imovelEmEdicao?.cidade} />
-            <Field label="Estado" name="estado" defaultValue={imovelEmEdicao?.estado} />
+            <div className="md:col-span-3">
+              <AddressFields
+                complementoRequired
+                defaultValues={{
+                  cep: imovelEmEdicao?.cep,
+                  endereco: imovelEmEdicao?.endereco,
+                  numero: imovelEmEdicao?.numero,
+                  complemento: imovelEmEdicao?.complemento,
+                  bairro: imovelEmEdicao?.bairro,
+                  cidade: imovelEmEdicao?.cidade,
+                  estado: imovelEmEdicao?.estado,
+                }}
+              />
+            </div>
             <Field label="Latitude" name="latitude" type="number" defaultValue={imovelEmEdicao?.latitude} />
             <Field label="Longitude" name="longitude" type="number" defaultValue={imovelEmEdicao?.longitude} />
             <Field label="Google Maps" name="google_maps" defaultValue={imovelEmEdicao?.google_maps} />
@@ -1278,8 +1310,43 @@ export default async function ImoveisPage({
           </Section>
 
           <Section id="manutencoes" title="Manutencoes">
-            <div className="md:col-span-3 rounded-xl border border-[#E8DDCB] bg-[#F7F3ED] p-5 text-sm text-[#64736D]">
-              Area preparada para exibir manutencoes, conflitos e historico operacional do modulo CRM.
+            <div className="md:col-span-3 rounded-2xl border border-[#E8DDCB] bg-[#F7F3ED] p-5">
+              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                  <span className="rounded-full border border-[#C89B3C]/35 bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#8B6827]">
+                    Historico do ano
+                  </span>
+                  <h3 className="mt-3 text-lg font-semibold text-[#071E36]">
+                    Manutencoes e conflitos do imovel
+                  </h3>
+                  <p className="mt-1 text-sm leading-6 text-[#64736D]">
+                    Resumo preparado para acompanhar ocorrencias abertas,
+                    resolvidas, criticas e reincidencias durante a administracao.
+                  </p>
+                </div>
+                <Link
+                  href={manutencoesHref}
+                  className="inline-flex w-fit rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
+                >
+                  Abrir Manutencoes e Conflitos
+                </Link>
+              </div>
+              <div className="mt-5 grid gap-3 md:grid-cols-5">
+                {[
+                  ["Manutencoes", "0"],
+                  ["Conflitos", "0"],
+                  ["Abertas", "0"],
+                  ["Resolvidas", "0"],
+                  ["Criticas", "0"],
+                ].map(([label, value]) => (
+                  <div key={label} className="rounded-xl border border-[#E8DDCB] bg-white p-4">
+                    <strong className="text-2xl font-bold text-[#071E36]">{value}</strong>
+                    <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6827]">
+                      {label}
+                    </p>
+                  </div>
+                ))}
+              </div>
             </div>
           </Section>
 

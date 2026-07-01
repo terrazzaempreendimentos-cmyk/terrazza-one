@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
+import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import {
   addPapel,
@@ -10,17 +11,29 @@ import {
   removePapel,
 } from "../../../lib/crm/pessoas/papeis";
 import { supabase } from "../../../lib/supabase";
+import {
+  formatarCNPJ,
+  formatarCPF,
+  validarCNPJ,
+  validarCPF,
+} from "../../../lib/utils/validators";
 
 type Inquilino = {
   id: string;
   nome: string;
+  tipo_pessoa: string | null;
   telefone: string | null;
   celular: string | null;
   whatsapp: string | null;
   email: string | null;
   cpf_cnpj: string | null;
+  cep: string | null;
+  endereco: string | null;
+  numero: string | null;
+  complemento: string | null;
   cidade: string | null;
   bairro: string | null;
+  estado: string | null;
   status: string | null;
   temperatura: string | null;
   score_relacionamento: number | null;
@@ -97,6 +110,20 @@ export default async function InquilinosPage({
       throw new Error("O nome do inquilino e obrigatorio.");
     }
 
+    const tipoPessoa = valorTexto(formData, "tipo_pessoa") || "fisica";
+    const documento = valorTexto(formData, "cpf_cnpj");
+
+    if (documento) {
+      const documentoValido =
+        tipoPessoa === "juridica" ? validarCNPJ(documento) : validarCPF(documento);
+
+      if (!documentoValido) {
+        throw new Error(
+          tipoPessoa === "juridica" ? "CNPJ invalido." : "CPF invalido.",
+        );
+      }
+    }
+
     const { data: pessoaAtual } = id
       ? await supabase.from("pessoas").select("papeis").eq("id", id).single()
       : { data: null };
@@ -117,12 +144,22 @@ export default async function InquilinosPage({
 
     const payload = {
       nome,
+      tipo_pessoa: tipoPessoa,
       telefone: valorTexto(formData, "telefone") || null,
       whatsapp: valorTexto(formData, "whatsapp") || valorTexto(formData, "telefone") || null,
       email: valorTexto(formData, "email") || null,
-      cpf_cnpj: valorTexto(formData, "cpf_cnpj") || null,
+      cpf_cnpj: documento
+        ? tipoPessoa === "juridica"
+          ? formatarCNPJ(documento)
+          : formatarCPF(documento)
+        : null,
+      cep: valorTexto(formData, "cep") || null,
+      endereco: valorTexto(formData, "endereco") || null,
+      numero: valorTexto(formData, "numero") || null,
+      complemento: valorTexto(formData, "complemento") || null,
       cidade: valorTexto(formData, "cidade") || null,
       bairro: valorTexto(formData, "bairro") || null,
+      estado: valorTexto(formData, "estado") || null,
       status: valorTexto(formData, "status") || "prospect",
       temperatura: valorTexto(formData, "temperatura") || null,
       responsavel_id: valorTexto(formData, "responsavel_id") || null,
@@ -181,7 +218,7 @@ export default async function InquilinosPage({
     supabase
       .from("pessoas")
       .select(
-        "id, nome, telefone, celular, whatsapp, email, cpf_cnpj, cidade, bairro, status, temperatura, score_relacionamento, responsavel_id, observacoes, papeis, created_at",
+        "id, nome, tipo_pessoa, telefone, celular, whatsapp, email, cpf_cnpj, cep, endereco, numero, complemento, cidade, bairro, estado, status, temperatura, score_relacionamento, responsavel_id, observacoes, papeis, created_at",
       )
       .eq("ativo", true)
       .order("created_at", { ascending: false }),
@@ -305,8 +342,6 @@ export default async function InquilinosPage({
               ["WhatsApp", "whatsapp", inquilinoEmEdicao?.whatsapp, "tel"],
               ["E-mail", "email", inquilinoEmEdicao?.email, "email"],
               ["CPF/CNPJ", "cpf_cnpj", inquilinoEmEdicao?.cpf_cnpj, "text"],
-              ["Cidade", "cidade", inquilinoEmEdicao?.cidade, "text"],
-              ["Bairro", "bairro", inquilinoEmEdicao?.bairro, "text"],
               ["Faixa aluguel", "faixa_aluguel", "", "number"],
               ["Quartos desejados", "quartos_desejados", "", "number"],
               ["Imovel relacionado", "imovel_relacionado", "", "text"],
@@ -317,6 +352,13 @@ export default async function InquilinosPage({
                 <input name={String(name)} type={String(type)} defaultValue={String(value ?? "")} className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]" />
               </label>
             ))}
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+              Tipo pessoa
+              <select name="tipo_pessoa" defaultValue={inquilinoEmEdicao?.tipo_pessoa ?? "fisica"} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]">
+                <option value="fisica">fisica</option>
+                <option value="juridica">juridica</option>
+              </select>
+            </label>
             <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Status
               <select name="status" defaultValue={inquilinoEmEdicao?.status ?? "prospect"} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]">
@@ -351,6 +393,19 @@ export default async function InquilinosPage({
               Observacoes
               <textarea name="observacoes" rows={4} defaultValue={inquilinoEmEdicao?.observacoes ?? ""} className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]" />
             </label>
+            <div className="md:col-span-3">
+              <AddressFields
+                defaultValues={{
+                  cep: inquilinoEmEdicao?.cep,
+                  endereco: inquilinoEmEdicao?.endereco,
+                  numero: inquilinoEmEdicao?.numero,
+                  complemento: inquilinoEmEdicao?.complemento,
+                  bairro: inquilinoEmEdicao?.bairro,
+                  cidade: inquilinoEmEdicao?.cidade,
+                  estado: inquilinoEmEdicao?.estado,
+                }}
+              />
+            </div>
             <div className="md:col-span-3">
               <button type="submit" className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white hover:bg-[#0A2A4A]">
                 {inquilinoEmEdicao ? "Salvar alteracoes" : "Salvar inquilino"}

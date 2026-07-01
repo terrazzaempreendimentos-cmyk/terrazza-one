@@ -196,3 +196,47 @@ O menu de Cadastros passa a priorizar Pessoas antes das visoes filtradas:
 - Imoveis.
 - Corretores.
 - Parceiros.
+
+## CRM-2.8 - Validacoes e Correcoes Criticas
+
+Esta etapa adiciona regras operacionais de qualidade de cadastro sem alterar UCE, OpenAI, n8n ou WhatsApp.
+
+### Documentos
+
+Pessoas, Proprietarios e Inquilinos passam a validar CPF/CNPJ antes de salvar. Pessoas fisicas usam CPF; pessoas juridicas usam CNPJ. Documentos invalidos devem bloquear o cadastro.
+
+### Endereco
+
+Os formularios principais passam a usar consulta ViaCEP para preencher endereco, bairro, cidade e estado a partir do CEP. O campo estado usa lista nacional de UFs.
+
+### Corretores
+
+Corretores recebem visao premium com resumo, filtros e validacao de CRECI unico entre corretores ativos. Tambem existe SQL para reforco no cadastro legado de corretores.
+
+### Imoveis
+
+Imoveis passam a exigir codigo e complemento. Quando o titulo estiver vazio, o complemento passa a ser usado automaticamente como titulo inicial, mantendo edicao manual posterior.
+
+### Agenda
+
+A Agenda Inteligente passa a navegar visualmente entre semana anterior, semana atual e proxima semana, filtrando as tarefas carregadas em memoria pela semana selecionada.
+
+## CRM-2.9 - Telas Premium e Historico de Manutencao
+
+Esta etapa eleva Leads, Roleta Inteligente e Manutencoes ao padrao visual e operacional do CRM profissional, sem alterar UCE, OpenAI, n8n, WhatsApp ou banco.
+
+### Leads Premium
+
+Leads passa a exibir cabecalho premium, cards de resumo, busca, filtros por tipo, status, origem, temperatura e responsavel. Cada lead mostra origem, temperatura, status, responsavel, especialista UCE sugerido, proxima acao e atalhos para visualizar, editar, arquivar, abrir atendimento e timeline.
+
+### Roleta Inteligente Premium
+
+A Roleta ganha filtros por cidade, tipo de lead, status do corretor e corretor. A tela passa a destacar corretores disponiveis, leads aguardando distribuicao, score visual e historico recente de distribuicao.
+
+### Manutencoes e Conflitos
+
+Manutencoes passa a ter filtros operacionais mais completos: imovel, inquilino, proprietario, responsavel, status, prioridade, categoria, periodo, tipo e risco.
+
+### Historico anual do imovel
+
+Ao selecionar um imovel, a tela de Manutencoes exibe um historico anual com quantidade de manutencoes, conflitos, casos abertos, resolvidos, criticos e uma linha do tempo agrupada por mes. O modulo de Imoveis tambem passa a apontar para esse historico, preparando a administracao para leitura operacional por imovel.

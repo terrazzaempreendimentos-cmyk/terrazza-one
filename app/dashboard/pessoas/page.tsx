@@ -3,8 +3,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { Search, UsersRound } from "lucide-react";
 
+import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { supabase } from "../../../lib/supabase";
+import {
+  formatarCNPJ,
+  formatarCPF,
+  validarCNPJ,
+  validarCPF,
+} from "../../../lib/utils/validators";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -154,10 +161,28 @@ export default async function PessoasPage({
       throw new Error("O nome da pessoa e obrigatorio.");
     }
 
+    const tipoPessoa = valorTexto(formData, "tipo_pessoa") || "fisica";
+    const documento = valorTexto(formData, "cpf_cnpj");
+
+    if (documento) {
+      const documentoValido =
+        tipoPessoa === "juridica" ? validarCNPJ(documento) : validarCPF(documento);
+
+      if (!documentoValido) {
+        throw new Error(
+          tipoPessoa === "juridica" ? "CNPJ invalido." : "CPF invalido.",
+        );
+      }
+    }
+
     const payload = {
       nome,
-      tipo_pessoa: valorTexto(formData, "tipo_pessoa") || "fisica",
-      cpf_cnpj: valorOpcional(formData, "cpf_cnpj"),
+      tipo_pessoa: tipoPessoa,
+      cpf_cnpj: documento
+        ? tipoPessoa === "juridica"
+          ? formatarCNPJ(documento)
+          : formatarCPF(documento)
+        : null,
       rg_ie: valorOpcional(formData, "rg_ie"),
       data_nascimento: valorOpcional(formData, "data_nascimento"),
       estado_civil: valorOpcional(formData, "estado_civil"),
@@ -369,28 +394,21 @@ export default async function PessoasPage({
               ))}
             </fieldset>
 
-            <fieldset className="grid gap-4 rounded-3xl border border-[#E8DDCB] p-5 md:grid-cols-4">
+            <fieldset className="rounded-3xl border border-[#E8DDCB] p-5">
               <legend className="px-2 text-sm font-semibold text-[#071E36]">
                 Endereco
               </legend>
-              {[
-                ["cep", "CEP"],
-                ["endereco", "Endereco"],
-                ["numero", "Numero"],
-                ["complemento", "Complemento"],
-                ["bairro", "Bairro"],
-                ["cidade", "Cidade"],
-                ["estado", "Estado"],
-              ].map(([name, label]) => (
-                <label key={name} className="grid gap-2 text-sm font-medium text-[#102A27]">
-                  {label}
-                  <input
-                    name={name}
-                    defaultValue={String(pessoaEmEdicao?.[name as keyof Pessoa] ?? "")}
-                    className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]"
-                  />
-                </label>
-              ))}
+              <AddressFields
+                defaultValues={{
+                  cep: pessoaEmEdicao?.cep,
+                  endereco: pessoaEmEdicao?.endereco,
+                  numero: pessoaEmEdicao?.numero,
+                  complemento: pessoaEmEdicao?.complemento,
+                  bairro: pessoaEmEdicao?.bairro,
+                  cidade: pessoaEmEdicao?.cidade,
+                  estado: pessoaEmEdicao?.estado,
+                }}
+              />
             </fieldset>
 
             <fieldset className="rounded-3xl border border-[#E8DDCB] p-5">

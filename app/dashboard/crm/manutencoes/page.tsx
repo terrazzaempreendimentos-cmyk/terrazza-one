@@ -94,6 +94,21 @@ const categoriasConflito = [
   "cobranca contestada",
   "comunicacao dificil",
 ];
+const mesesAno = [
+  "Janeiro",
+  "Fevereiro",
+  "Marco",
+  "Abril",
+  "Maio",
+  "Junho",
+  "Julho",
+  "Agosto",
+  "Setembro",
+  "Outubro",
+  "Novembro",
+  "Dezembro",
+];
+const opcoesRisco = ["baixo", "medio", "alto", "critico"];
 
 function paramValue(searchParams: SearchParams, key: string) {
   const value = searchParams[key];
@@ -158,6 +173,17 @@ function statusClassName(status: string | null | undefined) {
   if (status === "conflito ativo") return "bg-red-50 text-red-700";
   if (status?.includes("aguardando")) return "bg-amber-50 text-amber-700";
   return "bg-[#F7F3ED] text-[#071E36]";
+}
+
+function isCasoAberto(caso: Pick<CasoOperacional, "status">) {
+  return !["resolvido", "encerrado"].includes(caso.status ?? "");
+}
+
+function monthIndexFromDate(data: string | null) {
+  if (!data) return -1;
+  const date = new Date(data);
+  if (Number.isNaN(date.getTime())) return -1;
+  return date.getMonth();
 }
 
 async function getRelatedEntityLabel(
@@ -243,7 +269,16 @@ export default async function ManutencoesPage({
   const filtroTipo = paramValue(resolvedSearchParams, "tipo") ?? "";
   const filtroStatus = paramValue(resolvedSearchParams, "status") ?? "";
   const filtroPrioridade = paramValue(resolvedSearchParams, "prioridade") ?? "";
+  const filtroCategoria = paramValue(resolvedSearchParams, "categoria") ?? "";
+  const filtroImovel = paramValue(resolvedSearchParams, "imovel_id") ?? "";
+  const filtroInquilino = paramValue(resolvedSearchParams, "inquilino_id") ?? "";
+  const filtroProprietario = paramValue(resolvedSearchParams, "proprietario_id") ?? "";
+  const filtroResponsavel = paramValue(resolvedSearchParams, "responsavel_id") ?? "";
+  const filtroRisco = paramValue(resolvedSearchParams, "risco") ?? "";
+  const filtroPeriodoInicio = paramValue(resolvedSearchParams, "periodo_inicio") ?? "";
+  const filtroPeriodoFim = paramValue(resolvedSearchParams, "periodo_fim") ?? "";
   const editId = paramValue(resolvedSearchParams, "edit") ?? "";
+  const anoHistorico = new Date().getFullYear();
 
   async function salvarCaso(formData: FormData) {
     "use server";
@@ -352,6 +387,14 @@ export default async function ManutencoesPage({
   if (filtroTipo) casosQuery = casosQuery.eq("tipo", filtroTipo);
   if (filtroStatus) casosQuery = casosQuery.eq("status", filtroStatus);
   if (filtroPrioridade) casosQuery = casosQuery.eq("prioridade", filtroPrioridade);
+  if (filtroCategoria) casosQuery = casosQuery.eq("categoria", filtroCategoria);
+  if (filtroImovel) casosQuery = casosQuery.eq("imovel_id", filtroImovel);
+  if (filtroInquilino) casosQuery = casosQuery.eq("inquilino_id", filtroInquilino);
+  if (filtroProprietario) casosQuery = casosQuery.eq("proprietario_id", filtroProprietario);
+  if (filtroResponsavel) casosQuery = casosQuery.eq("responsavel_id", filtroResponsavel);
+  if (filtroRisco) casosQuery = casosQuery.ilike("risco", `%${filtroRisco}%`);
+  if (filtroPeriodoInicio) casosQuery = casosQuery.gte("data_abertura", filtroPeriodoInicio);
+  if (filtroPeriodoFim) casosQuery = casosQuery.lte("data_abertura", filtroPeriodoFim);
 
   const [
     casosResult,
@@ -361,6 +404,7 @@ export default async function ManutencoesPage({
     inquilinosResult,
     corretoresResult,
     memoriesResult,
+    historicoAnualResult,
   ] = await Promise.all([
     casosQuery,
     supabase
@@ -375,6 +419,18 @@ export default async function ManutencoesPage({
     supabase.from("inquilinos").select("id, nome").order("nome", { ascending: true }),
     supabase.from("corretores").select("id, nome").order("nome", { ascending: true }),
     searchMemories({ limit: 120 }).catch(() => [] as UCEMemory[]),
+    filtroImovel
+      ? supabase
+          .from("manutencoes_conflitos")
+          .select(
+            "id, tipo, categoria, titulo, resumo, descricao, imovel_id, proprietario_id, inquilino_id, responsavel_id, prioridade, status, origem, risco, proxima_acao, observacoes, data_abertura, data_prazo, data_conclusao, created_at",
+          )
+          .eq("ativo", true)
+          .eq("imovel_id", filtroImovel)
+          .gte("data_abertura", `${anoHistorico}-01-01`)
+          .lte("data_abertura", `${anoHistorico}-12-31`)
+          .order("data_abertura", { ascending: false })
+      : Promise.resolve({ data: [], error: null }),
   ]);
 
   const casos = (casosResult.data ?? []) as CasoOperacional[];
@@ -386,11 +442,13 @@ export default async function ManutencoesPage({
   const proprietarios = (proprietariosResult.data ?? []) as CadastroBasico[];
   const inquilinos = (inquilinosResult.data ?? []) as CadastroBasico[];
   const corretores = (corretoresResult.data ?? []) as CadastroBasico[];
+  const historicoAnual = (historicoAnualResult.data ?? []) as CasoOperacional[];
   const memories = ((memoriesResult ?? []) as UCEMemory[]).filter(
     (memory) => memory.source === "crm_manutencoes",
   );
   const casoEmEdicao = casos.find((caso) => caso.id === editId) ?? null;
   const casoDestaque = casoEmEdicao ?? casos[0] ?? null;
+  const imovelHistorico = imoveis.find((imovel) => imovel.id === filtroImovel) ?? null;
 
   const imoveisPorId = new Map(imoveis.map((imovel) => [imovel.id, imovel]));
   const proprietariosPorId = new Map(
@@ -413,8 +471,7 @@ export default async function ManutencoesPage({
   const resumo = [
     {
       titulo: "Solicitacoes abertas",
-      valor: resumoBase.filter((caso) => !["resolvido", "encerrado"].includes(caso.status ?? ""))
-        .length,
+      valor: resumoBase.filter((caso) => isCasoAberto(caso)).length,
       detalhe: "Demandas em acompanhamento",
       icon: ClipboardList,
     },
@@ -457,7 +514,20 @@ export default async function ManutencoesPage({
     imoveisResult.error ||
     proprietariosResult.error ||
     inquilinosResult.error ||
-    corretoresResult.error;
+    corretoresResult.error ||
+    historicoAnualResult.error;
+
+  const historicoPorMes = mesesAno.map((mes, index) => ({
+    mes,
+    itens: historicoAnual.filter((caso) => monthIndexFromDate(caso.data_abertura) === index),
+  }));
+  const resumoHistoricoAnual = {
+    manutencoes: historicoAnual.filter((caso) => caso.tipo === "manutencao").length,
+    conflitos: historicoAnual.filter((caso) => caso.tipo === "conflito").length,
+    abertas: historicoAnual.filter((caso) => isCasoAberto(caso)).length,
+    resolvidas: historicoAnual.filter((caso) => caso.status === "resolvido").length,
+    criticas: historicoAnual.filter((caso) => caso.prioridade === "critica").length,
+  };
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -786,7 +856,10 @@ export default async function ManutencoesPage({
                 Listagem real com filtros, edicao e exclusao logica.
               </p>
             </div>
-            <form className="flex flex-wrap gap-3" action="/dashboard/crm/manutencoes">
+            <form
+              className="grid w-full gap-3 lg:grid-cols-4 xl:grid-cols-6"
+              action="/dashboard/crm/manutencoes"
+            >
               <select
                 name="tipo"
                 defaultValue={filtroTipo}
@@ -796,6 +869,18 @@ export default async function ManutencoesPage({
                 {tipos.map((tipo) => (
                   <option key={tipo} value={tipo}>
                     {labelTexto(tipo)}
+                  </option>
+                ))}
+              </select>
+              <select
+                name="categoria"
+                defaultValue={filtroCategoria}
+                className="rounded-xl border border-[#E8DDCB] bg-white px-3 py-2 text-sm text-[#071E36]"
+              >
+                <option value="">Todas as categorias</option>
+                {[...categoriasManutencao, ...categoriasConflito].map((categoria) => (
+                  <option key={categoria} value={categoria}>
+                    {labelTexto(categoria)}
                   </option>
                 ))}
               </select>
@@ -823,12 +908,96 @@ export default async function ManutencoesPage({
                   </option>
                 ))}
               </select>
+              <select
+                name="risco"
+                defaultValue={filtroRisco}
+                className="rounded-xl border border-[#E8DDCB] bg-white px-3 py-2 text-sm text-[#071E36]"
+              >
+                <option value="">Todos os riscos</option>
+                {opcoesRisco.map((risco) => (
+                  <option key={risco} value={risco}>
+                    {labelTexto(risco)}
+                  </option>
+                ))}
+              </select>
+              <select
+                name="imovel_id"
+                defaultValue={filtroImovel}
+                className="rounded-xl border border-[#E8DDCB] bg-white px-3 py-2 text-sm text-[#071E36]"
+              >
+                <option value="">Todos os imoveis</option>
+                {imoveis.map((imovel) => (
+                  <option key={imovel.id} value={imovel.id}>
+                    {nomeImovel(imovel)}
+                  </option>
+                ))}
+              </select>
+              <select
+                name="inquilino_id"
+                defaultValue={filtroInquilino}
+                className="rounded-xl border border-[#E8DDCB] bg-white px-3 py-2 text-sm text-[#071E36]"
+              >
+                <option value="">Todos os inquilinos</option>
+                {inquilinos.map((inquilino) => (
+                  <option key={inquilino.id} value={inquilino.id}>
+                    {inquilino.nome}
+                  </option>
+                ))}
+              </select>
+              <select
+                name="proprietario_id"
+                defaultValue={filtroProprietario}
+                className="rounded-xl border border-[#E8DDCB] bg-white px-3 py-2 text-sm text-[#071E36]"
+              >
+                <option value="">Todos os proprietarios</option>
+                {proprietarios.map((proprietario) => (
+                  <option key={proprietario.id} value={proprietario.id}>
+                    {proprietario.nome}
+                  </option>
+                ))}
+              </select>
+              <select
+                name="responsavel_id"
+                defaultValue={filtroResponsavel}
+                className="rounded-xl border border-[#E8DDCB] bg-white px-3 py-2 text-sm text-[#071E36]"
+              >
+                <option value="">Todos os responsaveis</option>
+                {corretores.map((corretor) => (
+                  <option key={corretor.id} value={corretor.id}>
+                    {corretor.nome}
+                  </option>
+                ))}
+              </select>
+              <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                Inicio
+                <input
+                  name="periodo_inicio"
+                  type="date"
+                  defaultValue={filtroPeriodoInicio}
+                  className="rounded-xl border border-[#E8DDCB] bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-[#071E36]"
+                />
+              </label>
+              <label className="grid gap-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">
+                Fim
+                <input
+                  name="periodo_fim"
+                  type="date"
+                  defaultValue={filtroPeriodoFim}
+                  className="rounded-xl border border-[#E8DDCB] bg-white px-3 py-2 text-sm font-normal normal-case tracking-normal text-[#071E36]"
+                />
+              </label>
               <button
                 type="submit"
                 className="rounded-xl bg-[#071E36] px-4 py-2 text-sm font-semibold text-white"
               >
                 Filtrar
               </button>
+              <Link
+                href="/dashboard/crm/manutencoes"
+                className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-2 text-center text-sm font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+              >
+                Limpar
+              </Link>
             </form>
           </div>
 
@@ -968,6 +1137,101 @@ export default async function ManutencoesPage({
             </table>
           </div>
         </section>
+
+        {imovelHistorico ? (
+          <section className="mt-6 rounded-3xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <span className="rounded-full border border-[#C89B3C]/35 bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#8B6827]">
+                  Historico anual do imovel
+                </span>
+                <h2 className="mt-4 text-2xl font-semibold text-[#071E36]">
+                  {nomeImovel(imovelHistorico)}
+                </h2>
+                <p className="mt-1 text-sm text-[#64736D]">
+                  Consolidado operacional de {anoHistorico} para manutencoes e conflitos.
+                </p>
+              </div>
+              <span className="rounded-2xl border border-[#E8DDCB] bg-[#F7F3ED] px-4 py-3 text-sm font-semibold text-[#071E36]">
+                Tempo medio de resolucao: placeholder
+              </span>
+            </div>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-3 xl:grid-cols-6">
+              {[
+                ["Manutencoes", resumoHistoricoAnual.manutencoes],
+                ["Conflitos", resumoHistoricoAnual.conflitos],
+                ["Abertas", resumoHistoricoAnual.abertas],
+                ["Resolvidas", resumoHistoricoAnual.resolvidas],
+                ["Criticas", resumoHistoricoAnual.criticas],
+                ["Total no ano", historicoAnual.length],
+              ].map(([titulo, valor]) => (
+                <article
+                  key={String(titulo)}
+                  className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] p-4"
+                >
+                  <strong className="text-2xl font-bold text-[#071E36]">{valor}</strong>
+                  <p className="mt-1 text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6827]">
+                    {titulo}
+                  </p>
+                </article>
+              ))}
+            </div>
+
+            <div className="mt-6 grid gap-4 xl:grid-cols-2">
+              {historicoPorMes.map(({ mes, itens }) => (
+                <article key={mes} className="rounded-2xl border border-[#E8DDCB] bg-[#F7F3ED] p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <h3 className="font-semibold text-[#071E36]">{mes}</h3>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-[#64736D]">
+                      {itens.length} registro{itens.length === 1 ? "" : "s"}
+                    </span>
+                  </div>
+                  <div className="mt-4 space-y-3">
+                    {itens.length === 0 ? (
+                      <p className="rounded-xl border border-dashed border-[#E8DDCB] bg-white px-3 py-4 text-center text-xs text-[#64736D]">
+                        Sem eventos registrados neste mes.
+                      </p>
+                    ) : (
+                      itens.map((caso) => (
+                        <div key={caso.id} className="rounded-xl bg-white p-3 text-sm">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <div>
+                              <p className="font-semibold text-[#071E36]">
+                                {formatarData(caso.data_abertura)} · {labelTexto(caso.tipo)}
+                              </p>
+                              <p className="mt-1 text-[#64736D]">
+                                {caso.categoria || "sem categoria"} · {caso.resumo || caso.titulo}
+                              </p>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                              <span className={prioridadeClassName(caso.prioridade)}>
+                                {labelTexto(caso.prioridade)}
+                              </span>
+                              <span
+                                className={`rounded-full px-3 py-1 text-xs font-semibold ${statusClassName(caso.status)}`}
+                              >
+                                {labelTexto(caso.status)}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="mt-2 text-xs text-[#64736D]">
+                            Responsavel: {corretoresPorId.get(caso.responsavel_id ?? "") ?? "-"}
+                          </p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        ) : (
+          <section className="mt-6 rounded-3xl border border-dashed border-[#E8DDCB] bg-white p-6 text-sm text-[#64736D] shadow-sm">
+            Selecione um imovel nos filtros para visualizar o historico anual de
+            manutencoes, conflitos, criticidade e linha do tempo mensal.
+          </section>
+        )}
 
         {casoDestaque ? (
           <section className="mt-6 grid gap-6 xl:grid-cols-4">

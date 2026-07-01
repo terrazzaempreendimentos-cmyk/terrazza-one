@@ -5,7 +5,7 @@ import { CalendarDays } from "lucide-react";
 
 import { AgendaTask, TaskCard } from "./TaskCard";
 
-const diasSemana = ["SEG", "TER", "QUA", "QUI", "SEX", "SÁB", "DOM"];
+const diasSemana = ["SEG", "TER", "QUA", "QUI", "SEX", "SAB", "DOM"];
 
 function parseDateKey(dateKey: string) {
   return new Date(`${dateKey}T00:00:00.000Z`);
@@ -48,10 +48,18 @@ type AgendaSemanalProps = {
 };
 
 export function AgendaSemanal({ tarefas, hoje }: AgendaSemanalProps) {
+  const [semanaOffset, setSemanaOffset] = useState(0);
   const [diaSelecionado, setDiaSelecionado] = useState(hoje);
 
+  const semanaBase = useMemo(() => {
+    const data = parseDateKey(hoje);
+    data.setUTCDate(data.getUTCDate() + semanaOffset * 7);
+
+    return toDateKey(data);
+  }, [hoje, semanaOffset]);
+
   const dias = useMemo(() => {
-    const inicio = inicioSemana(hoje);
+    const inicio = inicioSemana(semanaBase);
 
     return diasSemana.map((label, index) => {
       const data = new Date(inicio);
@@ -65,7 +73,7 @@ export function AgendaSemanal({ tarefas, hoje }: AgendaSemanalProps) {
         contador: tarefas.filter((tarefa) => tarefa.data === dateKey).length,
       };
     });
-  }, [hoje, tarefas]);
+  }, [semanaBase, tarefas]);
 
   const tarefasSelecionadas = useMemo(
     () => ordenarPorHora(tarefas.filter((tarefa) => tarefa.data === diaSelecionado)),
@@ -73,12 +81,18 @@ export function AgendaSemanal({ tarefas, hoje }: AgendaSemanalProps) {
   );
 
   const totalDaSemana = useMemo(
-    () =>
-      dias.reduce((total, dia) => {
-        return total + dia.contador;
-      }, 0),
+    () => dias.reduce((total, dia) => total + dia.contador, 0),
     [dias],
   );
+
+  function selecionarSemana(offset: number) {
+    const data = parseDateKey(hoje);
+    data.setUTCDate(data.getUTCDate() + offset * 7);
+    const primeiroDia = toDateKey(inicioSemana(toDateKey(data)));
+
+    setSemanaOffset(offset);
+    setDiaSelecionado(offset === 0 ? hoje : primeiroDia);
+  }
 
   return (
     <section className="mt-8 rounded-[2rem] border border-[#E8DDCB] bg-white/85 p-5 shadow-sm backdrop-blur-sm sm:p-6">
@@ -95,7 +109,7 @@ export function AgendaSemanal({ tarefas, hoje }: AgendaSemanalProps) {
               Tarefas por dia
             </h2>
             <p className="mt-1 text-sm leading-6 text-[#64736D]">
-              Selecione um dia para filtrar visualmente as tarefas já carregadas.
+              Use os botoes de semana para atualizar as datas e tarefas exibidas.
             </p>
           </div>
         </div>
@@ -103,24 +117,24 @@ export function AgendaSemanal({ tarefas, hoje }: AgendaSemanalProps) {
         <div className="flex flex-wrap gap-2 text-sm font-semibold">
           <button
             type="button"
+            onClick={() => selecionarSemana(semanaOffset - 1)}
             className="rounded-xl border border-[#E8DDCB] bg-[#F7F3ED] px-3 py-2 text-[#64736D] transition hover:border-[#C89B3C]/35 hover:text-[#071E36]"
-            aria-label="Semana anterior preparada para evolução futura"
           >
-            ◀ Semana anterior
+            Semana anterior
           </button>
           <button
             type="button"
-            onClick={() => setDiaSelecionado(hoje)}
+            onClick={() => selecionarSemana(0)}
             className="rounded-xl border border-[#C89B3C]/35 bg-[#C89B3C]/10 px-3 py-2 text-[#8B6827] transition hover:bg-[#C89B3C]/15"
           >
-            Semana Atual
+            Semana atual
           </button>
           <button
             type="button"
+            onClick={() => selecionarSemana(semanaOffset + 1)}
             className="rounded-xl border border-[#E8DDCB] bg-[#F7F3ED] px-3 py-2 text-[#64736D] transition hover:border-[#C89B3C]/35 hover:text-[#071E36]"
-            aria-label="Semana seguinte preparada para evolução futura"
           >
-            Semana seguinte ▶
+            Proxima semana
           </button>
         </div>
       </div>
@@ -175,7 +189,7 @@ export function AgendaSemanal({ tarefas, hoje }: AgendaSemanalProps) {
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold text-[#071E36]">
-            {formatarDiaMes(diaSelecionado)} · {tarefasSelecionadas.length} tarefa
+            {formatarDiaMes(diaSelecionado)} - {tarefasSelecionadas.length} tarefa
             {tarefasSelecionadas.length === 1 ? "" : "s"}
           </h3>
           <p className="mt-1 text-sm text-[#64736D]">
