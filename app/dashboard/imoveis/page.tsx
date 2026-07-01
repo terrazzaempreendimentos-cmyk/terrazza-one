@@ -143,13 +143,14 @@ type Imovel = {
 };
 
 const abas = [
-  ["dados", "Dados gerais"],
+  ["dados", "Dados Gerais"],
   ["localizacao", "Localizacao"],
   ["proprietarios", "Proprietarios"],
+  ["comercial", "Comercial"],
   ["financeiro", "Financeiro"],
   ["caracteristicas", "Caracteristicas"],
   ["documentacao", "Documentacao"],
-  ["midia", "Midia"],
+  ["midia", "Fotos e Midia"],
   ["publicacao", "Publicacao"],
   ["relacionamentos", "Relacionamentos"],
   ["timeline", "Timeline"],
@@ -183,6 +184,21 @@ const canaisPublicacao = [
   ["olx", "OLX"],
   ["viva_real", "Viva Real"],
   ["zap", "Zap"],
+];
+
+const caracteristicasComplementares = [
+  "Closet",
+  "Escritorio",
+  "Deposito",
+  "Dependencia",
+  "Despensa",
+  "Lavanderia",
+  "Home office",
+  "Home theater",
+  "Adega",
+  "Area gourmet",
+  "Jardim",
+  "Quintal",
 ];
 
 function paramValue(searchParams: SearchParams, key: string) {
@@ -738,6 +754,7 @@ export default async function ImoveisPage({
     const textoBusca = normalizarTexto(
       [
         imovel.codigo,
+        imovel.complemento,
         imovel.titulo,
         imovel.tipo,
         imovel.bairro,
@@ -844,7 +861,7 @@ export default async function ImoveisPage({
               name="busca"
               defaultValue={busca}
               className={`${inputClass()} lg:col-span-2`}
-              placeholder="Codigo, titulo, bairro, proprietario, responsavel..."
+              placeholder="Codigo, complemento, titulo, bairro, proprietario, responsavel..."
             />
             <input name="tipo" defaultValue={filtroTipo} className={inputClass()} placeholder="Tipo" />
             <input
@@ -997,6 +1014,13 @@ export default async function ImoveisPage({
                   .filter(Boolean)[0] ||
                 (imovel.proprietario_id ? legadosPorId.get(imovel.proprietario_id) : "") ||
                 "Sem proprietario";
+              const compartilharHref = `mailto:?subject=${encodeURIComponent(
+                `Imovel ${imovel.codigo || tituloImovel(imovel)}`,
+              )}&body=${encodeURIComponent(
+                `${tituloImovel(imovel)}\n${imovel.bairro || "-"} - ${
+                  imovel.cidade || "-"
+                }\nValor: ${formatarMoeda(valorPrincipal(imovel))}`,
+              )}`;
 
               return (
                 <article
@@ -1084,13 +1108,12 @@ export default async function ImoveisPage({
                           Duplicar
                         </button>
                       </form>
-                      <button
-                        type="button"
-                        disabled
-                        className="rounded-full border border-[#E8DDCB] px-3 py-1 text-xs font-semibold text-[#8B6827] opacity-70"
+                      <Link
+                        href={compartilharHref}
+                        className="rounded-full border border-[#E8DDCB] px-3 py-1 text-xs font-semibold text-[#8B6827] hover:bg-[#F7F3ED]"
                       >
                         Compartilhar
-                      </button>
+                      </Link>
                       <form action={excluirImovel}>
                         <input type="hidden" name="id" value={imovel.id} />
                         <ConfirmSubmitButton
@@ -1142,6 +1165,16 @@ export default async function ImoveisPage({
                 required
                 defaultValue={fieldValue(imovelEmEdicao?.codigo)}
                 className={inputClass()}
+              />
+            </label>
+            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+              Complemento
+              <input
+                name="complemento"
+                required
+                defaultValue={fieldValue(imovelEmEdicao?.complemento)}
+                className={inputClass()}
+                placeholder="Apto 402, sala 12, casa principal..."
               />
             </label>
             <Field label="Titulo" name="titulo" defaultValue={imovelEmEdicao?.titulo} />
@@ -1207,11 +1240,11 @@ export default async function ImoveisPage({
                   cep: imovelEmEdicao?.cep,
                   endereco: imovelEmEdicao?.endereco,
                   numero: imovelEmEdicao?.numero,
-                  complemento: imovelEmEdicao?.complemento,
                   bairro: imovelEmEdicao?.bairro,
                   cidade: imovelEmEdicao?.cidade,
                   estado: imovelEmEdicao?.estado,
                 }}
+                showComplemento={false}
               />
             </div>
             <Field label="Latitude" name="latitude" type="number" defaultValue={imovelEmEdicao?.latitude} />
@@ -1289,6 +1322,47 @@ export default async function ImoveisPage({
             </div>
           </Section>
 
+          <Section id="comercial" title="Comercial">
+            <div className="md:col-span-3 grid gap-4 lg:grid-cols-3">
+              {[
+                [
+                  "Posicionamento",
+                  imovelEmEdicao?.finalidade || "Defina a finalidade nos Dados Gerais.",
+                  "Venda, locacao, temporada, administracao ou investimento.",
+                ],
+                [
+                  "Disponibilidade",
+                  imovelEmEdicao?.status || "rascunho",
+                  "Status comercial exibido na listagem e nos filtros operacionais.",
+                ],
+                [
+                  "Responsavel",
+                  corretoresPorId.get(imovelEmEdicao?.responsavel_id ?? "") || "Sem responsavel",
+                  "Corretor ou equipe responsavel pela captacao e andamento.",
+                ],
+              ].map(([title, value, description]) => (
+                <div key={title} className="rounded-2xl border border-[#E8DDCB] bg-[#F7F3ED] p-5">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8B6827]">
+                    {title}
+                  </p>
+                  <p className="mt-3 text-lg font-bold text-[#071E36]">{value}</p>
+                  <p className="mt-2 text-sm leading-6 text-[#64736D]">{description}</p>
+                </div>
+              ))}
+            </div>
+            <div className="md:col-span-3 rounded-2xl border border-[#E8DDCB] bg-white p-5">
+              <h3 className="text-sm font-semibold uppercase tracking-[0.16em] text-[#8B6827]">
+                Leitura comercial
+              </h3>
+              <p className="mt-3 text-sm leading-6 text-[#64736D]">
+                Esta aba separa a estrategia comercial dos valores financeiros. Use
+                os campos de dados gerais para ajustar finalidade, status, origem,
+                exclusividade e responsavel; o financeiro fica reservado para
+                precificacao, taxas e comissoes.
+              </p>
+            </div>
+          </Section>
+
           <Section id="financeiro" title="Financeiro">
             <Field label="Valor venda" name="valor_venda" type="number" defaultValue={imovelEmEdicao?.valor_venda} />
             <Field label="Valor locacao" name="valor_locacao" type="number" defaultValue={imovelEmEdicao?.valor_locacao ?? imovelEmEdicao?.aluguel_pretendido} />
@@ -1325,6 +1399,25 @@ export default async function ImoveisPage({
                   defaultChecked={Boolean(imovelEmEdicao?.[name as keyof Imovel])}
                 />
               ))}
+            </div>
+            <div className="md:col-span-3 rounded-2xl border border-dashed border-[#C89B3C]/45 bg-[#FFFCF7] p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8B6827]">
+                Caracteristicas complementares
+              </p>
+              <p className="mt-2 text-sm leading-6 text-[#64736D]">
+                Itens preparados para a evolucao do modulo sem alterar o banco
+                nesta sprint.
+              </p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {caracteristicasComplementares.map((label) => (
+                  <span
+                    key={label}
+                    className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36]"
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
             </div>
           </Section>
 
@@ -1459,13 +1552,29 @@ export default async function ImoveisPage({
           </Section>
 
           <div className="sticky bottom-4 z-10 flex flex-wrap justify-end gap-3 rounded-2xl border border-[#E8DDCB] bg-white/95 p-4 shadow-lg backdrop-blur">
+            <Link
+              href="/dashboard/imoveis"
+              className="rounded-xl border border-[#E8DDCB] px-5 py-3 text-sm font-semibold text-[#071E36] hover:bg-[#F7F3ED]"
+            >
+              Cancelar
+            </Link>
             {imovelEmEdicao ? (
-              <Link
-                href="/dashboard/imoveis"
-                className="rounded-xl border border-[#E8DDCB] px-5 py-3 text-sm font-semibold text-[#071E36] hover:bg-[#F7F3ED]"
-              >
-                Cancelar edicao
-              </Link>
+              <>
+                <button
+                  type="submit"
+                  formAction={duplicarImovel}
+                  className="rounded-xl border border-[#E8DDCB] px-5 py-3 text-sm font-semibold text-[#071E36] hover:bg-[#F7F3ED]"
+                >
+                  Duplicar
+                </button>
+                <ConfirmSubmitButton
+                  formAction={excluirImovel}
+                  message="Confirmar exclusao logica deste imovel?"
+                  className="rounded-xl border border-red-100 bg-red-50 px-5 py-3 text-sm font-semibold text-red-700 hover:bg-red-100"
+                >
+                  Excluir
+                </ConfirmSubmitButton>
+              </>
             ) : null}
             <button
               type="submit"

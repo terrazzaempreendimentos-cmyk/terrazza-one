@@ -29,10 +29,11 @@ O cadastro foi organizado em secoes/abas operacionais:
 - Dados gerais.
 - Localizacao.
 - Proprietarios.
+- Comercial.
 - Financeiro.
 - Caracteristicas.
 - Documentacao.
-- Midia.
+- Fotos e Midia.
 - Publicacao.
 - Relacionamentos.
 - Timeline.
@@ -41,12 +42,15 @@ O cadastro foi organizado em secoes/abas operacionais:
 
 Essa organizacao evita formularios gigantes e aproxima o CRM de uma experiencia corporativa.
 
+Na fase final, a aba Comercial foi separada da aba Financeiro. Comercial organiza posicionamento, disponibilidade, origem, responsavel e leitura operacional; Financeiro fica dedicado a valores, taxas, comissoes e condicoes de negociacao.
+
 ## Listagem
 
 A listagem passa a usar cards premium com:
 
 - Foto ou placeholder.
 - Codigo.
+- Complemento.
 - Titulo.
 - Bairro e cidade.
 - Valor principal.
@@ -62,6 +66,8 @@ A listagem passa a usar cards premium com:
 
 A busca considera codigo, titulo, bairro, cidade, proprietario, responsavel, status, finalidade e tipo.
 
+Na fase final, a busca tambem considera complemento, para localizar rapidamente unidades, salas, apartamentos e referencias internas.
+
 Os filtros incluem tipo, finalidade, cidade, bairro, faixa de valor, dormitorios, garagem, piscina, pet, condominio, status e responsavel.
 
 ## CRUD
@@ -73,6 +79,9 @@ O modulo suporta:
 - Excluir logicamente com `ativo=false`.
 - Duplicar imovel.
 - Visualizar resumo operacional.
+- Compartilhar dados essenciais por acao simples de e-mail, sem integracao externa.
+
+Na edicao, o rodape fixo concentra as acoes operacionais: Cancelar, Salvar, Duplicar e Excluir logicamente.
 
 ## Campos profissionais e unicidade
 
@@ -87,6 +96,12 @@ O cadastro profissional de imoveis usa regras de consistencia antes de salvar e 
 - Exclusao operacional segue o padrao de exclusao logica com `ativo=false`.
 
 Caso o banco bloqueie uma duplicidade por indice unico, a tela deve apresentar mensagem clara para codigo ou matricula duplicada.
+
+## Caracteristicas complementares
+
+A tela ja apresenta caracteristicas estruturais salvas no cadastro atual, como piscina, academia, varanda, churrasqueira, energia solar, mobiliado, aceita pet, portaria, vista mar, frente mar e acessibilidade.
+
+Tambem exibe uma area de caracteristicas complementares preparada para evolucao futura, incluindo closet, escritorio, deposito, dependencia, despensa, lavanderia, home office, home theater, adega, area gourmet, jardim e quintal. Esses itens aparecem como preparacao visual e nao criam novas colunas nesta fase.
 
 ## Integracoes futuras
 
@@ -111,3 +126,5 @@ supabase/sql/015_expand_imoveis_premium.sql
 ```
 
 O SQL adiciona colunas premium em `imoveis`, cria `imovel_proprietarios` e adiciona indices operacionais.
+
+Para a fase final desta sprint, nao ha SQL novo. A tela usa a estrutura premium ja prevista e respeita as restricoes de codigo, complemento e matricula.

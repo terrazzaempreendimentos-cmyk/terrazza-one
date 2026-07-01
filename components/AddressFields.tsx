@@ -16,6 +16,7 @@ type AddressFieldsProps = {
     estado?: string | null;
   };
   complementoRequired?: boolean;
+  showComplemento?: boolean;
   className?: string;
 };
 
@@ -26,6 +27,7 @@ function inputClass() {
 export function AddressFields({
   defaultValues,
   complementoRequired = false,
+  showComplemento = true,
   className = "grid gap-4 md:grid-cols-4",
 }: AddressFieldsProps) {
   const [cep, setCep] = useState(defaultValues?.cep ?? "");
@@ -86,15 +88,17 @@ export function AddressFields({
           className={inputClass()}
         />
       </label>
-      <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-        Complemento
-        <input
-          name="complemento"
-          required={complementoRequired}
-          defaultValue={defaultValues?.complemento ?? ""}
-          className={inputClass()}
-        />
-      </label>
+      {showComplemento ? (
+        <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+          Complemento
+          <input
+            name="complemento"
+            required={complementoRequired}
+            defaultValue={defaultValues?.complemento ?? ""}
+            className={inputClass()}
+          />
+        </label>
+      ) : null}
       <label className="grid gap-2 text-sm font-medium text-[#102A27]">
         Bairro
         <input
