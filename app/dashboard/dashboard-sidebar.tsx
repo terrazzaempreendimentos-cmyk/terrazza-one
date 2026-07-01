@@ -72,7 +72,7 @@ const menuGroups: MenuGroup[] = [
     id: "dashboard",
     title: "Dashboard",
     icon: LayoutDashboard,
-    links: [{ label: "Visão Geral", href: "/dashboard", icon: Gauge }],
+    links: [{ label: "Visao Geral", href: "/dashboard", icon: Gauge }],
   },
   {
     id: "cadastros",
@@ -80,16 +80,11 @@ const menuGroups: MenuGroup[] = [
     icon: Building2,
     links: [
       { label: "Pessoas", href: "/dashboard/pessoas", icon: UserCog },
-      { label: "Proprietários", href: "/dashboard/proprietarios", icon: UsersRound },
+      { label: "Proprietarios", href: "/dashboard/proprietarios", icon: UsersRound },
       { label: "Inquilinos", href: "/dashboard/inquilinos", icon: KeyRound },
-      { label: "Imóveis", href: "/dashboard/imoveis", icon: Home },
+      { label: "Imoveis", href: "/dashboard/imoveis", icon: Home },
       { label: "Corretores", href: "/dashboard/crm/corretores", icon: ShieldCheck },
-      {
-        label: "Parceiros",
-        icon: Link2,
-        disabled: true,
-        badge: "Em breve",
-      },
+      { label: "Parceiros", icon: Link2, disabled: true, badge: "Em breve" },
     ],
   },
   {
@@ -97,10 +92,10 @@ const menuGroups: MenuGroup[] = [
     title: "CRM",
     icon: Sparkles,
     links: [
-      { label: "VisÃ£o Geral", href: "/dashboard/crm", icon: Sparkles },
+      { label: "Visao Geral", href: "/dashboard/crm", icon: Sparkles },
       { label: "Leads", href: "/dashboard/crm/leads", icon: UsersRound },
       { label: "Atendimentos", href: "/dashboard/crm/atendimentos", icon: MessageSquareText },
-      { label: "NegÃ³cios", href: "/dashboard/crm/negocios", icon: LineChart },
+      { label: "Negocios", href: "/dashboard/crm/negocios", icon: LineChart },
       { label: "Kanban", href: "/dashboard/crm/kanban", icon: BarChart3 },
       { label: "Agenda Inteligente", href: "/dashboard/crm/agenda", icon: ClipboardCheck },
       { label: "Timeline", href: "/dashboard/crm/timeline", icon: ScrollText },
@@ -115,81 +110,40 @@ const menuGroups: MenuGroup[] = [
     icon: Brain,
     links: [
       { label: "IA Comercial", href: "/dashboard/crm/ia", icon: Bot },
-      {
-        label: "UCE Conhecimento",
-        href: "/dashboard/crm/ia/conhecimento",
-        icon: BookOpen,
-      },
-      {
-        label: "UCE Memória",
-        href: "/dashboard/crm/ia/memorias",
-        icon: Brain,
-      },
-      {
-        label: "UCE Correspondências",
-        icon: MailCheck,
-        disabled: true,
-        badge: "Em breve",
-      },
-      {
-        label: "UCE Analytics",
-        icon: Activity,
-        disabled: true,
-        badge: "Em breve",
-      },
+      { label: "UCE Conhecimento", href: "/dashboard/crm/ia/conhecimento", icon: BookOpen },
+      { label: "UCE Memoria", href: "/dashboard/crm/ia/memorias", icon: Brain },
+      { label: "UCE Correspondencias", icon: MailCheck, disabled: true, badge: "Em breve" },
+      { label: "UCE Aprendizado", icon: Activity, disabled: true, badge: "Em breve" },
+      { label: "UCE Perfil", icon: Activity, disabled: true, badge: "Em breve" },
     ],
   },
   {
     id: "inteligencia",
-    title: "Inteligência",
+    title: "Inteligencia",
     icon: LineChart,
     links: [
       { label: "Dashboard Executivo", icon: LineChart, disabled: true, badge: "Em breve" },
       { label: "Indicadores", icon: Gauge, disabled: true, badge: "Em breve" },
-      { label: "Conversão", icon: BarChart3, disabled: true, badge: "Em breve" },
-      {
-        label: "Performance Comercial",
-        icon: Activity,
-        disabled: true,
-        badge: "Em breve",
-      },
-      { label: "Relatórios", icon: FileText, disabled: true, badge: "Em breve" },
+      { label: "Conversao", icon: BarChart3, disabled: true, badge: "Em breve" },
+      { label: "Performance Comercial", icon: Activity, disabled: true, badge: "Em breve" },
+      { label: "Relatorios", icon: FileText, disabled: true, badge: "Em breve" },
     ],
   },
   {
     id: "administracao",
-    title: "Administração",
+    title: "Administracao",
     icon: Settings,
     links: [
-      { label: "Configurações", href: "/dashboard/configuracoes", icon: Settings },
-      { label: "Usuários", icon: UserCog, disabled: true, badge: "Em breve" },
+      { label: "Configuracoes", href: "/dashboard/configuracoes", icon: Settings },
+      { label: "Usuarios", icon: UserCog, disabled: true, badge: "Em breve" },
       { label: "Perfis", icon: ShieldCheck, disabled: true, badge: "Em breve" },
-      {
-        label: "Integrações",
-        icon: SlidersHorizontal,
-        disabled: true,
-        badge: "Em breve",
-      },
-      { type: "divider", label: "Laboratório UCE" },
-      {
-        label: "Simulador IA",
-        href: "/dashboard/crm/ia/simulador",
-        icon: MessageSquareText,
-      },
-      { label: "Diagnóstico", icon: Gauge, disabled: true, badge: "Em breve" },
+      { label: "Integracoes", icon: SlidersHorizontal, disabled: true, badge: "Em breve" },
+      { type: "divider", label: "Laboratorio UCE" },
+      { label: "Simulador IA", href: "/dashboard/crm/ia/simulador", icon: MessageSquareText },
+      { label: "Diagnostico", icon: Gauge, disabled: true, badge: "Em breve" },
       { label: "Logs", icon: ListChecks, disabled: true, badge: "Em breve" },
-      {
-        label: "Testes OpenAI",
-        icon: FlaskConical,
-        disabled: true,
-        badge: "Em breve",
-      },
-      {
-        label: "Guardrails",
-        icon: ShieldCheck,
-        disabled: true,
-        badge: "Em breve",
-      },
+      { label: "Testes OpenAI", icon: FlaskConical, disabled: true, badge: "Em breve" },
+      { label: "Guardrails", icon: ShieldCheck, disabled: true, badge: "Em breve" },
     ],
   },
 ];
@@ -216,13 +170,10 @@ function getStoredOpenGroups() {
   if (!storedGroups) {
     cachedOpenGroupsRaw = null;
     cachedOpenGroupsSnapshot = DEFAULT_OPEN_GROUPS;
-
     return cachedOpenGroupsSnapshot;
   }
 
-  if (storedGroups === cachedOpenGroupsRaw) {
-    return cachedOpenGroupsSnapshot;
-  }
+  if (storedGroups === cachedOpenGroupsRaw) return cachedOpenGroupsSnapshot;
 
   try {
     cachedOpenGroupsRaw = storedGroups;
@@ -230,12 +181,10 @@ function getStoredOpenGroups() {
       ...DEFAULT_OPEN_GROUPS,
       ...JSON.parse(storedGroups),
     };
-
     return cachedOpenGroupsSnapshot;
   } catch {
     cachedOpenGroupsRaw = null;
     cachedOpenGroupsSnapshot = DEFAULT_OPEN_GROUPS;
-
     return cachedOpenGroupsSnapshot;
   }
 }
@@ -252,7 +201,6 @@ function subscribeOpenGroups(onStoreChange: () => void) {
 
 function isLinkActive(pathname: string, href: string) {
   if (href === "/dashboard") return pathname === href;
-
   return pathname === href || pathname.startsWith(`${href}/`);
 }
 
@@ -309,7 +257,7 @@ export function DashboardSidebar() {
         <Link href="/dashboard" className="block">
           <Image
             src="/terrazza-logo.png"
-            alt="Terrazza Soluções Imobiliárias"
+            alt="Terrazza Solucoes Imobiliarias"
             width={900}
             height={520}
             priority
@@ -349,9 +297,7 @@ export function DashboardSidebar() {
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-white/[0.06] text-[#E1B866]">
                     <Icon size={17} strokeWidth={2.2} />
                   </span>
-                  <span className="truncate text-sm font-semibold">
-                    {group.title}
-                  </span>
+                  <span className="truncate text-sm font-semibold">{group.title}</span>
                 </span>
                 {isOpen ? (
                   <ChevronDown size={16} strokeWidth={2.2} />
@@ -400,11 +346,7 @@ export function DashboardSidebar() {
                       const active = isLinkActive(pathname, link.href);
 
                       return (
-                        <Link
-                          key={link.href}
-                          href={link.href}
-                          className={subitemClassName(active)}
-                        >
+                        <Link key={link.href} href={link.href} className={subitemClassName(active)}>
                           <span
                             className={[
                               "absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full transition duration-300",
@@ -417,9 +359,7 @@ export function DashboardSidebar() {
                             className={active ? "text-[#E1B866]" : "text-white/45"}
                           />
                           <span className="min-w-0 flex-1 truncate">{link.label}</span>
-                          {link.badge ? (
-                            <span className={badgeClassName()}>{link.badge}</span>
-                          ) : null}
+                          {link.badge ? <span className={badgeClassName()}>{link.badge}</span> : null}
                         </Link>
                       );
                     })}

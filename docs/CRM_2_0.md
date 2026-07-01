@@ -292,3 +292,30 @@ Agenda organiza compromissos com data. Timeline registra historico operacional. 
 Roleta Inteligente segue como distribuicao manual assistida nesta etapa, usando lista unificada de corretores e mantendo historico visual da distribuicao.
 
 Documento complementar: `docs/MODULO_CRM_COMERCIAL.md`.
+
+## UX-01 - Polimento Geral do Produto
+
+O UX-01 padroniza a experiencia visual e operacional do Terrazza One sem alterar regras de negocio, banco, UCE, OpenAI, n8n ou WhatsApp.
+
+### Padrao visual
+
+As paginas principais devem usar cabecalho consistente com badge de modulo, titulo claro, subtitulo curto e acao principal destacada. Cards, filtros, listas, formularios e estados vazios devem seguir a identidade premium da Terrazza: fundo claro sofisticado, azul profundo, dourado discreto, cards brancos, bordas suaves e sombras leves.
+
+### Menu e nomenclatura
+
+O menu segue a ordem final:
+
+- Dashboard.
+- Cadastros.
+- CRM.
+- UCE.
+- Inteligencia.
+- Administracao.
+
+Cadastros prioriza Pessoas, Proprietarios, Inquilinos, Imoveis, Corretores e Parceiros. CRM organiza Visao Geral, Leads, Atendimentos, Negocios, Kanban, Agenda Inteligente, Timeline, Atividades, Roleta Inteligente e Manutencoes e Conflitos.
+
+### Principio operacional
+
+O CRM deve ser util mesmo sem IA. UCE, OpenAI e automacoes futuras podem enriquecer o contexto, mas a operacao comercial precisa continuar clara, navegavel e profissional por si so.
+
+Documento complementar: `docs/UX_PADRAO_TERRAZZA.md`.
