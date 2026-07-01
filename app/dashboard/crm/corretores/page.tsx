@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
+import { CreciValidationForm } from "./CreciValidationForm";
 import {
   addPapel,
   hasPapel,
@@ -67,6 +68,7 @@ export default async function CorretoresPage({
   const editId = paramValue(resolvedSearchParams, "edit") ?? "";
   const busca = paramValue(resolvedSearchParams, "busca") ?? "";
   const filtroStatus = paramValue(resolvedSearchParams, "status") ?? "";
+  const errorCode = paramValue(resolvedSearchParams, "error") ?? "";
 
   async function salvarCorretor(formData: FormData) {
     "use server";
@@ -82,7 +84,7 @@ export default async function CorretoresPage({
       ? await supabase.from("pessoas").select("papeis").eq("id", id).single()
       : { data: null };
 
-    const creci = valorTexto(formData, "creci");
+    const creci = valorTexto(formData, "creci").trim();
 
     if (creci) {
       const { data: corretoresAtivos, error: creciError } = await supabase
@@ -103,7 +105,7 @@ export default async function CorretoresPage({
       );
 
       if (creciJaExiste) {
-        throw new Error("Ja existe um corretor ativo com este CRECI.");
+        redirect("/dashboard/crm/corretores?error=creci_duplicado");
       }
     }
 
@@ -127,7 +129,16 @@ export default async function CorretoresPage({
       : await supabase.from("pessoas").insert(payload);
 
     if (error) {
-      throw new Error("Não foi possível salvar o corretor.");
+      const mensagem = `${error.message ?? ""} ${error.code ?? ""}`.toLowerCase();
+      if (
+        mensagem.includes("creci") ||
+        mensagem.includes("unique") ||
+        mensagem.includes("duplicate")
+      ) {
+        redirect("/dashboard/crm/corretores?error=creci_indice");
+      }
+
+      throw new Error("Nao foi possivel salvar o corretor.");
     }
 
     revalidatePath("/dashboard/crm/corretores");
@@ -196,6 +207,18 @@ export default async function CorretoresPage({
   });
   const corretorEmEdicao =
     corretores.find((corretor) => corretor.id === editId) ?? null;
+  const crecisAtivos = corretores
+    .filter((corretor) => corretor.ativo && corretor.creci)
+    .map((corretor) => ({
+      id: corretor.id,
+      creci: corretor.creci ?? "",
+    }));
+  const mensagemErro =
+    errorCode === "creci_duplicado"
+      ? "Ja existe um corretor ativo cadastrado com este CRECI."
+      : errorCode === "creci_indice"
+        ? "Nao foi possivel salvar. Este CRECI ja esta cadastrado em outro corretor ativo."
+        : "";
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -259,81 +282,27 @@ export default async function CorretoresPage({
 
         <section className="mt-10 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
           <h2 className="text-xl font-semibold text-[#071E36]">
-            Novo corretor
+            {corretorEmEdicao ? "Editar corretor" : "Novo corretor"}
           </h2>
 
-          <form action={salvarCorretor} className="mt-6 grid gap-5 md:grid-cols-4">
-            <input type="hidden" name="id" value={corretorEmEdicao?.id ?? ""} />
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              Nome
-              <input
-                name="nome"
-                required
-                defaultValue={corretorEmEdicao?.nome ?? ""}
-                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                placeholder="Nome completo"
-              />
-            </label>
+          {mensagemErro ? (
+            <p className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {mensagemErro}
+            </p>
+          ) : null}
 
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              Telefone
-              <input
-                name="telefone"
-                type="tel"
-                defaultValue={corretorEmEdicao?.telefone ?? ""}
-                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                placeholder="(00) 00000-0000"
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              E-mail
-              <input
-                name="email"
-                type="email"
-                defaultValue={corretorEmEdicao?.email ?? ""}
-                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                placeholder="nome@exemplo.com"
-              />
-            </label>
-
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              CRECI
-              <input
-                name="creci"
-                defaultValue={corretorEmEdicao?.creci ?? ""}
-                className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none transition placeholder:text-[#9a9d98] focus:border-[#C89B3C]"
-                placeholder="CRECI"
-              />
-            </label>
-
-            <label className="flex items-center gap-3 self-end rounded-xl border border-[#E8DDCB] px-4 py-3 text-sm font-medium text-[#102A27]">
-              <input
-                name="ativo"
-                type="checkbox"
-                defaultChecked={corretorEmEdicao?.ativo ?? true}
-                className="size-4 accent-[#C89B3C]"
-              />
-              Corretor ativo
-            </label>
-
-            <div className="md:col-span-4">
-              <button
-                type="submit"
-                className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
-              >
-                {corretorEmEdicao ? "Salvar alteracoes" : "Salvar Corretor"}
-              </button>
-              {corretorEmEdicao ? (
-                <Link
-                  href="/dashboard/crm/corretores"
-                  className="ml-3 inline-flex rounded-xl border border-[#E8DDCB] bg-white px-5 py-3 text-sm font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
-                >
-                  Cancelar edicao
-                </Link>
-              ) : null}
-            </div>
-          </form>
+          <CreciValidationForm
+            action={salvarCorretor}
+            crecisAtivos={crecisAtivos}
+            corretor={{
+              id: corretorEmEdicao?.id ?? "",
+              nome: corretorEmEdicao?.nome ?? "",
+              telefone: corretorEmEdicao?.telefone ?? "",
+              email: corretorEmEdicao?.email ?? "",
+              creci: corretorEmEdicao?.creci ?? "",
+              ativo: corretorEmEdicao?.ativo ?? true,
+            }}
+          />
         </section>
 
         <section className="mt-6 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">

@@ -38,6 +38,15 @@ Este documento define o padrao inicial para criacao, listagem, edicao e exclusao
 - `created_at timestamptz default now()`
 - `updated_at timestamptz default now()`
 
+## Campos unicos
+
+- Validar campos unicos tambem na interface antes de salvar, para melhorar a experiencia do usuario.
+- Manter indice unico no banco como garantia final de consistencia.
+- Em edicao, permitir manter o mesmo valor do registro atual e bloquear apenas quando o valor pertencer a outro registro ativo.
+- Normalizar valores antes de comparar, removendo espacos desnecessarios e aplicando padrao consistente quando fizer sentido.
+- Tratar erro de indice unico retornado pelo banco com mensagem clara e discreta.
+- Aplicar futuramente o mesmo padrao em CPF/CNPJ, codigo do imovel e matricula.
+
 ## Regra operacional
 
 O registro deve permanecer recuperavel no banco para historico, auditoria, timeline e memoria futura do UCE.
