@@ -14,23 +14,14 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import {
+  getCorretorUnificadoPorId,
+  getCorretoresUnificados,
+  type CorretorUnificado,
+} from "../../../../lib/crm/corretores/getCorretoresUnificados";
 import { supabase } from "../../../../lib/supabase";
 
 type SearchParams = Record<string, string | string[] | undefined>;
-
-type Corretor = {
-  id: string;
-  nome: string;
-  creci: string | null;
-  ativo: boolean | null;
-  especialidade: string | null;
-  cidade_base: string | null;
-  peso_roleta: number | null;
-  leads_recebidos: number | null;
-  tempo_medio_resposta_min: number | null;
-  taxa_conversao: number | null;
-  disponibilidade: string | null;
-};
 
 type Lead = {
   id: string;
@@ -118,7 +109,7 @@ function formatarTaxa(taxa: number | null) {
   })}%`;
 }
 
-function scoreCorretor(corretor: Corretor) {
+function scoreCorretor(corretor: CorretorUnificado) {
   const conversao = Math.min(Number(corretor.taxa_conversao ?? 0), 100);
   const peso = Math.min(Number(corretor.peso_roleta ?? 1) * 10, 30);
   const disponibilidade = corretor.disponibilidade === "disponivel" ? 20 : 0;
@@ -149,28 +140,16 @@ export default async function RoletaPage({
       throw new Error("Selecione um lead e um corretor para distribuir.");
     }
 
-    const [{ data: lead, error: leadError }, { data: corretor, error: corretorError }] =
-      await Promise.all([
-        supabase.from("leads").select("id, nome").eq("id", leadId).single(),
-        supabase
-          .from("corretores")
-          .select("id, nome, leads_recebidos")
-          .eq("id", corretorId)
-          .single(),
-      ]);
+    const [{ data: lead, error: leadError }, corretoresResult] = await Promise.all([
+      supabase.from("leads").select("id, nome").eq("id", leadId).single(),
+      getCorretoresUnificados(),
+    ]);
 
     if (leadError || !lead) throw new Error("Nao foi possivel localizar o lead selecionado.");
-    if (corretorError || !corretor) throw new Error("Nao foi possivel localizar o corretor selecionado.");
+    if (corretoresResult.error) throw new Error("Nao foi possivel carregar a lista de corretores.");
 
-    const { error: distribuicaoError } = await supabase.from("roleta_distribuicoes").insert({
-      lead_id: leadId,
-      corretor_id: corretorId,
-      criterio: "manual",
-      motivo: "Distribuicao manual assistida pela Roleta Inteligente.",
-      status: "distribuido",
-    });
-
-    if (distribuicaoError) throw new Error("Nao foi possivel registrar a distribuicao.");
+    const corretor = getCorretorUnificadoPorId(corretoresResult.data, corretorId);
+    if (!corretor) throw new Error("Nao foi possivel localizar o corretor selecionado.");
 
     const { error: leadUpdateError } = await supabase
       .from("leads")
@@ -179,13 +158,35 @@ export default async function RoletaPage({
 
     if (leadUpdateError) throw new Error("Nao foi possivel atualizar o lead distribuido.");
 
-    const leadsRecebidos = Number(corretor.leads_recebidos ?? 0) + 1;
-    const { error: corretorUpdateError } = await supabase
-      .from("corretores")
-      .update({ leads_recebidos: leadsRecebidos })
-      .eq("id", corretorId);
+    if (corretor.origem === "corretores") {
+      const { error: distribuicaoError } = await supabase.from("roleta_distribuicoes").insert({
+        lead_id: leadId,
+        corretor_id: corretor.sourceId,
+        criterio: "manual",
+        motivo: "Distribuicao manual assistida pela Roleta Inteligente.",
+        status: "distribuido",
+      });
 
-    if (corretorUpdateError) throw new Error("Nao foi possivel atualizar os indicadores do corretor.");
+      if (distribuicaoError) throw new Error("Nao foi possivel registrar a distribuicao.");
+
+      const leadsRecebidos = Number(corretor.leads_recebidos ?? 0) + 1;
+      const { error: corretorUpdateError } = await supabase
+        .from("corretores")
+        .update({ leads_recebidos: leadsRecebidos })
+        .eq("id", corretor.sourceId);
+
+      if (corretorUpdateError) throw new Error("Nao foi possivel atualizar os indicadores do corretor.");
+    } else {
+      const { error: distribuicaoError } = await supabase.from("roleta_distribuicoes").insert({
+        lead_id: leadId,
+        corretor_id: null,
+        criterio: "manual",
+        motivo: `Distribuicao manual para ${corretor.nome} do Cadastro Universal.`,
+        status: "distribuido",
+      });
+
+      if (distribuicaoError) throw new Error("Nao foi possivel registrar a distribuicao.");
+    }
 
     const descricao = `Lead ${lead.nome} distribuido para corretor ${corretor.nome}`;
     const { error: timelineError } = await supabase.from("timeline").insert({
@@ -193,7 +194,7 @@ export default async function RoletaPage({
       titulo: "Lead distribuido",
       descricao,
       lead_id: leadId,
-      corretor_id: corretorId,
+      corretor_id: corretor.origem === "corretores" ? corretor.sourceId : null,
       origem: "roleta_inteligente",
     });
 
@@ -205,13 +206,7 @@ export default async function RoletaPage({
   }
 
   const [corretoresResult, leadsResult, distribuicoesResult] = await Promise.all([
-    supabase
-      .from("corretores")
-      .select(
-        "id, nome, creci, ativo, especialidade, cidade_base, peso_roleta, leads_recebidos, tempo_medio_resposta_min, taxa_conversao, disponibilidade",
-      )
-      .eq("ativo", true)
-      .order("nome", { ascending: true }),
+    getCorretoresUnificados(),
     supabase
       .from("leads")
       .select("id, nome, telefone, tipo_lead, objetivo, cidade, origem, status")
@@ -224,7 +219,7 @@ export default async function RoletaPage({
       .limit(8),
   ]);
 
-  const corretores = (corretoresResult.data ?? []) as Corretor[];
+  const corretores = (corretoresResult.data ?? []) as CorretorUnificado[];
   const leads = (leadsResult.data ?? []) as Lead[];
   const distribuicoes = (distribuicoesResult.data ?? []) as Distribuicao[];
   const erroCarregamento =
@@ -237,7 +232,7 @@ export default async function RoletaPage({
     ),
   ).sort((a, b) => a.localeCompare(b));
   const tiposLead = Array.from(new Set(leads.map((lead) => lead.tipo_lead).filter(Boolean) as string[]));
-  const corretoresPorId = new Map(corretores.map((corretor) => [corretor.id, corretor.nome]));
+  const corretoresPorId = new Map(corretores.map((corretor) => [corretor.sourceId, corretor.nome]));
   const leadsPorId = new Map(leads.map((lead) => [lead.id, lead.nome]));
 
   const corretoresFiltrados = corretores.filter((corretor) => {

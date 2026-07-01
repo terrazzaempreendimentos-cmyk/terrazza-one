@@ -5,6 +5,8 @@ import { useMemo, useState } from "react";
 
 type CorretorFormData = {
   id: string;
+  origem?: string;
+  sourceId?: string;
   nome: string;
   telefone: string;
   email: string;
@@ -54,6 +56,8 @@ export function CreciValidationForm({ action, corretor, crecisAtivos }: Props) {
       }}
     >
       <input type="hidden" name="id" value={corretor.id} />
+      <input type="hidden" name="origem" value={corretor.origem ?? "pessoas"} />
+      <input type="hidden" name="source_id" value={corretor.sourceId ?? corretor.id} />
       <label className="grid gap-2 text-sm font-medium text-[#102A27]">
         Nome
         <input
@@ -137,7 +141,7 @@ export function CreciValidationForm({ action, corretor, crecisAtivos }: Props) {
         </button>
         {corretor.id ? (
           <Link
-            href="/dashboard/crm/corretores"
+            href="/dashboard/corretores"
             className="ml-3 inline-flex rounded-xl border border-[#E8DDCB] bg-white px-5 py-3 text-sm font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
           >
             Cancelar edicao

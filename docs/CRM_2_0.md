@@ -240,3 +240,20 @@ Manutencoes passa a ter filtros operacionais mais completos: imovel, inquilino, 
 ### Historico anual do imovel
 
 Ao selecionar um imovel, a tela de Manutencoes exibe um historico anual com quantidade de manutencoes, conflitos, casos abertos, resolvidos, criticos e uma linha do tempo agrupada por mes. O modulo de Imoveis tambem passa a apontar para esse historico, preparando a administracao para leitura operacional por imovel.
+
+## CRM-2.8.4 - Corretores Unificados
+
+Corretores passa a ser uma visao operacional unificada. A tela consolida pessoas ativas com papel `corretor` e registros ativos da tabela antiga `corretores`.
+
+Pessoas e a base futura do cadastro. A tabela antiga continua existindo por compatibilidade com rotinas, relacionamentos e registros ja criados.
+
+A lista unificada normaliza nome, CRECI, telefone, WhatsApp, email, cidade, status e origem. Quando existe duplicidade por CRECI, a visao prioriza o Cadastro Universal de Pessoas. Quando nao ha CRECI, a deduplicacao tenta usar nome e telefone/WhatsApp.
+
+Cada registro exibe badge de origem:
+
+- Cadastro Universal.
+- Cadastro antigo.
+
+Novos corretores devem nascer como Pessoas com papel `corretor`. Registros antigos ainda podem ser editados ou excluidos logicamente enquanto a migracao definitiva nao acontece.
+
+A Roleta Inteligente usa a mesma lista unificada, garantindo que o corretor visivel em Cadastros tambem esteja disponivel para distribuicao operacional de leads.

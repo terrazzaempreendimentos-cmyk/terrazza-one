@@ -584,12 +584,15 @@ export default async function ImoveisPage({
 
     if (error || !imovelSalvo?.id) {
       const mensagem = `${error?.message ?? ""} ${error?.code ?? ""}`.toLowerCase();
-      if (
-        mensagem.includes("codigo") ||
-        mensagem.includes("matricula") ||
-        mensagem.includes("unique") ||
-        mensagem.includes("duplicate")
-      ) {
+      if (mensagem.includes("matricula")) {
+        redirect("/dashboard/imoveis?error=matricula_duplicada");
+      }
+
+      if (mensagem.includes("codigo")) {
+        redirect("/dashboard/imoveis?error=codigo_duplicado");
+      }
+
+      if (mensagem.includes("unique") || mensagem.includes("duplicate")) {
         redirect("/dashboard/imoveis?error=unicidade_indice");
       }
 
@@ -663,8 +666,9 @@ export default async function ImoveisPage({
     const clone = {
       ...(original as Record<string, unknown>),
       id: undefined,
-      codigo: `${String((original as Imovel).codigo ?? "IMOVEL")}-COPIA`,
+      codigo: `${String((original as Imovel).codigo ?? "IMOVEL")}-COPIA-${Date.now()}`,
       titulo: `${tituloImovel(original as Imovel)} (copia)`,
+      matricula: null,
       status: "rascunho",
       created_at: undefined,
       updated_at: new Date().toISOString(),
@@ -1011,6 +1015,9 @@ export default async function ImoveisPage({
                         <h2 className="mt-2 line-clamp-2 text-lg font-bold text-[#071E36]">
                           {tituloImovel(imovel)}
                         </h2>
+                        <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#64736D]">
+                          Titulo: {imovel.titulo || "-"}
+                        </p>
                       </div>
                       <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold text-[#8B6827]">
                         {imovel.status || "rascunho"}
@@ -1019,6 +1026,16 @@ export default async function ImoveisPage({
                     <p className="mt-3 text-sm text-[#64736D]">
                       {imovel.bairro || "-"} · {imovel.cidade || "-"}
                     </p>
+                    <div className="mt-3 grid gap-2 text-xs text-[#64736D] sm:grid-cols-2">
+                      <span className="rounded-lg bg-[#F7F3ED] px-3 py-2">
+                        <strong className="text-[#071E36]">Complemento:</strong>{" "}
+                        {imovel.complemento || "-"}
+                      </span>
+                      <span className="rounded-lg bg-[#F7F3ED] px-3 py-2">
+                        <strong className="text-[#071E36]">Matricula:</strong>{" "}
+                        {imovel.matricula || "-"}
+                      </span>
+                    </div>
                     <p className="mt-3 text-2xl font-bold text-[#071E36]">
                       {formatarMoeda(valorPrincipal(imovel))}
                     </p>
@@ -1036,6 +1053,12 @@ export default async function ImoveisPage({
                     <div className="mt-4 rounded-xl border border-[#E8DDCB] bg-[#F7F3ED] p-3 text-sm text-[#102A27]">
                       <p>
                         <strong>Proprietario:</strong> {proprietarioPrincipal}
+                      </p>
+                      <p>
+                        <strong>Finalidade:</strong> {imovel.finalidade || "-"}
+                      </p>
+                      <p>
+                        <strong>Status:</strong> {imovel.status || "rascunho"}
                       </p>
                       <p>
                         <strong>Responsavel:</strong>{" "}
@@ -1454,7 +1477,9 @@ export default async function ImoveisPage({
         </ImovelUniqueForm>
 
         <p className="mt-6 text-xs text-[#64736D]">
-          SQL necessario: supabase/sql/015_expand_imoveis_premium.sql. Aplique antes de usar os novos campos em producao.
+          Campos profissionais ativos: codigo e complemento obrigatorios, titulo editavel
+          com preenchimento automatico pelo complemento quando vazio, e matricula opcional
+          com validacao de unicidade quando preenchida.
         </p>
         <p className="mt-2 text-xs text-[#64736D]">
           Ultima atualizacao de publicacao: {formatarData(new Date().toISOString())}

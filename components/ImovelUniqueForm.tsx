@@ -92,6 +92,12 @@ export function ImovelUniqueForm({
   function refreshValidation() {
     const form = formRef.current;
     if (!form) return;
+    const titulo = form.elements.namedItem("titulo") as HTMLInputElement | null;
+    const complemento = form.elements.namedItem("complemento") as HTMLInputElement | null;
+    if (titulo && complemento && !titulo.value.trim() && complemento.value.trim()) {
+      titulo.value = complemento.value.trim();
+    }
+
     const result = validate(form);
     setFieldName(result.field);
     setMessage(result.message);

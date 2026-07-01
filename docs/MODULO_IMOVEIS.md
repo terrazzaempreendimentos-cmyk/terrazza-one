@@ -74,6 +74,20 @@ O modulo suporta:
 - Duplicar imovel.
 - Visualizar resumo operacional.
 
+## Campos profissionais e unicidade
+
+O cadastro profissional de imoveis usa regras de consistencia antes de salvar e tambem respeita os indices unicos do Supabase.
+
+- `codigo` e obrigatorio e unico entre imoveis ativos.
+- `complemento` e obrigatorio para diferenciar unidades, salas, apartamentos ou referencias internas.
+- `titulo` continua editavel manualmente, mas quando estiver vazio e o complemento for informado, o sistema usa o complemento como titulo inicial.
+- `matricula` e opcional.
+- Quando preenchida, `matricula` deve ser unica entre imoveis ativos.
+- Em edicao, o proprio codigo e a propria matricula do imovel atual podem ser mantidos.
+- Exclusao operacional segue o padrao de exclusao logica com `ativo=false`.
+
+Caso o banco bloqueie uma duplicidade por indice unico, a tela deve apresentar mensagem clara para codigo ou matricula duplicada.
+
 ## Integracoes futuras
 
 O modulo conversa conceitualmente com:
