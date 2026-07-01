@@ -47,6 +47,25 @@ Este documento define o padrao inicial para criacao, listagem, edicao e exclusao
 - Tratar erro de indice unico retornado pelo banco com mensagem clara e discreta.
 - Aplicar futuramente o mesmo padrao em CPF/CNPJ, codigo do imovel e matricula.
 
+### CPF/CNPJ unico
+
+- Pessoas, Proprietarios e Inquilinos devem validar CPF/CNPJ antes de salvar.
+- CPF/CNPJ invalido deve bloquear o envio.
+- CPF/CNPJ duplicado em pessoa ativa deve bloquear o envio.
+- Em edicao, o mesmo documento do registro atual deve ser permitido.
+
+### Codigo do imovel unico
+
+- Codigo do imovel e obrigatorio.
+- Codigo duplicado em imovel ativo deve bloquear o envio.
+- Em edicao, o mesmo codigo do registro atual deve ser permitido.
+
+### Matricula unica
+
+- Matricula do imovel nao e obrigatoria.
+- Quando preenchida, deve ser unica entre imoveis ativos.
+- Em edicao, a mesma matricula do registro atual deve ser permitida.
+
 ## Regra operacional
 
 O registro deve permanecer recuperavel no banco para historico, auditoria, timeline e memoria futura do UCE.

@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
+import { ImovelUniqueForm } from "../../../components/ImovelUniqueForm";
 import { hasPapel } from "../../../lib/crm/pessoas/papeis";
 import { supabase } from "../../../lib/supabase";
 
@@ -403,6 +404,7 @@ export default async function ImoveisPage({
   const filtroPet = paramValue(resolvedSearchParams, "pet") ?? "";
   const filtroCondominio = paramValue(resolvedSearchParams, "condominio") ?? "";
   const filtroResponsavel = paramValue(resolvedSearchParams, "responsavel_id") ?? "";
+  const errorCode = paramValue(resolvedSearchParams, "error") ?? "";
 
   async function salvarImovel(formData: FormData) {
     "use server";
@@ -428,6 +430,45 @@ export default async function ImoveisPage({
 
     if (!complemento) {
       throw new Error("O complemento do imovel e obrigatorio.");
+    }
+
+    const matricula = valorTexto(formData, "matricula");
+    const { data: imoveisAtivos, error: unicidadeError } = await supabase
+      .from("imoveis")
+      .select("id, codigo, matricula")
+      .eq("ativo", true);
+
+    if (unicidadeError) {
+      throw new Error("Nao foi possivel validar codigo e matricula do imovel.");
+    }
+
+    const codigoNormalizado = codigo.trim().toUpperCase().replace(/\s+/g, "");
+    const matriculaNormalizada = matricula.trim().toUpperCase().replace(/\s+/g, "");
+    const codigoDuplicado = ((imoveisAtivos ?? []) as Pick<
+      Imovel,
+      "id" | "codigo" | "matricula"
+    >[]).some(
+      (imovel) =>
+        imovel.id !== id &&
+        String(imovel.codigo ?? "").trim().toUpperCase().replace(/\s+/g, "") ===
+          codigoNormalizado,
+    );
+
+    if (codigoDuplicado) {
+      redirect("/dashboard/imoveis?error=codigo_duplicado");
+    }
+
+    const matriculaDuplicada =
+      matriculaNormalizada &&
+      ((imoveisAtivos ?? []) as Pick<Imovel, "id" | "codigo" | "matricula">[]).some(
+        (imovel) =>
+          imovel.id !== id &&
+          String(imovel.matricula ?? "").trim().toUpperCase().replace(/\s+/g, "") ===
+            matriculaNormalizada,
+      );
+
+    if (matriculaDuplicada) {
+      redirect("/dashboard/imoveis?error=matricula_duplicada");
     }
 
     const payload = {
@@ -497,7 +538,7 @@ export default async function ImoveisPage({
       frente_mar: valorBooleano(formData, "frente_mar"),
       beira_lago: valorBooleano(formData, "beira_lago"),
       acessibilidade: valorBooleano(formData, "acessibilidade"),
-      matricula: valorTexto(formData, "matricula") || null,
+      matricula: matricula || null,
       cartorio: valorTexto(formData, "cartorio") || null,
       iptu_documento: valorTexto(formData, "iptu_documento") || null,
       habite_se: valorTexto(formData, "habite_se") || null,
@@ -542,6 +583,16 @@ export default async function ImoveisPage({
     const { data: imovelSalvo, error } = await mutation;
 
     if (error || !imovelSalvo?.id) {
+      const mensagem = `${error?.message ?? ""} ${error?.code ?? ""}`.toLowerCase();
+      if (
+        mensagem.includes("codigo") ||
+        mensagem.includes("matricula") ||
+        mensagem.includes("unique") ||
+        mensagem.includes("duplicate")
+      ) {
+        redirect("/dashboard/imoveis?error=unicidade_indice");
+      }
+
       throw new Error("Nao foi possivel salvar o imovel.");
     }
 
@@ -646,6 +697,11 @@ export default async function ImoveisPage({
     ]);
 
   const imoveis = (imoveisResult.data ?? []) as Imovel[];
+  const imoveisAtivosParaValidacao = imoveis.map((imovel) => ({
+    id: imovel.id,
+    codigo: imovel.codigo ?? null,
+    matricula: imovel.matricula ?? null,
+  }));
   const pessoasProprietarias = ((pessoasResult.data ?? []) as PessoaProprietario[]).filter(
     (pessoa) => hasPapel(pessoa, "proprietario"),
   );
@@ -731,6 +787,14 @@ export default async function ImoveisPage({
   );
   const contatoPrincipalSelecionado =
     relacoesEmEdicao.find((relacao) => relacao.contato_principal)?.pessoa_id ?? "";
+  const mensagemErro =
+    errorCode === "codigo_duplicado"
+      ? "Ja existe um imovel ativo cadastrado com este codigo."
+      : errorCode === "matricula_duplicada"
+        ? "Ja existe um imovel ativo cadastrado com esta matricula."
+        : errorCode === "unicidade_indice"
+          ? "Nao foi possivel salvar. Codigo ou matricula ja cadastrado em outro imovel ativo."
+          : "";
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -1033,7 +1097,18 @@ export default async function ImoveisPage({
           ))}
         </nav>
 
-        <form action={salvarImovel} className="mt-6 grid gap-6">
+        {mensagemErro ? (
+          <p className="mt-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+            {mensagemErro}
+          </p>
+        ) : null}
+
+        <ImovelUniqueForm
+          action={salvarImovel}
+          className="mt-6 grid gap-6"
+          currentId={imovelEmEdicao?.id ?? ""}
+          imoveisAtivos={imoveisAtivosParaValidacao}
+        >
           <input type="hidden" name="id" value={imovelEmEdicao?.id ?? ""} />
 
           <Section id="dados" title="Dados gerais">
@@ -1376,7 +1451,7 @@ export default async function ImoveisPage({
               {imovelEmEdicao ? "Salvar alteracoes" : "Criar imovel"}
             </button>
           </div>
-        </form>
+        </ImovelUniqueForm>
 
         <p className="mt-6 text-xs text-[#64736D]">
           SQL necessario: supabase/sql/015_expand_imoveis_premium.sql. Aplique antes de usar os novos campos em producao.

@@ -5,10 +5,12 @@ import { Search, UsersRound } from "lucide-react";
 
 import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
+import { DocumentUniqueForm } from "../../../components/DocumentUniqueForm";
 import { supabase } from "../../../lib/supabase";
 import {
   formatarCNPJ,
   formatarCPF,
+  limparDocumento,
   validarCNPJ,
   validarCPF,
 } from "../../../lib/utils/validators";
@@ -150,6 +152,7 @@ export default async function PessoasPage({
   const filtroStatus = paramValue(resolvedSearchParams, "status") ?? "";
   const filtroTemperatura = paramValue(resolvedSearchParams, "temperatura") ?? "";
   const busca = paramValue(resolvedSearchParams, "busca") ?? "";
+  const errorCode = paramValue(resolvedSearchParams, "error") ?? "";
 
   async function salvarPessoa(formData: FormData) {
     "use server";
@@ -172,6 +175,28 @@ export default async function PessoasPage({
         throw new Error(
           tipoPessoa === "juridica" ? "CNPJ invalido." : "CPF invalido.",
         );
+      }
+
+      const { data: pessoasAtivas, error: documentoError } = await supabase
+        .from("pessoas")
+        .select("id, cpf_cnpj")
+        .eq("ativo", true);
+
+      if (documentoError) {
+        throw new Error("Nao foi possivel validar o CPF/CNPJ.");
+      }
+
+      const documentoDuplicado = ((pessoasAtivas ?? []) as Pick<
+        Pessoa,
+        "id" | "cpf_cnpj"
+      >[]).some(
+        (pessoa) =>
+          pessoa.id !== id &&
+          limparDocumento(pessoa.cpf_cnpj ?? "") === limparDocumento(documento),
+      );
+
+      if (documentoDuplicado) {
+        redirect("/dashboard/pessoas?error=documento_duplicado");
       }
     }
 
@@ -216,6 +241,16 @@ export default async function PessoasPage({
       : await supabase.from("pessoas").insert(payload);
 
     if (error) {
+      const mensagem = `${error.message ?? ""} ${error.code ?? ""}`.toLowerCase();
+      if (
+        mensagem.includes("cpf") ||
+        mensagem.includes("cnpj") ||
+        mensagem.includes("unique") ||
+        mensagem.includes("duplicate")
+      ) {
+        redirect("/dashboard/pessoas?error=documento_indice");
+      }
+
       throw new Error("Nao foi possivel salvar a pessoa.");
     }
 
@@ -264,8 +299,17 @@ export default async function PessoasPage({
   ]);
 
   const pessoas = (pessoasResult.data ?? []) as Pessoa[];
+  const documentosAtivos = pessoas
+    .filter((pessoa) => pessoa.cpf_cnpj)
+    .map((pessoa) => ({ id: pessoa.id, cpf_cnpj: pessoa.cpf_cnpj }));
   const corretores = (corretoresResult.data ?? []) as Corretor[];
   const pessoaEmEdicao = pessoas.find((pessoa) => pessoa.id === editId) ?? null;
+  const mensagemErro =
+    errorCode === "documento_duplicado"
+      ? "Ja existe uma pessoa ativa cadastrada com este CPF/CNPJ."
+      : errorCode === "documento_indice"
+        ? "Nao foi possivel salvar. Este CPF/CNPJ ja esta cadastrado em outra pessoa ativa."
+        : "";
   const corretoresPorId = new Map(
     corretores.map((corretor) => [corretor.id, corretor.nome ?? "-"]),
   );
@@ -320,7 +364,18 @@ export default async function PessoasPage({
             ) : null}
           </div>
 
-          <form action={salvarPessoa} className="mt-6 grid gap-6">
+          {mensagemErro ? (
+            <p className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {mensagemErro}
+            </p>
+          ) : null}
+
+          <DocumentUniqueForm
+            action={salvarPessoa}
+            className="mt-6 grid gap-6"
+            currentId={pessoaEmEdicao?.id ?? ""}
+            documentosAtivos={documentosAtivos}
+          >
             <input type="hidden" name="id" value={pessoaEmEdicao?.id ?? ""} />
 
             <fieldset className="grid gap-4 rounded-3xl border border-[#E8DDCB] p-5 md:grid-cols-4">
@@ -506,7 +561,7 @@ export default async function PessoasPage({
                 </Link>
               ) : null}
             </div>
-          </form>
+          </DocumentUniqueForm>
         </section>
 
         <section className="mt-6 rounded-3xl border border-[#E8DDCB] bg-white p-6 shadow-sm">

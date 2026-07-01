@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
+import { DocumentUniqueForm } from "../../../components/DocumentUniqueForm";
 import {
   addPapel,
   hasPapel,
@@ -14,6 +15,7 @@ import { supabase } from "../../../lib/supabase";
 import {
   formatarCNPJ,
   formatarCPF,
+  limparDocumento,
   validarCNPJ,
   validarCPF,
 } from "../../../lib/utils/validators";
@@ -99,6 +101,7 @@ export default async function InquilinosPage({
   const status = paramValue(resolvedSearchParams, "status") ?? "";
   const responsavel = paramValue(resolvedSearchParams, "responsavel") ?? "";
   const temperatura = paramValue(resolvedSearchParams, "temperatura") ?? "";
+  const errorCode = paramValue(resolvedSearchParams, "error") ?? "";
 
   async function salvarInquilino(formData: FormData) {
     "use server";
@@ -121,6 +124,28 @@ export default async function InquilinosPage({
         throw new Error(
           tipoPessoa === "juridica" ? "CNPJ invalido." : "CPF invalido.",
         );
+      }
+
+      const { data: pessoasAtivas, error: documentoError } = await supabase
+        .from("pessoas")
+        .select("id, cpf_cnpj")
+        .eq("ativo", true);
+
+      if (documentoError) {
+        throw new Error("Nao foi possivel validar o CPF/CNPJ.");
+      }
+
+      const documentoDuplicado = ((pessoasAtivas ?? []) as Pick<
+        Inquilino,
+        "id" | "cpf_cnpj"
+      >[]).some(
+        (pessoa) =>
+          pessoa.id !== id &&
+          limparDocumento(pessoa.cpf_cnpj ?? "") === limparDocumento(documento),
+      );
+
+      if (documentoDuplicado) {
+        redirect("/dashboard/inquilinos?error=documento_duplicado");
       }
     }
 
@@ -178,7 +203,19 @@ export default async function InquilinosPage({
       ? await supabase.from("pessoas").update(payload).eq("id", id)
       : await supabase.from("pessoas").insert(payload);
 
-    if (error) throw new Error("Nao foi possivel salvar o inquilino.");
+    if (error) {
+      const mensagem = `${error.message ?? ""} ${error.code ?? ""}`.toLowerCase();
+      if (
+        mensagem.includes("cpf") ||
+        mensagem.includes("cnpj") ||
+        mensagem.includes("unique") ||
+        mensagem.includes("duplicate")
+      ) {
+        redirect("/dashboard/inquilinos?error=documento_indice");
+      }
+
+      throw new Error("Nao foi possivel salvar o inquilino.");
+    }
 
     revalidatePath("/dashboard/inquilinos");
     revalidatePath("/dashboard");
@@ -230,6 +267,9 @@ export default async function InquilinosPage({
   const inquilinos = ((pessoasResult.data ?? []) as Inquilino[]).filter((pessoa) =>
     hasPapel(pessoa, "inquilino"),
   );
+  const documentosAtivos = ((pessoasResult.data ?? []) as Inquilino[])
+    .filter((pessoa) => pessoa.cpf_cnpj)
+    .map((pessoa) => ({ id: pessoa.id, cpf_cnpj: pessoa.cpf_cnpj }));
   const inquilinosFiltrados = inquilinos.filter((pessoa) => {
     const texto = normalizar(
       [pessoa.nome, telefonePrincipal(pessoa), pessoa.email, pessoa.cidade, pessoa.bairro].join(" "),
@@ -245,6 +285,12 @@ export default async function InquilinosPage({
   });
   const inquilinoEmEdicao = inquilinos.find((inquilino) => inquilino.id === editId) ?? null;
   const inquilinoVisualizado = inquilinos.find((inquilino) => inquilino.id === viewId) ?? null;
+  const mensagemErro =
+    errorCode === "documento_duplicado"
+      ? "Ja existe uma pessoa ativa cadastrada com este CPF/CNPJ."
+      : errorCode === "documento_indice"
+        ? "Nao foi possivel salvar. Este CPF/CNPJ ja esta cadastrado em outra pessoa ativa."
+        : "";
   const ativos = inquilinos.filter((pessoa) => pessoa.status !== "inativo").length;
   const emAtendimento = inquilinos.filter((pessoa) => pessoa.status === "em_atendimento").length;
   const pendencias = inquilinos.filter((pessoa) => pessoa.status === "pendente").length;
@@ -334,7 +380,17 @@ export default async function InquilinosPage({
           <h2 className="text-xl font-semibold text-[#071E36]">
             {inquilinoEmEdicao ? "Editar inquilino" : "Novo inquilino"}
           </h2>
-          <form action={salvarInquilino} className="mt-5 grid gap-5 md:grid-cols-3">
+          {mensagemErro ? (
+            <p className="mt-4 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+              {mensagemErro}
+            </p>
+          ) : null}
+          <DocumentUniqueForm
+            action={salvarInquilino}
+            className="mt-5 grid gap-5 md:grid-cols-3"
+            currentId={inquilinoEmEdicao?.id ?? ""}
+            documentosAtivos={documentosAtivos}
+          >
             <input type="hidden" name="id" value={inquilinoEmEdicao?.id ?? ""} />
             {[
               ["Nome", "nome", inquilinoEmEdicao?.nome, "text"],
@@ -416,7 +472,7 @@ export default async function InquilinosPage({
                 </Link>
               ) : null}
             </div>
-          </form>
+          </DocumentUniqueForm>
         </section>
 
         <section className="mt-6 grid gap-5 lg:grid-cols-3">
