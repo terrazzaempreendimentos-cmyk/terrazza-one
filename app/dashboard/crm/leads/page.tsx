@@ -596,6 +596,9 @@ export default async function LeadsPage({
                       <Link href={`/dashboard/crm/leads?edit=${lead.id}`} className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10">
                         Editar
                       </Link>
+                      <Link href="/dashboard/crm/negocios" className="rounded-full border border-[#C89B3C]/35 bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold text-[#8B6827] transition hover:bg-[#C89B3C]/15">
+                        Transformar em negocio
+                      </Link>
                       <form action={excluirLead}>
                         <input type="hidden" name="id" value={lead.id} />
                         <ConfirmSubmitButton

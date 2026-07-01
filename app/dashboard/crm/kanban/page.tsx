@@ -44,6 +44,12 @@ const colunas = [
     statusValues: ["proposta", "negociacao"],
   },
   {
+    id: "contrato",
+    title: "Contrato",
+    description: "Documentacao e assinatura",
+    statusValues: ["contrato", "documentacao"],
+  },
+  {
     id: "fechado",
     title: "Fechado",
     description: "Conversao concluida",

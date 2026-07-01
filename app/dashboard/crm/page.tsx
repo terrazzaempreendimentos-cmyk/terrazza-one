@@ -1,9 +1,12 @@
 import Link from "next/link";
 import {
+  BriefcaseBusiness,
   CalendarClock,
+  ClipboardList,
+  FileText,
   Flame,
+  LineChart,
   MessageSquareText,
-  ShieldCheck,
   Sparkles,
   UsersRound,
 } from "lucide-react";
@@ -40,12 +43,6 @@ type TimelineEvento = {
   created_at: string | null;
 };
 
-type Corretor = {
-  id: string;
-  nome: string;
-  status: string | null;
-};
-
 function dataHoje() {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
@@ -53,8 +50,7 @@ function dataHoje() {
 }
 
 function labelTexto(valor: string | null) {
-  if (!valor) return "Não informado";
-
+  if (!valor) return "Nao informado";
   return valor.replaceAll("_", " ");
 }
 
@@ -68,36 +64,33 @@ function formatarData(data: string | null) {
 
 export default async function CRMPage() {
   const hoje = dataHoje();
-  const [leadsResult, tarefasResult, timelineResult, corretoresResult] =
-    await Promise.all([
-      supabase
-        .from("leads")
-        .select("id, nome, tipo_lead, objetivo, origem, status, responsavel, created_at")
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("tarefas")
-        .select("id, titulo, tipo, status, prioridade, data, hora, responsavel")
-        .order("data", { ascending: true, nullsFirst: false })
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("timeline")
-        .select("id, tipo, titulo, origem, created_at")
-        .order("created_at", { ascending: false })
-        .limit(6),
-      supabase
-        .from("corretores")
-        .select("id, nome, status")
-        .order("nome", { ascending: true }),
-    ]);
+  const [leadsResult, tarefasResult, timelineResult] = await Promise.all([
+    supabase
+      .from("leads")
+      .select("id, nome, tipo_lead, objetivo, origem, status, responsavel, created_at")
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("tarefas")
+      .select("id, titulo, tipo, status, prioridade, data, hora, responsavel")
+      .order("data", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("timeline")
+      .select("id, tipo, titulo, origem, created_at")
+      .order("created_at", { ascending: false })
+      .limit(6),
+  ]);
 
   const leads = (leadsResult.data ?? []) as Lead[];
   const tarefas = (tarefasResult.data ?? []) as Tarefa[];
   const eventos = (timelineResult.data ?? []) as TimelineEvento[];
-  const corretores = (corretoresResult.data ?? []) as Corretor[];
 
   const leadsQuentes = leads.filter((lead) =>
-    ["corretor", "ia_qualificando"].includes(lead.status ?? ""),
+    ["corretor", "ia_qualificando", "proposta", "negociacao"].includes(
+      lead.status ?? "",
+    ),
   );
+  const novosHoje = leads.filter((lead) => lead.created_at?.startsWith(hoje));
   const tarefasHoje = tarefas.filter(
     (tarefa) => tarefa.data === hoje && tarefa.status !== "concluida",
   );
@@ -108,15 +101,19 @@ export default async function CRMPage() {
       tarefa.status !== "concluida" &&
       tarefa.status !== "cancelada",
   );
-  const visitasAgendadas = tarefas.filter(
-    (tarefa) =>
-      ["visita", "avaliacao_imovel", "reuniao"].includes(tarefa.tipo ?? ""),
+  const visitasAgendadas = tarefas.filter((tarefa) =>
+    ["visita", "avaliacao_imovel", "reuniao", "vistoria"].includes(
+      tarefa.tipo ?? "",
+    ),
   );
   const atendimentosEmAndamento = leads.filter((lead) =>
     ["ia_qualificando", "corretor"].includes(lead.status ?? ""),
   );
-  const corretoresAtivos = corretores.filter(
-    (corretor) => !corretor.status || corretor.status === "ativo",
+  const propostasAbertas = leads.filter((lead) =>
+    ["proposta", "negociacao"].includes(lead.status ?? ""),
+  );
+  const followUpsPendentes = tarefas.filter((tarefa) =>
+    ["follow_up", "ligacao", "mensagem"].includes(tarefa.tipo ?? ""),
   );
 
   const cards = [
@@ -129,47 +126,62 @@ export default async function CRMPage() {
     {
       titulo: "Leads quentes",
       valor: leadsQuentes.length,
-      detalhe: "Prontos para ação consultiva",
+      detalhe: "Prontos para acao consultiva",
       icon: Flame,
+    },
+    {
+      titulo: "Novos hoje",
+      valor: novosHoje.length,
+      detalhe: "Entradas comerciais do dia",
+      icon: Sparkles,
     },
     {
       titulo: "Atendimentos em andamento",
       valor: atendimentosEmAndamento.length,
-      detalhe: "Conversas em qualificação",
+      detalhe: "Conversas em qualificacao",
       icon: MessageSquareText,
-    },
-    {
-      titulo: "Tarefas de hoje",
-      valor: tarefasHoje.length,
-      detalhe: "Agenda operacional do dia",
-      icon: CalendarClock,
     },
     {
       titulo: "Visitas agendadas",
       valor: visitasAgendadas.length,
-      detalhe: "Visitas e avaliações previstas",
-      icon: Sparkles,
+      detalhe: "Visitas e avaliacoes previstas",
+      icon: CalendarClock,
     },
     {
-      titulo: "Corretores ativos",
-      valor: corretoresAtivos.length,
-      detalhe: "Equipe disponível para distribuição",
-      icon: ShieldCheck,
+      titulo: "Propostas abertas",
+      valor: propostasAbertas.length,
+      detalhe: "Negociacoes em andamento",
+      icon: FileText,
+    },
+    {
+      titulo: "Negocios em negociacao",
+      valor: propostasAbertas.length,
+      detalhe: "Oportunidades comerciais ativas",
+      icon: BriefcaseBusiness,
+    },
+    {
+      titulo: "Follow-ups pendentes",
+      valor: followUpsPendentes.length,
+      detalhe: "Retornos e contatos a fazer",
+      icon: ClipboardList,
     },
   ];
 
-  const erroCarregamento =
-    leadsResult.error ||
-    tarefasResult.error ||
-    timelineResult.error ||
-    corretoresResult.error;
+  const pipelineResumo = [
+    ["Venda", "Novo lead", "Qualificacao", "Visita", "Proposta", "Negociacao", "Contrato", "Fechado"],
+    ["Locacao", "Novo lead", "Qualificacao", "Visita", "Ficha cadastral", "Analise", "Contrato", "Entrega de chaves"],
+    ["Administracao", "Novo proprietario", "Avaliacao", "Documentacao", "Fotos", "Publicacao", "Contrato", "Administracao ativa"],
+    ["Captacao", "Novo contato", "Qualificacao", "Avaliacao", "Proposta comercial", "Autorizacao", "Publicacao", "Ativo"],
+  ];
+
+  const erroCarregamento = leadsResult.error || tarefasResult.error || timelineResult.error;
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
       <div className="mx-auto max-w-7xl">
         <header className="rounded-[2rem] border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
           <span className="rounded-full border border-[#C89B3C]/35 bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#8B6827]">
-            Terrazza CRM
+            CRM Comercial
           </span>
           <div className="mt-5 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
             <div>
@@ -177,25 +189,35 @@ export default async function CRMPage() {
                 CRM Terrazza
               </h1>
               <p className="mt-2 max-w-3xl leading-6 text-[#64736D]">
-                Central operacional de leads, atendimentos e relacionamento comercial.
+                Central operacional de leads, atendimentos, negocios, pipeline,
+                agenda, timeline e atividades comerciais.
               </p>
             </div>
-            <Link
-              href="/dashboard/crm/leads"
-              className="inline-flex w-fit rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
-            >
-              Abrir leads
-            </Link>
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/dashboard/crm/leads"
+                className="inline-flex w-fit rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
+              >
+                Abrir leads
+              </Link>
+              <Link
+                href="/dashboard/crm/negocios"
+                className="inline-flex w-fit rounded-xl border border-[#E8DDCB] bg-[#F7F3ED] px-5 py-3 text-sm font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
+              >
+                Ver negocios
+              </Link>
+            </div>
           </div>
         </header>
 
         {erroCarregamento ? (
           <p className="mt-6 rounded-xl bg-[#fbebe7] px-4 py-3 text-sm text-[#8a2e1c]">
-            Alguns dados operacionais não puderam ser carregados. A central permanece pronta para receber dados reais.
+            Alguns dados operacionais nao puderam ser carregados. A central
+            permanece pronta para receber dados reais.
           </p>
         ) : null}
 
-        <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <section className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           {cards.map((card) => {
             const Icon = card.icon;
 
@@ -221,22 +243,88 @@ export default async function CRMPage() {
           })}
         </section>
 
+        <section className="mt-6 rounded-3xl border border-[#E8DDCB] bg-white p-6 shadow-sm">
+          <div className="flex items-center gap-3">
+            <LineChart className="text-[#C89B3C]" size={20} />
+            <h2 className="text-xl font-semibold text-[#071E36]">
+              Pipeline resumido
+            </h2>
+          </div>
+          <div className="mt-5 grid gap-4 xl:grid-cols-4">
+            {pipelineResumo.map(([tipo, ...etapas]) => (
+              <div key={tipo} className="rounded-2xl border border-[#E8DDCB] bg-[#F7F3ED] p-4">
+                <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#071E36]">
+                  {tipo}
+                </p>
+                <div className="mt-4 grid gap-2">
+                  {etapas.map((etapa, index) => (
+                    <span key={etapa} className="flex items-center gap-2 text-xs text-[#64736D]">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-bold text-[#8B6827]">
+                        {index + 1}
+                      </span>
+                      {etapa}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
         <section className="mt-6 grid gap-6 xl:grid-cols-2">
           <div className="rounded-3xl border border-[#E8DDCB] bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-[#071E36]">
-              Próximos atendimentos
+              Prioridades comerciais do dia
+            </h2>
+            <div className="mt-5 grid gap-3">
+              {[
+                ["Leads aguardando retorno", `${leadsQuentes.length} contatos prioritarios`],
+                ["Tarefas de hoje", `${tarefasHoje.length} acoes na agenda`],
+                ["Follow-ups pendentes", `${followUpsPendentes.length} retornos a fazer`],
+                ["Visitas e avaliacoes", `${visitasAgendadas.length} compromissos previstos`],
+                ["Pendencias comerciais", `${tarefasAtrasadas.length} tarefas atrasadas`],
+              ].map(([title, detail]) => (
+                <div key={title} className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] p-4">
+                  <p className="font-semibold text-[#071E36]">{title}</p>
+                  <p className="mt-1 text-sm text-[#64736D]">{detail}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-[#E8DDCB] bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-semibold text-[#071E36]">
+              Atendimentos recentes
+            </h2>
+            <div className="mt-5 grid gap-3">
+              {leads.slice(0, 4).map((lead) => (
+                <div key={lead.id} className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] p-4">
+                  <p className="font-semibold text-[#071E36]">{lead.nome}</p>
+                  <p className="mt-1 text-sm text-[#64736D]">
+                    {labelTexto(lead.tipo_lead)} · {labelTexto(lead.objetivo)}
+                  </p>
+                </div>
+              ))}
+              {leads.length === 0 ? (
+                <p className="rounded-2xl bg-[#F7F3ED] px-4 py-8 text-center text-sm text-[#64736D]">
+                  Nenhum atendimento recente.
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-[#E8DDCB] bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-semibold text-[#071E36]">
+              Proximas visitas
             </h2>
             <div className="mt-5 grid gap-3">
               {tarefas.slice(0, 4).map((tarefa) => (
-                <div
-                  key={tarefa.id}
-                  className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] p-4"
-                >
+                <div key={tarefa.id} className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div>
                       <p className="font-semibold text-[#071E36]">{tarefa.titulo}</p>
                       <p className="mt-1 text-sm text-[#64736D]">
-                        {formatarData(tarefa.data)} {tarefa.hora ? `às ${tarefa.hora}` : ""}
+                        {formatarData(tarefa.data)} {tarefa.hora ? `as ${tarefa.hora}` : ""}
                       </p>
                     </div>
                     <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold text-[#8B6827]">
@@ -247,7 +335,7 @@ export default async function CRMPage() {
               ))}
               {tarefas.length === 0 ? (
                 <p className="rounded-2xl bg-[#F7F3ED] px-4 py-8 text-center text-sm text-[#64736D]">
-                  Nenhum atendimento agendado.
+                  Nenhuma visita agendada.
                 </p>
               ) : null}
             </div>
@@ -255,78 +343,20 @@ export default async function CRMPage() {
 
           <div className="rounded-3xl border border-[#E8DDCB] bg-white p-6 shadow-sm">
             <h2 className="text-xl font-semibold text-[#071E36]">
-              Leads prioritários
-            </h2>
-            <div className="mt-5 grid gap-3">
-              {leadsQuentes.slice(0, 4).map((lead) => (
-                <div
-                  key={lead.id}
-                  className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] p-4"
-                >
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <p className="font-semibold text-[#071E36]">{lead.nome}</p>
-                      <p className="mt-1 text-sm text-[#64736D]">
-                        {labelTexto(lead.tipo_lead)} • {labelTexto(lead.objetivo)}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-[#071E36] px-3 py-1 text-xs font-semibold text-[#E1B866]">
-                      {labelTexto(lead.status)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-              {leadsQuentes.length === 0 ? (
-                <p className="rounded-2xl bg-[#F7F3ED] px-4 py-8 text-center text-sm text-[#64736D]">
-                  Nenhum lead prioritário no momento.
-                </p>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-[#E8DDCB] bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-[#071E36]">
-              Pendências comerciais
-            </h2>
-            <div className="mt-5 grid gap-3">
-              {tarefasAtrasadas.slice(0, 5).map((tarefa) => (
-                <div
-                  key={tarefa.id}
-                  className="rounded-2xl border border-amber-200 bg-amber-50/60 p-4"
-                >
-                  <p className="font-semibold text-[#071E36]">{tarefa.titulo}</p>
-                  <p className="mt-1 text-sm text-[#64736D]">
-                    Responsável: {tarefa.responsavel || "não definido"}
-                  </p>
-                </div>
-              ))}
-              {tarefasAtrasadas.length === 0 ? (
-                <p className="rounded-2xl bg-[#F7F3ED] px-4 py-8 text-center text-sm text-[#64736D]">
-                  Sem pendências atrasadas.
-                </p>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-[#E8DDCB] bg-white p-6 shadow-sm">
-            <h2 className="text-xl font-semibold text-[#071E36]">
-              Últimas movimentações
+              Ultimas atividades
             </h2>
             <div className="mt-5 grid gap-3">
               {eventos.map((evento) => (
-                <div
-                  key={evento.id}
-                  className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] p-4"
-                >
+                <div key={evento.id} className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] p-4">
                   <p className="font-semibold text-[#071E36]">{evento.titulo}</p>
                   <p className="mt-1 text-sm text-[#64736D]">
-                    {labelTexto(evento.tipo)} • {labelTexto(evento.origem)}
+                    {labelTexto(evento.tipo)} · {labelTexto(evento.origem)}
                   </p>
                 </div>
               ))}
               {eventos.length === 0 ? (
                 <p className="rounded-2xl bg-[#F7F3ED] px-4 py-8 text-center text-sm text-[#64736D]">
-                  Nenhuma movimentação registrada.
+                  Nenhuma atividade registrada.
                 </p>
               ) : null}
             </div>

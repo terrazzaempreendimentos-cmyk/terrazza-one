@@ -257,3 +257,38 @@ Cada registro exibe badge de origem:
 Novos corretores devem nascer como Pessoas com papel `corretor`. Registros antigos ainda podem ser editados ou excluidos logicamente enquanto a migracao definitiva nao acontece.
 
 A Roleta Inteligente usa a mesma lista unificada, garantindo que o corretor visivel em Cadastros tambem esteja disponivel para distribuicao operacional de leads.
+
+## Modulo 03 - CRM Comercial Profissional
+
+O CRM Comercial passa a funcionar como central operacional real da Terrazza para leads, atendimentos, negocios, pipeline, kanban, agenda, timeline, atividades e roleta.
+
+### Separacao de responsabilidades
+
+- CRM e operacao comercial.
+- UCE e apoio cognitivo.
+- Inteligencia e analise.
+- Administracao e configuracao.
+- ERP financeiro, boletos, repasses e pagamentos ficam fora deste modulo.
+
+### Negocios
+
+Negocios representam oportunidades comerciais em andamento. Eles conectam pessoa, imovel, tipo de oportunidade, etapa, valor estimado, probabilidade, responsavel, origem, temperatura, proxima acao e status.
+
+### Pipelines
+
+Cada tipo de negocio possui jornada propria:
+
+- Venda: do novo lead ao contrato, fechado ou perdido.
+- Locacao: da qualificacao a ficha cadastral, analise, contrato e entrega de chaves.
+- Administracao: do novo proprietario a avaliacao, documentacao, fotos, publicacao e administracao ativa.
+- Captacao: do novo contato a avaliacao, proposta comercial, autorizacao, publicacao e ativo.
+
+### Agenda, Timeline e Atividades
+
+Agenda organiza compromissos com data. Timeline registra historico operacional. Atividades concentra tarefas comerciais, follow-ups, documentos, propostas e proximos passos.
+
+### Roleta
+
+Roleta Inteligente segue como distribuicao manual assistida nesta etapa, usando lista unificada de corretores e mantendo historico visual da distribuicao.
+
+Documento complementar: `docs/MODULO_CRM_COMERCIAL.md`.
