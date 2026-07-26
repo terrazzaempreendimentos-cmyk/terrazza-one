@@ -23,6 +23,7 @@ import {
   LineChart,
   Link2,
   ListChecks,
+  LogOut,
   MailCheck,
   MessageSquareText,
   ScrollText,
@@ -35,6 +36,8 @@ import {
   Wrench,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+
+import { logout } from "../login/actions";
 
 const STORAGE_KEY = "terrazza-dashboard-menu-open-groups";
 const STORAGE_EVENT = "terrazza-dashboard-menu-storage";
@@ -370,6 +373,16 @@ export function DashboardSidebar() {
           );
         })}
       </nav>
+
+      <form action={logout} className="mt-6 lg:mt-auto lg:pt-6">
+        <button
+          type="submit"
+          className="flex w-full items-center gap-3 rounded-xl border border-white/10 px-4 py-3 text-sm font-semibold text-white/70 transition hover:border-[#C89B3C]/35 hover:bg-[#0A2A4A] hover:text-white focus:outline-none focus:ring-2 focus:ring-[#C89B3C]/60"
+        >
+          <LogOut size={17} strokeWidth={2.1} className="text-[#E1B866]" />
+          Sair
+        </button>
+      </form>
     </aside>
   );
 }

@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { ImovelUniqueForm } from "../../../components/ImovelUniqueForm";
+import { requireUser } from "../../../lib/auth/require-user";
 import { hasPapel } from "../../../lib/crm/pessoas/papeis";
 import { supabase } from "../../../lib/supabase";
 
@@ -424,6 +425,7 @@ export default async function ImoveisPage({
 
   async function salvarImovel(formData: FormData) {
     "use server";
+    await requireUser();
 
     const id = valorTexto(formData, "id");
     const pessoasProprietarias = formData
@@ -650,6 +652,7 @@ export default async function ImoveisPage({
 
   async function excluirImovel(formData: FormData) {
     "use server";
+    await requireUser();
 
     const id = valorTexto(formData, "id");
     if (!id) throw new Error("Imovel nao informado.");
@@ -667,6 +670,7 @@ export default async function ImoveisPage({
 
   async function duplicarImovel(formData: FormData) {
     "use server";
+    await requireUser();
 
     const id = valorTexto(formData, "id");
     if (!id) throw new Error("Imovel nao informado.");

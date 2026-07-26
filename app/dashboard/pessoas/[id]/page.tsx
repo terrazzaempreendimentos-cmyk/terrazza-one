@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
+import { requireUser } from "../../../../lib/auth/require-user";
 import { supabase } from "../../../../lib/supabase";
 
 type Pessoa = {
@@ -103,6 +104,7 @@ export default async function PessoaDetalhePage({
 
   async function excluirPessoa(formData: FormData) {
     "use server";
+    await requireUser();
 
     const pessoaId = String(formData.get("id") ?? "").trim();
     if (!pessoaId) throw new Error("Pessoa nao informada.");

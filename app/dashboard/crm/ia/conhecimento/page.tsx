@@ -1,6 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { BookOpen, Brain, CheckCircle2, Database, PlusCircle } from "lucide-react";
 
+import { requireUser } from "../../../../../lib/auth/require-user";
 import { supabase } from "../../../../../lib/supabase";
 
 type Conhecimento = {
@@ -104,6 +105,7 @@ function ordenarConhecimentos(conhecimentos: Conhecimento[]) {
 export default async function BaseConhecimentoPage() {
   async function cadastrarConhecimento(formData: FormData) {
     "use server";
+    await requireUser();
 
     const categoria = valorTexto(formData, "categoria");
     const titulo = valorTexto(formData, "titulo");

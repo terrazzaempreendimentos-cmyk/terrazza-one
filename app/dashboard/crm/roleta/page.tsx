@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { requireUser } from "../../../../lib/auth/require-user";
 import {
   getCorretorUnificadoPorId,
   getCorretoresUnificados,
@@ -132,6 +133,7 @@ export default async function RoletaPage({
 
   async function distribuirLead(formData: FormData) {
     "use server";
+    await requireUser();
 
     const leadId = valorTexto(formData, "lead_id");
     const corretorId = valorTexto(formData, "corretor_id");

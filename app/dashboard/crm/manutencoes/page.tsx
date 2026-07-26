@@ -13,6 +13,7 @@ import {
 
 import { supabase } from "../../../../lib/supabase";
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
+import { requireUser } from "../../../../lib/auth/require-user";
 import {
   createOperationalMemoryFromMaintenance,
   searchMemories,
@@ -282,6 +283,7 @@ export default async function ManutencoesPage({
 
   async function salvarCaso(formData: FormData) {
     "use server";
+    await requireUser();
 
     const id = valorTexto(formData, "id");
     const tipo = valorTexto(formData, "tipo");
@@ -354,6 +356,7 @@ export default async function ManutencoesPage({
 
   async function excluirCaso(formData: FormData) {
     "use server";
+    await requireUser();
 
     const id = valorTexto(formData, "id");
 

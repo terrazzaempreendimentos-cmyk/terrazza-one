@@ -11,6 +11,7 @@ import {
   WandSparkles,
 } from "lucide-react";
 
+import { requireUser } from "../../../../lib/auth/require-user";
 import { supabase } from "../../../../lib/supabase";
 
 type Conhecimento = {
@@ -151,6 +152,7 @@ function formatarDataHora(data: string | null) {
 export default async function IaComercialPage() {
   async function enviarMensagem(formData: FormData) {
     "use server";
+    await requireUser();
 
     const pergunta = String(formData.get("mensagem") ?? "").trim();
 

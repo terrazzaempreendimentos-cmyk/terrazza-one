@@ -1,3 +1,5 @@
+import { createHash, timingSafeEqual } from "node:crypto";
+
 import { NextRequest, NextResponse } from "next/server";
 
 import type { TipoLeadSimulador } from "../../../../lib/ia/fluxos";
@@ -65,6 +67,9 @@ const leadTypes: UCEApiLeadType[] = [
   "desconhecido",
 ];
 const responseModes: UCEApiResponseMode[] = ["uce_puro", "openai_assistida"];
+const MAX_BODY_BYTES = 64 * 1024;
+const MAX_MESSAGE_LENGTH = 4_000;
+const BODY_TOO_LARGE = Symbol("body-too-large");
 
 function jsonError(status: number, error: string) {
   return NextResponse.json({ ok: false, error }, { status });
@@ -72,6 +77,45 @@ function jsonError(status: number, error: string) {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function secureEquals(received: string, expected: string) {
+  const receivedDigest = createHash("sha256").update(received).digest();
+  const expectedDigest = createHash("sha256").update(expected).digest();
+
+  return timingSafeEqual(receivedDigest, expectedDigest);
+}
+
+async function readJsonBody(request: NextRequest) {
+  const reader = request.body?.getReader();
+
+  if (!reader) return null;
+
+  const decoder = new TextDecoder();
+  let body = "";
+  let size = 0;
+
+  while (true) {
+    const { done, value } = await reader.read();
+
+    if (done) break;
+
+    size += value.byteLength;
+    if (size > MAX_BODY_BYTES) {
+      await reader.cancel();
+      return BODY_TOO_LARGE;
+    }
+
+    body += decoder.decode(value, { stream: true });
+  }
+
+  body += decoder.decode();
+
+  try {
+    return JSON.parse(body) as unknown;
+  } catch {
+    return null;
+  }
 }
 
 function parsePayload(value: unknown): UCEChatPayload | null {
@@ -160,16 +204,25 @@ function llmResponse(output: UCELLMOutput): UCEApiLlmSummary {
 
 export async function POST(request: NextRequest) {
   try {
-    const expectedApiKey = process.env.UCE_API_KEY;
+    const expectedApiKey = process.env.UCE_API_KEY?.trim();
 
-    if (
-      expectedApiKey &&
-      request.headers.get("x-uce-api-key") !== expectedApiKey
-    ) {
+    if (!expectedApiKey) {
+      return jsonError(503, "service_unavailable");
+    }
+
+    const receivedApiKey = request.headers.get("x-uce-api-key");
+
+    if (!receivedApiKey || !secureEquals(receivedApiKey, expectedApiKey)) {
       return jsonError(401, "unauthorized");
     }
 
-    const payload = parsePayload(await request.json().catch(() => null));
+    const body = await readJsonBody(request);
+
+    if (body === BODY_TOO_LARGE) {
+      return jsonError(413, "invalid_payload");
+    }
+
+    const payload = parsePayload(body);
 
     if (!payload) {
       return jsonError(400, "invalid_payload");
@@ -177,6 +230,10 @@ export async function POST(request: NextRequest) {
 
     if (typeof payload.message !== "string" || !payload.message.trim()) {
       return jsonError(400, "message_required");
+    }
+
+    if (payload.message.length > MAX_MESSAGE_LENGTH) {
+      return jsonError(400, "invalid_payload");
     }
 
     const conversationId =

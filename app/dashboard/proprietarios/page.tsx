@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { DocumentUniqueForm } from "../../../components/DocumentUniqueForm";
+import { requireUser } from "../../../lib/auth/require-user";
 import {
   addPapel,
   hasPapel,
@@ -109,6 +110,7 @@ export default async function ProprietariosPage({
 
   async function salvarProprietario(formData: FormData) {
     "use server";
+    await requireUser();
 
     const id = valorTexto(formData, "id");
     const nome = valorTexto(formData, "nome");
@@ -214,6 +216,7 @@ export default async function ProprietariosPage({
 
   async function excluirProprietario(formData: FormData) {
     "use server";
+    await requireUser();
 
     const id = valorTexto(formData, "id");
     if (!id) throw new Error("Proprietario nao informado.");
