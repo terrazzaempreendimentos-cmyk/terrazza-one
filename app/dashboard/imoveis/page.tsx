@@ -79,7 +79,6 @@ type Imovel = {
   latitude?: number | string | null;
   longitude?: number | string | null;
   google_maps?: string | null;
-  condominio?: string | null;
   valor_venda?: number | string | null;
   valor_locacao?: number | string | null;
   aluguel_pretendido?: number | string | null;
@@ -185,7 +184,6 @@ const imoveisLeituraFields = `
   latitude,
   longitude,
   google_maps,
-  condominio,
   valor_venda,
   valor_locacao,
   aluguel_pretendido,
@@ -615,7 +613,6 @@ export default async function ImoveisPage({
   const filtroGaragem = paramValue(resolvedSearchParams, "garagem") ?? "";
   const filtroPiscina = paramValue(resolvedSearchParams, "piscina") ?? "";
   const filtroPet = paramValue(resolvedSearchParams, "pet") ?? "";
-  const filtroCondominio = paramValue(resolvedSearchParams, "condominio") ?? "";
   const filtroResponsavel = paramValue(resolvedSearchParams, "responsavel_id") ?? "";
   const errorCode = paramValue(resolvedSearchParams, "error") ?? "";
 
@@ -654,6 +651,10 @@ export default async function ImoveisPage({
       .eq("ativo", true);
 
     if (unicidadeError) {
+      console.error("Falha ao validar unicidade do imovel.", {
+        module: "imoveis.unicidade",
+        code: unicidadeError.code,
+      });
       throw new Error("Nao foi possivel validar codigo e matricula do imovel.");
     }
 
@@ -710,7 +711,6 @@ export default async function ImoveisPage({
       latitude: valorNumero(formData, "latitude"),
       longitude: valorNumero(formData, "longitude"),
       google_maps: valorTexto(formData, "google_maps") || null,
-      condominio: valorTexto(formData, "condominio") || null,
       valor_venda: valorNumero(formData, "valor_venda"),
       valor_locacao: valorNumero(formData, "valor_locacao"),
       aluguel_pretendido: valorNumero(formData, "valor_locacao"),
@@ -798,6 +798,10 @@ export default async function ImoveisPage({
     const { data: imovelSalvo, error } = await mutation;
 
     if (error || !imovelSalvo?.id) {
+      console.error("Falha ao salvar imovel.", {
+        module: "imoveis.salvar",
+        code: error?.code ?? "missing_result",
+      });
       const mensagem = `${error?.message ?? ""} ${error?.code ?? ""}`.toLowerCase();
       if (mensagem.includes("matricula")) {
         redirect("/dashboard/imoveis?error=matricula_duplicada");
@@ -838,6 +842,10 @@ export default async function ImoveisPage({
         .insert(relacoes);
 
       if (relacoesError) {
+        console.error("Falha ao salvar vinculos de proprietarios do imovel.", {
+          module: "imoveis.proprietarios",
+          code: relacoesError.code,
+        });
         throw new Error("Nao foi possivel salvar os proprietarios do imovel.");
       }
     }
@@ -927,7 +935,15 @@ export default async function ImoveisPage({
 
   if (relacoesResult.error) {
     console.error("Falha ao consultar vinculos ativos de proprietarios de imoveis.", {
+      module: "imoveis.proprietarios",
       code: relacoesResult.error.code,
+    });
+  }
+
+  if (imoveisResult.error) {
+    console.error("Falha ao consultar imoveis.", {
+      module: "imoveis.listagem",
+      code: imoveisResult.error.code,
     });
   }
 
@@ -1008,8 +1024,6 @@ export default async function ImoveisPage({
         (filtroPiscina === "sim" ? Boolean(imovel.piscina) : !imovel.piscina)) &&
       (!filtroPet ||
         (filtroPet === "sim" ? Boolean(imovel.aceita_pet) : !imovel.aceita_pet)) &&
-      (!filtroCondominio ||
-        normalizarTexto(imovel.condominio).includes(normalizarTexto(filtroCondominio))) &&
       (!filtroResponsavel || imovel.responsavel_id === filtroResponsavel)
     );
   });
@@ -1147,12 +1161,6 @@ export default async function ImoveisPage({
               <option value="sim">Aceita pet</option>
               <option value="nao">Nao aceita pet</option>
             </select>
-            <input
-              name="condominio"
-              defaultValue={filtroCondominio}
-              className={inputClass()}
-              placeholder="Condominio"
-            />
             <select
               name="responsavel_id"
               defaultValue={filtroResponsavel}
@@ -1219,7 +1227,7 @@ export default async function ImoveisPage({
         <section className="mt-8 grid gap-5 lg:grid-cols-3">
           {imoveisResult.error ? (
             <p className="rounded-2xl border border-red-100 bg-red-50 p-6 text-sm text-red-700 lg:col-span-3">
-              Nao foi possivel carregar os imoveis. Verifique se o SQL do modulo premium foi aplicado.
+              Nao foi possivel carregar os imoveis. Tente novamente em instantes.
             </p>
           ) : imoveisFiltrados.length === 0 ? (
             <p className="rounded-2xl border border-[#E8DDCB] bg-white p-8 text-center text-sm text-[#64736D] lg:col-span-3">
@@ -1618,7 +1626,6 @@ export default async function ImoveisPage({
             <Field label="Valor minimo aceito" name="valor_minimo_aceito" type="number" defaultValue={imovelEmEdicao?.valor_minimo_aceito} />
             <Field label="Valor ideal" name="valor_ideal" type="number" defaultValue={imovelEmEdicao?.valor_ideal} />
             <Field label="Valor anunciado" name="valor_anunciado" type="number" defaultValue={imovelEmEdicao?.valor_anunciado} />
-            <Field label="Condominio nome" name="condominio" defaultValue={imovelEmEdicao?.condominio} />
           </Section>
 
           <Section id="caracteristicas" title="Caracteristicas">
