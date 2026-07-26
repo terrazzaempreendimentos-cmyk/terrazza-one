@@ -42,10 +42,16 @@ type ImovelProprietario = {
   percentual_participacao: number | string | null;
   contato_principal: boolean | null;
   observacoes: string | null;
-  pessoa: {
-    id: string;
-    nome: string;
-  } | null;
+  pessoa:
+    | {
+        id: string;
+        nome: string;
+      }
+    | Array<{
+        id: string;
+        nome: string;
+      }>
+    | null;
 };
 
 type Imovel = {
@@ -449,6 +455,14 @@ function tituloImovel(imovel: Imovel) {
 
 function contatoPessoa(pessoa: PessoaProprietario) {
   return pessoa.whatsapp || pessoa.celular || pessoa.telefone || "-";
+}
+
+function nomePessoaRelacionada(relacao: ImovelProprietario) {
+  if (Array.isArray(relacao.pessoa)) {
+    return relacao.pessoa[0]?.nome;
+  }
+
+  return relacao.pessoa?.nome;
 }
 
 function fieldValue(value: unknown) {
@@ -953,7 +967,7 @@ export default async function ImoveisPage({
       .get(imovel.id)
       ?.map(
         (relacao) =>
-          relacao.pessoa?.nome ?? pessoasPorId.get(relacao.pessoa_id)?.nome,
+          nomePessoaRelacionada(relacao) ?? pessoasPorId.get(relacao.pessoa_id)?.nome,
       )
       .filter(Boolean)
       .join(" ");
@@ -1217,7 +1231,8 @@ export default async function ImoveisPage({
               const proprietariosPessoa = relacoesDoImovel
                 .map(
                   (relacao) =>
-                    relacao.pessoa?.nome ?? pessoasPorId.get(relacao.pessoa_id)?.nome,
+                    nomePessoaRelacionada(relacao) ??
+                    pessoasPorId.get(relacao.pessoa_id)?.nome,
                 )
                 .filter((nome): nome is string => Boolean(nome));
               const proprietarioPrincipal =
