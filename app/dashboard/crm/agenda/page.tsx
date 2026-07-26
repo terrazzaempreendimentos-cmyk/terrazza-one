@@ -10,6 +10,7 @@ import {
 
 import { AgendaSemanal } from "../../../../components/crm/AgendaSemanal";
 import { requireActiveProfile } from "../../../../lib/auth/access-profile";
+import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import { supabase } from "../../../../lib/supabase";
 
 type Lead = {
@@ -109,6 +110,8 @@ function nomeImovel(imovel: Imovel | undefined) {
 }
 
 export default async function AgendaPage() {
+  await requirePagePermission("agenda.visualizar");
+
   async function cadastrarTarefa(formData: FormData) {
     "use server";
     await requireActiveProfile();

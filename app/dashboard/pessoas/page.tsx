@@ -10,6 +10,7 @@ import {
   requireActiveProfile,
   requirePermission,
 } from "../../../lib/auth/access-profile";
+import { requirePagePermission } from "../../../lib/auth/page-permission";
 import { supabase } from "../../../lib/supabase";
 import {
   formatarCNPJ,
@@ -150,6 +151,8 @@ export default async function PessoasPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
+  await requirePagePermission("pessoas.visualizar");
+
   const resolvedSearchParams = (await searchParams) ?? {};
   const editId = paramValue(resolvedSearchParams, "edit") ?? "";
   const filtroPapel = paramValue(resolvedSearchParams, "papel") ?? "";

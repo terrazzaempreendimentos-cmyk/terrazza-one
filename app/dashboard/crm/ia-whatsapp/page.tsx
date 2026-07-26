@@ -1,3 +1,5 @@
+import { requirePagePermission } from "../../../../lib/auth/page-permission";
+
 const indicadores = [
   {
     titulo: "Status da IA",
@@ -43,7 +45,9 @@ const fluxoArquitetura = [
   "Vista ERP",
 ];
 
-export default function IaWhatsappPage() {
+export default async function IaWhatsappPage() {
+  await requirePagePermission("ia.usar");
+
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
       <div className="mx-auto max-w-7xl">

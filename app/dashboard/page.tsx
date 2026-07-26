@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { requirePagePermission } from "../../lib/auth/page-permission";
 import { hasPapel } from "../../lib/crm/pessoas/papeis";
 import { supabase } from "../../lib/supabase";
 
@@ -49,6 +50,8 @@ function smallItem(title: string, description: string, badge: string) {
 }
 
 export default async function DashboardPage() {
+  await requirePagePermission("dashboard.visualizar");
+
   const [pessoasResult, imoveisResult, atendimentosResult, manutencoesResult] =
     await Promise.all([
       supabase.from("pessoas").select("id, papeis, temperatura, status").eq("ativo", true),

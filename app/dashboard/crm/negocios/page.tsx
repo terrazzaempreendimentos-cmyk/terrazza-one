@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { requirePagePermission } from "../../../../lib/auth/page-permission";
+
 type Negocio = {
   id: string;
   titulo: string;
@@ -110,7 +112,9 @@ function temperaturaClassName(temperatura: Negocio["temperatura"]) {
   return `rounded-full px-3 py-1 text-xs font-semibold ${classes[temperatura]}`;
 }
 
-export default function NegociosPage() {
+export default async function NegociosPage() {
+  await requirePagePermission("negocios.visualizar");
+
   const cards: Array<{ titulo: string; valor: number; icon: LucideIcon }> = [
     { titulo: "Negocios ativos", valor: negocios.length, icon: BriefcaseBusiness },
     {

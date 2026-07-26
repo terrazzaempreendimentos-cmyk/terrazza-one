@@ -15,6 +15,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { requirePermission } from "../../../../lib/auth/access-profile";
+import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import {
   getCorretorUnificadoPorId,
   getCorretoresUnificados,
@@ -124,6 +125,8 @@ export default async function RoletaPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
+  await requirePagePermission("roleta.visualizar");
+
   const resolvedSearchParams = (await searchParams) ?? {};
   const busca = paramValue(resolvedSearchParams, "busca") ?? "";
   const filtroCidade = paramValue(resolvedSearchParams, "cidade") ?? "";

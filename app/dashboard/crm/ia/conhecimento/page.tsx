@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { BookOpen, Brain, CheckCircle2, Database, PlusCircle } from "lucide-react";
 
 import { requirePermission } from "../../../../../lib/auth/access-profile";
+import { requirePagePermission } from "../../../../../lib/auth/page-permission";
 import { supabase } from "../../../../../lib/supabase";
 
 type Conhecimento = {
@@ -103,6 +104,8 @@ function ordenarConhecimentos(conhecimentos: Conhecimento[]) {
 }
 
 export default async function BaseConhecimentoPage() {
+  await requirePagePermission("ia_conhecimento.visualizar");
+
   async function cadastrarConhecimento(formData: FormData) {
     "use server";
     await requirePermission("ia_conhecimento.criar");

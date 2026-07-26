@@ -8,6 +8,7 @@ import {
   requireActiveProfile,
   requirePermission,
 } from "../../../../lib/auth/access-profile";
+import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import { supabase } from "../../../../lib/supabase";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -107,6 +108,8 @@ export default async function LeadsPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
+  await requirePagePermission("leads.visualizar");
+
   const resolvedSearchParams = (await searchParams) ?? {};
   const busca = paramValue(resolvedSearchParams, "busca") ?? "";
   const filtroStatus = paramValue(resolvedSearchParams, "status") ?? "";

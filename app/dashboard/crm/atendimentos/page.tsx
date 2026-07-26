@@ -7,6 +7,8 @@ import {
   ShieldCheck,
 } from "lucide-react";
 
+import { requirePagePermission } from "../../../../lib/auth/page-permission";
+
 type AtendimentoStatus =
   | "em_andamento"
   | "aguardando_cliente"
@@ -138,7 +140,9 @@ function temperaturaClassName(temperatura: Atendimento["temperatura"]) {
   return `rounded-full px-3 py-1 text-xs font-semibold ${classes[temperatura]}`;
 }
 
-export default function AtendimentosPage() {
+export default async function AtendimentosPage() {
+  await requirePagePermission("atendimentos.visualizar");
+
   const resumo = colunas.map((coluna) => ({
     ...coluna,
     valor: atendimentos.filter((atendimento) => atendimento.status === coluna.id)

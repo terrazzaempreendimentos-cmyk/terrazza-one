@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { requirePermission } from "../../../lib/auth/access-profile";
+import { requirePagePermission } from "../../../lib/auth/page-permission";
 import { CreciValidationForm } from "../crm/corretores/CreciValidationForm";
 import {
   addPapel,
@@ -61,6 +62,8 @@ export default async function CorretoresPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
+  await requirePagePermission("corretores.visualizar");
+
   const resolvedSearchParams = (await searchParams) ?? {};
   const editId = paramValue(resolvedSearchParams, "edit") ?? "";
   const busca = paramValue(resolvedSearchParams, "busca") ?? "";

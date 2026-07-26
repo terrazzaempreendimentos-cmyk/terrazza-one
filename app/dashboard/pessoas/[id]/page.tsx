@@ -13,6 +13,7 @@ import {
 
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
 import { requirePermission } from "../../../../lib/auth/access-profile";
+import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import { supabase } from "../../../../lib/supabase";
 
 type Pessoa = {
@@ -100,6 +101,8 @@ export default async function PessoaDetalhePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePagePermission("pessoas.visualizar");
+
   const { id } = await params;
 
   async function excluirPessoa(formData: FormData) {

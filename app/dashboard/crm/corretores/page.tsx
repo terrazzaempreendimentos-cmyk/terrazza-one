@@ -1,5 +1,8 @@
 import { redirect } from "next/navigation";
 
-export default function CorretoresCrmRedirectPage() {
+import { requirePagePermission } from "../../../../lib/auth/page-permission";
+
+export default async function CorretoresCrmRedirectPage() {
+  await requirePagePermission("corretores.visualizar");
   redirect("/dashboard/corretores");
 }

@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 
 import { requireActiveProfile } from "../../../../lib/auth/access-profile";
+import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import { supabase } from "../../../../lib/supabase";
 
 type Conhecimento = {
@@ -150,6 +151,8 @@ function formatarDataHora(data: string | null) {
 }
 
 export default async function IaComercialPage() {
+  await requirePagePermission("ia.usar");
+
   async function enviarMensagem(formData: FormData) {
     "use server";
     await requireActiveProfile();

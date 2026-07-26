@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { Brain, Database, PlusCircle } from "lucide-react";
 
 import { requirePermission } from "../../../../../lib/auth/access-profile";
+import { requirePagePermission } from "../../../../../lib/auth/page-permission";
 import {
   createMemory,
   searchMemories,
@@ -80,6 +81,8 @@ async function loadRecentMemories() {
 }
 
 export default async function UceMemoriasPage() {
+  await requirePagePermission("ia_memorias.visualizar");
+
   async function cadastrarMemoria(formData: FormData) {
     "use server";
     await requirePermission("ia_memorias.criar");

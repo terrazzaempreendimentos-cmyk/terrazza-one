@@ -76,6 +76,38 @@ Os metadados em `FUTURE_PERMISSION_SCOPES` registram os escopos previstos — `p
 
 Até essa infraestrutura existir, essas marcações são documentação de intenção e não uma garantia de isolamento de dados.
 
+## Proteção de páginas e navegação
+
+Todas as páginas atuais sob `/dashboard` exigem no servidor a permissão de visualização correspondente antes de consultar dados. O fluxo diferencia ausência de sessão, perfil pendente/inativo e permissão insuficiente. O simulador, por ser Client Component, usa um layout server-only dedicado.
+
+| Rota | Permissão |
+|---|---|
+| `/dashboard` | `dashboard.visualizar` |
+| `/dashboard/pessoas` e `/dashboard/pessoas/[id]` | `pessoas.visualizar` |
+| `/dashboard/proprietarios` e `/dashboard/inquilinos` | `pessoas.visualizar` |
+| `/dashboard/corretores` e `/dashboard/crm/corretores` | `corretores.visualizar` |
+| `/dashboard/imoveis` | `imoveis.visualizar` |
+| `/dashboard/crm` | `dashboard.visualizar` |
+| `/dashboard/crm/leads` e `/dashboard/crm/leads/[id]` | `leads.visualizar` |
+| `/dashboard/crm/kanban` | `kanban.usar` |
+| `/dashboard/crm/agenda` | `agenda.visualizar` |
+| `/dashboard/crm/timeline` | `timeline.visualizar` |
+| `/dashboard/crm/roleta` | `roleta.visualizar` |
+| `/dashboard/crm/atendimentos` | `atendimentos.visualizar` |
+| `/dashboard/crm/negocios` | `negocios.visualizar` |
+| `/dashboard/crm/atividades` | `atividades.visualizar` |
+| `/dashboard/crm/manutencoes` | `manutencoes.visualizar` |
+| `/dashboard/crm/ia` e `/dashboard/crm/ia/simulador` | `ia.usar` |
+| `/dashboard/crm/ia/conhecimento` | `ia_conhecimento.visualizar` |
+| `/dashboard/crm/ia/memorias` | `ia_memorias.visualizar` |
+| `/dashboard/crm/ia-whatsapp` | `ia.usar` |
+
+A sidebar recebe do servidor somente a lista de permissões do papel, sem UUID ou perfil completo, filtra os links e oculta grupos vazios. A rota órfã de IA WhatsApp continua protegida, mas não foi adicionada à navegação. O link de Configurações foi removido porque essa rota não existe.
+
+Os botões de criar, editar, arquivar, distribuir e administrar ainda podem aparecer em algumas telas para papéis sem a permissão visual correspondente. A adequação desses controles visuais permanece pendente; as operações críticas já protegidas continuam impondo autorização no servidor.
+
+As páginas de Atendimentos, Negócios e Atividades continuam usando dados simulados. A proteção de visualização não altera nem promove esses mocks a dados reais.
+
 ## Aplicação atual
 
 `requirePermission()` protege somente:

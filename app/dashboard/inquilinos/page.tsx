@@ -9,6 +9,7 @@ import {
   requireActiveProfile,
   requirePermission,
 } from "../../../lib/auth/access-profile";
+import { requirePagePermission } from "../../../lib/auth/page-permission";
 import {
   addPapel,
   hasPapel,
@@ -97,6 +98,8 @@ export default async function InquilinosPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
+  await requirePagePermission("pessoas.visualizar");
+
   const resolvedSearchParams = (await searchParams) ?? {};
   const editId = paramValue(resolvedSearchParams, "edit") ?? "";
   const viewId = paramValue(resolvedSearchParams, "view") ?? "";

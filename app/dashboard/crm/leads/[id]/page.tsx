@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { requirePagePermission } from "../../../../../lib/auth/page-permission";
 import { supabase } from "../../../../../lib/supabase";
 
 type Lead = {
@@ -72,6 +73,8 @@ export default async function LeadDetalhePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  await requirePagePermission("leads.visualizar");
+
   const { id } = await params;
 
   const [leadResult, timelineResult] = await Promise.all([

@@ -9,6 +9,7 @@ import {
   requireActiveProfile,
   requirePermission,
 } from "../../../lib/auth/access-profile";
+import { requirePagePermission } from "../../../lib/auth/page-permission";
 import { hasPapel } from "../../../lib/crm/pessoas/papeis";
 import { supabase } from "../../../lib/supabase";
 
@@ -407,6 +408,8 @@ export default async function ImoveisPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
+  await requirePagePermission("imoveis.visualizar");
+
   const resolvedSearchParams = (await searchParams) ?? {};
   const editId = paramValue(resolvedSearchParams, "edit") ?? "";
   const viewId = paramValue(resolvedSearchParams, "view") ?? "";

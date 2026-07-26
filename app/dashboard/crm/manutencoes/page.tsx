@@ -17,6 +17,7 @@ import {
   requireActiveProfile,
   requirePermission,
 } from "../../../../lib/auth/access-profile";
+import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import {
   createOperationalMemoryFromMaintenance,
   searchMemories,
@@ -269,6 +270,8 @@ export default async function ManutencoesPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
+  await requirePagePermission("manutencoes.visualizar");
+
   const resolvedSearchParams = (await searchParams) ?? {};
   const filtroTipo = paramValue(resolvedSearchParams, "tipo") ?? "";
   const filtroStatus = paramValue(resolvedSearchParams, "status") ?? "";

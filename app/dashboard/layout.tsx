@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { getAccessState } from "../../lib/auth/access-profile";
+import { getPermissionsForRole } from "../../lib/auth/permissions";
 import { DashboardSidebar } from "./dashboard-sidebar";
 
 export default async function DashboardLayout({
@@ -20,7 +21,7 @@ export default async function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-[#F7F3ED] text-[#102A27] lg:pl-72">
-      <DashboardSidebar />
+      <DashboardSidebar permissions={getPermissionsForRole(access.profile.papel)} />
       <div>{children}</div>
     </div>
   );

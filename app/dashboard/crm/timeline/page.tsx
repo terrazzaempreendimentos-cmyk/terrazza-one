@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { TimelinePanel } from "../../../../components/crm/TimelinePanel";
+import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import {
   montarTimelineItems,
   type TimelineEvento,
@@ -54,6 +55,8 @@ function nomeImovel(imovel: Imovel) {
 }
 
 export default async function TimelinePage() {
+  await requirePagePermission("timeline.visualizar");
+
   const [
     timelineResult,
     leadsResult,

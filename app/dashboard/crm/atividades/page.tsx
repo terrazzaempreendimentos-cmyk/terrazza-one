@@ -9,6 +9,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import { requirePagePermission } from "../../../../lib/auth/page-permission";
+
 type Atividade = {
   id: string;
   titulo: string;
@@ -93,7 +95,9 @@ function badgeClassName(valor: Atividade["prioridade"] | Atividade["status"]) {
   return `rounded-full px-3 py-1 text-xs font-semibold ${classes[valor]}`;
 }
 
-export default function AtividadesPage() {
+export default async function AtividadesPage() {
+  await requirePagePermission("atividades.visualizar");
+
   const cards: Array<{ titulo: string; valor: number; icon: LucideIcon }> = [
     {
       titulo: "Pendentes",

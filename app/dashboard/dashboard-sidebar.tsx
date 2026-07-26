@@ -38,6 +38,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 import { logout } from "../login/actions";
+import type { Permission } from "../../lib/auth/permissions";
 
 const STORAGE_KEY = "terrazza-dashboard-menu-open-groups";
 const STORAGE_EVENT = "terrazza-dashboard-menu-storage";
@@ -47,6 +48,7 @@ type MenuLink = {
   href: string;
   icon: LucideIcon;
   badge?: string;
+  permission: Permission;
 };
 
 type MenuPlaceholder = {
@@ -75,18 +77,18 @@ const menuGroups: MenuGroup[] = [
     id: "dashboard",
     title: "Dashboard",
     icon: LayoutDashboard,
-    links: [{ label: "Visao Geral", href: "/dashboard", icon: Gauge }],
+    links: [{ label: "Visao Geral", href: "/dashboard", icon: Gauge, permission: "dashboard.visualizar" }],
   },
   {
     id: "cadastros",
     title: "Cadastros",
     icon: Building2,
     links: [
-      { label: "Pessoas", href: "/dashboard/pessoas", icon: UserCog },
-      { label: "Proprietarios", href: "/dashboard/proprietarios", icon: UsersRound },
-      { label: "Inquilinos", href: "/dashboard/inquilinos", icon: KeyRound },
-      { label: "Imoveis", href: "/dashboard/imoveis", icon: Home },
-      { label: "Corretores", href: "/dashboard/crm/corretores", icon: ShieldCheck },
+      { label: "Pessoas", href: "/dashboard/pessoas", icon: UserCog, permission: "pessoas.visualizar" },
+      { label: "Proprietarios", href: "/dashboard/proprietarios", icon: UsersRound, permission: "pessoas.visualizar" },
+      { label: "Inquilinos", href: "/dashboard/inquilinos", icon: KeyRound, permission: "pessoas.visualizar" },
+      { label: "Imoveis", href: "/dashboard/imoveis", icon: Home, permission: "imoveis.visualizar" },
+      { label: "Corretores", href: "/dashboard/crm/corretores", icon: ShieldCheck, permission: "corretores.visualizar" },
       { label: "Parceiros", icon: Link2, disabled: true, badge: "Em breve" },
     ],
   },
@@ -95,16 +97,16 @@ const menuGroups: MenuGroup[] = [
     title: "CRM",
     icon: Sparkles,
     links: [
-      { label: "Visao Geral", href: "/dashboard/crm", icon: Sparkles },
-      { label: "Leads", href: "/dashboard/crm/leads", icon: UsersRound },
-      { label: "Atendimentos", href: "/dashboard/crm/atendimentos", icon: MessageSquareText },
-      { label: "Negocios", href: "/dashboard/crm/negocios", icon: LineChart },
-      { label: "Kanban", href: "/dashboard/crm/kanban", icon: BarChart3 },
-      { label: "Agenda Inteligente", href: "/dashboard/crm/agenda", icon: ClipboardCheck },
-      { label: "Timeline", href: "/dashboard/crm/timeline", icon: ScrollText },
-      { label: "Atividades", href: "/dashboard/crm/atividades", icon: ListChecks },
-      { label: "Roleta Inteligente", href: "/dashboard/crm/roleta", icon: Sparkles },
-      { label: "Manutencoes e Conflitos", href: "/dashboard/crm/manutencoes", icon: Wrench },
+      { label: "Visao Geral", href: "/dashboard/crm", icon: Sparkles, permission: "dashboard.visualizar" },
+      { label: "Leads", href: "/dashboard/crm/leads", icon: UsersRound, permission: "leads.visualizar" },
+      { label: "Atendimentos", href: "/dashboard/crm/atendimentos", icon: MessageSquareText, permission: "atendimentos.visualizar" },
+      { label: "Negocios", href: "/dashboard/crm/negocios", icon: LineChart, permission: "negocios.visualizar" },
+      { label: "Kanban", href: "/dashboard/crm/kanban", icon: BarChart3, permission: "kanban.usar" },
+      { label: "Agenda Inteligente", href: "/dashboard/crm/agenda", icon: ClipboardCheck, permission: "agenda.visualizar" },
+      { label: "Timeline", href: "/dashboard/crm/timeline", icon: ScrollText, permission: "timeline.visualizar" },
+      { label: "Atividades", href: "/dashboard/crm/atividades", icon: ListChecks, permission: "atividades.visualizar" },
+      { label: "Roleta Inteligente", href: "/dashboard/crm/roleta", icon: Sparkles, permission: "roleta.visualizar" },
+      { label: "Manutencoes e Conflitos", href: "/dashboard/crm/manutencoes", icon: Wrench, permission: "manutencoes.visualizar" },
     ],
   },
   {
@@ -112,9 +114,9 @@ const menuGroups: MenuGroup[] = [
     title: "UCE",
     icon: Brain,
     links: [
-      { label: "IA Comercial", href: "/dashboard/crm/ia", icon: Bot },
-      { label: "UCE Conhecimento", href: "/dashboard/crm/ia/conhecimento", icon: BookOpen },
-      { label: "UCE Memoria", href: "/dashboard/crm/ia/memorias", icon: Brain },
+      { label: "IA Comercial", href: "/dashboard/crm/ia", icon: Bot, permission: "ia.usar" },
+      { label: "UCE Conhecimento", href: "/dashboard/crm/ia/conhecimento", icon: BookOpen, permission: "ia_conhecimento.visualizar" },
+      { label: "UCE Memoria", href: "/dashboard/crm/ia/memorias", icon: Brain, permission: "ia_memorias.visualizar" },
       { label: "UCE Correspondencias", icon: MailCheck, disabled: true, badge: "Em breve" },
       { label: "UCE Aprendizado", icon: Activity, disabled: true, badge: "Em breve" },
       { label: "UCE Perfil", icon: Activity, disabled: true, badge: "Em breve" },
@@ -137,12 +139,11 @@ const menuGroups: MenuGroup[] = [
     title: "Administracao",
     icon: Settings,
     links: [
-      { label: "Configuracoes", href: "/dashboard/configuracoes", icon: Settings },
       { label: "Usuarios", icon: UserCog, disabled: true, badge: "Em breve" },
       { label: "Perfis", icon: ShieldCheck, disabled: true, badge: "Em breve" },
       { label: "Integracoes", icon: SlidersHorizontal, disabled: true, badge: "Em breve" },
       { type: "divider", label: "Laboratorio UCE" },
-      { label: "Simulador IA", href: "/dashboard/crm/ia/simulador", icon: MessageSquareText },
+      { label: "Simulador IA", href: "/dashboard/crm/ia/simulador", icon: MessageSquareText, permission: "ia.usar" },
       { label: "Diagnostico", icon: Gauge, disabled: true, badge: "Em breve" },
       { label: "Logs", icon: ListChecks, disabled: true, badge: "Em breve" },
       { label: "Testes OpenAI", icon: FlaskConical, disabled: true, badge: "Em breve" },
@@ -236,8 +237,21 @@ function badgeClassName(disabled = false) {
   ].join(" ");
 }
 
-export function DashboardSidebar() {
+export function DashboardSidebar({
+  permissions,
+}: {
+  permissions: readonly Permission[];
+}) {
   const pathname = usePathname();
+  const visibleMenuGroups = menuGroups
+    .map((group) => ({
+      ...group,
+      links: group.links.filter(
+        (link): link is MenuLink =>
+          "href" in link && permissions.includes(link.permission),
+      ),
+    }))
+    .filter((group) => group.links.length > 0);
   const openGroups = useSyncExternalStore(
     subscribeOpenGroups,
     getStoredOpenGroups,
@@ -270,7 +284,7 @@ export function DashboardSidebar() {
       </div>
 
       <nav className="mt-6 grid gap-2">
-        {menuGroups.map((group) => {
+        {visibleMenuGroups.map((group) => {
           const Icon = group.icon;
           const isOpen = openGroups[group.id] ?? true;
           const groupActive = isGroupActive(pathname, group.links);
