@@ -13,7 +13,7 @@ import {
 
 import { requireActiveProfile } from "../../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
-import { supabase } from "../../../../lib/supabase";
+import { createClient } from "../../../../lib/supabase/server";
 
 type Conhecimento = {
   id: string;
@@ -152,10 +152,12 @@ function formatarDataHora(data: string | null) {
 
 export default async function IaComercialPage() {
   await requirePagePermission("ia.usar");
+  const supabase = await createClient();
 
   async function enviarMensagem(formData: FormData) {
     "use server";
     await requireActiveProfile();
+    const supabase = await createClient();
 
     const pergunta = String(formData.get("mensagem") ?? "").trim();
 

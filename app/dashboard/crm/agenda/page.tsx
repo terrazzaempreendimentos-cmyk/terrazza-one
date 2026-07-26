@@ -11,7 +11,7 @@ import {
 import { AgendaSemanal } from "../../../../components/crm/AgendaSemanal";
 import { requireActiveProfile } from "../../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
-import { supabase } from "../../../../lib/supabase";
+import { createClient } from "../../../../lib/supabase/server";
 
 type Lead = {
   id: string;
@@ -111,10 +111,12 @@ function nomeImovel(imovel: Imovel | undefined) {
 
 export default async function AgendaPage() {
   await requirePagePermission("agenda.visualizar");
+  const supabase = await createClient();
 
   async function cadastrarTarefa(formData: FormData) {
     "use server";
     await requireActiveProfile();
+    const supabase = await createClient();
 
     const titulo = valorTexto(formData, "titulo");
 

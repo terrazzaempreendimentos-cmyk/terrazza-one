@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { requirePagePermission } from "../../../lib/auth/page-permission";
-import { supabase } from "../../../lib/supabase";
+import { createClient } from "../../../lib/supabase/server";
 
 type Lead = {
   id: string;
@@ -65,6 +65,7 @@ function formatarData(data: string | null) {
 
 export default async function CRMPage() {
   await requirePagePermission("dashboard.visualizar");
+  const supabase = await createClient();
 
   const hoje = dataHoje();
   const [leadsResult, tarefasResult, timelineResult] = await Promise.all([

@@ -1,5 +1,5 @@
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
-import { supabase } from "../../../../lib/supabase";
+import { createClient } from "../../../../lib/supabase/server";
 
 type Lead = {
   id: string;
@@ -72,6 +72,7 @@ function labelTexto(valor: string | null) {
 
 export default async function KanbanPage() {
   await requirePagePermission("kanban.usar");
+  const supabase = await createClient();
 
   const { data, error } = await supabase
     .from("leads")

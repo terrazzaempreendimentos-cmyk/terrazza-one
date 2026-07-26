@@ -1,4 +1,4 @@
-import { supabase } from "../../../supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
   CreateUCEInteractionInput,
@@ -13,8 +13,11 @@ function sanitizeSearchTerm(term: string) {
   return term.replace(/[%,]/g, " ").trim();
 }
 
-export async function createMemory(input: CreateUCEMemoryInput) {
-  const { data, error } = await supabase
+export async function createMemory(
+  client: SupabaseClient,
+  input: CreateUCEMemoryInput,
+) {
+  const { data, error } = await client
     .from("uce_memories")
     .insert({
       entity_type: input.entity_type,
@@ -36,8 +39,11 @@ export async function createMemory(input: CreateUCEMemoryInput) {
   return data as UCEMemory;
 }
 
-export async function createInteraction(input: CreateUCEInteractionInput) {
-  const { data, error } = await supabase
+export async function createInteraction(
+  client: SupabaseClient,
+  input: CreateUCEInteractionInput,
+) {
+  const { data, error } = await client
     .from("uce_interactions")
     .insert({
       entity_type: input.entity_type ?? null,
@@ -59,11 +65,12 @@ export async function createInteraction(input: CreateUCEInteractionInput) {
 }
 
 export async function getMemoriesByEntity(
+  client: SupabaseClient,
   entityType: UCEMemoryEntityType,
   entityId?: string | null,
   limit = 30,
 ) {
-  let query = supabase
+  let query = client
     .from("uce_memories")
     .select("*")
     .eq("entity_type", entityType)
@@ -83,11 +90,12 @@ export async function getMemoriesByEntity(
 }
 
 export async function getInteractionsByEntity(
+  client: SupabaseClient,
   entityType: UCEMemoryEntityType,
   entityId?: string | null,
   limit = 30,
 ) {
-  let query = supabase
+  let query = client
     .from("uce_interactions")
     .select("*")
     .eq("entity_type", entityType)
@@ -105,9 +113,12 @@ export async function getInteractionsByEntity(
   return (data ?? []) as UCEInteraction[];
 }
 
-export async function searchMemories(input: UCEMemoryRetrievalInput = {}) {
+export async function searchMemories(
+  client: SupabaseClient,
+  input: UCEMemoryRetrievalInput = {},
+) {
   const limit = input.limit ?? 25;
-  let query = supabase
+  let query = client
     .from("uce_memories")
     .select("*")
     .order("importance", { ascending: false })

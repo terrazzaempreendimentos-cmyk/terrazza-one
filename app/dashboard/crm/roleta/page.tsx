@@ -21,7 +21,7 @@ import {
   getCorretoresUnificados,
   type CorretorUnificado,
 } from "../../../../lib/crm/corretores/getCorretoresUnificados";
-import { supabase } from "../../../../lib/supabase";
+import { createClient } from "../../../../lib/supabase/server";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -126,6 +126,7 @@ export default async function RoletaPage({
   searchParams?: Promise<SearchParams>;
 }) {
   await requirePagePermission("roleta.visualizar");
+  const supabase = await createClient();
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const busca = paramValue(resolvedSearchParams, "busca") ?? "";
@@ -137,6 +138,7 @@ export default async function RoletaPage({
   async function distribuirLead(formData: FormData) {
     "use server";
     await requirePermission("leads.distribuir");
+    const supabase = await createClient();
 
     const leadId = valorTexto(formData, "lead_id");
     const corretorId = valorTexto(formData, "corretor_id");
@@ -147,7 +149,7 @@ export default async function RoletaPage({
 
     const [{ data: lead, error: leadError }, corretoresResult] = await Promise.all([
       supabase.from("leads").select("id, nome").eq("id", leadId).single(),
-      getCorretoresUnificados(),
+      getCorretoresUnificados(supabase),
     ]);
 
     if (leadError || !lead) throw new Error("Nao foi possivel localizar o lead selecionado.");
@@ -211,7 +213,7 @@ export default async function RoletaPage({
   }
 
   const [corretoresResult, leadsResult, distribuicoesResult] = await Promise.all([
-    getCorretoresUnificados(),
+    getCorretoresUnificados(supabase),
     supabase
       .from("leads")
       .select("id, nome, telefone, tipo_lead, objetivo, cidade, origem, status")

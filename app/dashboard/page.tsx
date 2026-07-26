@@ -2,7 +2,7 @@ import Link from "next/link";
 
 import { requirePagePermission } from "../../lib/auth/page-permission";
 import { hasPapel } from "../../lib/crm/pessoas/papeis";
-import { supabase } from "../../lib/supabase";
+import { createClient } from "../../lib/supabase/server";
 
 type PessoaResumo = {
   id: string;
@@ -51,6 +51,7 @@ function smallItem(title: string, description: string, badge: string) {
 
 export default async function DashboardPage() {
   await requirePagePermission("dashboard.visualizar");
+  const supabase = await createClient();
 
   const [pessoasResult, imoveisResult, atendimentosResult, manutencoesResult] =
     await Promise.all([

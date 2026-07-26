@@ -11,7 +11,7 @@ import {
   requirePermission,
 } from "../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../lib/auth/page-permission";
-import { supabase } from "../../../lib/supabase";
+import { createClient } from "../../../lib/supabase/server";
 import {
   formatarCNPJ,
   formatarCPF,
@@ -152,6 +152,7 @@ export default async function PessoasPage({
   searchParams?: Promise<SearchParams>;
 }) {
   await requirePagePermission("pessoas.visualizar");
+  const supabase = await createClient();
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const editId = paramValue(resolvedSearchParams, "edit") ?? "";
@@ -164,6 +165,7 @@ export default async function PessoasPage({
   async function salvarPessoa(formData: FormData) {
     "use server";
     await requireActiveProfile();
+    const supabase = await createClient();
 
     const id = valorTexto(formData, "id");
     const nome = valorTexto(formData, "nome");
@@ -269,6 +271,7 @@ export default async function PessoasPage({
   async function excluirPessoa(formData: FormData) {
     "use server";
     await requirePermission("pessoas.arquivar");
+    const supabase = await createClient();
 
     const id = valorTexto(formData, "id");
     if (!id) throw new Error("Pessoa nao informada.");

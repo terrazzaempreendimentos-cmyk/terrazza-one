@@ -3,6 +3,8 @@ import { Brain, Database, PlusCircle } from "lucide-react";
 
 import { requirePermission } from "../../../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../../../lib/auth/page-permission";
+import { createClient } from "../../../../../lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   createMemory,
   searchMemories,
@@ -65,10 +67,10 @@ function splitTags(tags: string | null) {
     .filter(Boolean);
 }
 
-async function loadRecentMemories() {
+async function loadRecentMemories(supabase: SupabaseClient) {
   try {
     return {
-      memories: await searchMemories({ limit: 20 }),
+      memories: await searchMemories(supabase, { limit: 20 }),
       error: null,
     };
   } catch {
@@ -82,10 +84,12 @@ async function loadRecentMemories() {
 
 export default async function UceMemoriasPage() {
   await requirePagePermission("ia_memorias.visualizar");
+  const supabase = await createClient();
 
   async function cadastrarMemoria(formData: FormData) {
     "use server";
     await requirePermission("ia_memorias.criar");
+    const supabase = await createClient();
 
     const entityType = valorTexto(formData, "entity_type") as UCEMemoryEntityType;
     const memoryType = valorTexto(formData, "memory_type") as UCEMemoryType;
@@ -97,7 +101,7 @@ export default async function UceMemoriasPage() {
       throw new Error("Tipo de entidade, tipo de memória, título e conteúdo são obrigatórios.");
     }
 
-    await createMemory({
+    await createMemory(supabase, {
       entity_type: entityType,
       entity_label: valorTexto(formData, "entity_label") || null,
       memory_type: memoryType,
@@ -112,7 +116,7 @@ export default async function UceMemoriasPage() {
     revalidatePath("/dashboard/crm/ia/memorias");
   }
 
-  const { memories, error } = await loadRecentMemories();
+  const { memories, error } = await loadRecentMemories(supabase);
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">

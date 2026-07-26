@@ -9,7 +9,7 @@ import {
   requirePermission,
 } from "../../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
-import { supabase } from "../../../../lib/supabase";
+import { createClient } from "../../../../lib/supabase/server";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -109,6 +109,7 @@ export default async function LeadsPage({
   searchParams?: Promise<SearchParams>;
 }) {
   await requirePagePermission("leads.visualizar");
+  const supabase = await createClient();
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const busca = paramValue(resolvedSearchParams, "busca") ?? "";
@@ -122,6 +123,7 @@ export default async function LeadsPage({
   async function salvarLead(formData: FormData) {
     "use server";
     await requireActiveProfile();
+    const supabase = await createClient();
 
     const id = valorTexto(formData, "id");
     const nome = valorTexto(formData, "nome");
@@ -158,6 +160,7 @@ export default async function LeadsPage({
   async function excluirLead(formData: FormData) {
     "use server";
     await requirePermission("leads.arquivar");
+    const supabase = await createClient();
 
     const id = valorTexto(formData, "id");
 

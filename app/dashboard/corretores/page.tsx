@@ -15,7 +15,7 @@ import {
   getCorretoresUnificados,
   type CorretorOrigem,
 } from "../../../lib/crm/corretores/getCorretoresUnificados";
-import { supabase } from "../../../lib/supabase";
+import { createClient } from "../../../lib/supabase/server";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -63,6 +63,7 @@ export default async function CorretoresPage({
   searchParams?: Promise<SearchParams>;
 }) {
   await requirePagePermission("corretores.visualizar");
+  const supabase = await createClient();
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const editId = paramValue(resolvedSearchParams, "edit") ?? "";
@@ -74,6 +75,7 @@ export default async function CorretoresPage({
   async function salvarCorretor(formData: FormData) {
     "use server";
     await requirePermission("corretores.administrar");
+    const supabase = await createClient();
 
     const id = valorTexto(formData, "id");
     const sourceId = valorTexto(formData, "source_id");
@@ -87,7 +89,7 @@ export default async function CorretoresPage({
     }
 
     if (creci) {
-      const { data: corretores, error } = await getCorretoresUnificados();
+      const { data: corretores, error } = await getCorretoresUnificados(supabase);
       if (error) throw new Error("Nao foi possivel validar o CRECI.");
 
       const creciDuplicado = corretores.some(
@@ -171,6 +173,7 @@ export default async function CorretoresPage({
   async function excluirCorretor(formData: FormData) {
     "use server";
     await requirePermission("corretores.arquivar");
+    const supabase = await createClient();
 
     const sourceId = valorTexto(formData, "source_id");
     const origem = valorTexto(formData, "origem") as CorretorOrigem;
@@ -212,7 +215,7 @@ export default async function CorretoresPage({
     revalidatePath("/dashboard/crm/roleta");
   }
 
-  const { data: corretores, error } = await getCorretoresUnificados();
+  const { data: corretores, error } = await getCorretoresUnificados(supabase);
   const corretoresFiltrados = corretores.filter((corretor) => {
     const texto = normalizarTexto(
       [

@@ -1,4 +1,5 @@
 import { searchMemories } from "./repository";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type { UCEMemory, UCEMemoryRetrievalInput } from "./types";
 
@@ -34,8 +35,11 @@ function scoreMemory(memory: UCEMemory, input: UCEMemoryRetrievalInput) {
   return score;
 }
 
-export async function retrieveRelevantMemory(input: UCEMemoryRetrievalInput) {
-  const memories = await searchMemories({
+export async function retrieveRelevantMemory(
+  client: SupabaseClient,
+  input: UCEMemoryRetrievalInput,
+) {
+  const memories = await searchMemories(client, {
     ...input,
     limit: Math.max(input.limit ?? 20, 20),
   });

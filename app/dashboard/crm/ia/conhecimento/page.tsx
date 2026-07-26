@@ -3,7 +3,7 @@ import { BookOpen, Brain, CheckCircle2, Database, PlusCircle } from "lucide-reac
 
 import { requirePermission } from "../../../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../../../lib/auth/page-permission";
-import { supabase } from "../../../../../lib/supabase";
+import { createClient } from "../../../../../lib/supabase/server";
 
 type Conhecimento = {
   id: string;
@@ -105,10 +105,12 @@ function ordenarConhecimentos(conhecimentos: Conhecimento[]) {
 
 export default async function BaseConhecimentoPage() {
   await requirePagePermission("ia_conhecimento.visualizar");
+  const supabase = await createClient();
 
   async function cadastrarConhecimento(formData: FormData) {
     "use server";
     await requirePermission("ia_conhecimento.criar");
+    const supabase = await createClient();
 
     const categoria = valorTexto(formData, "categoria");
     const titulo = valorTexto(formData, "titulo");

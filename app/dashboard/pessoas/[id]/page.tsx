@@ -14,7 +14,7 @@ import {
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
 import { requirePermission } from "../../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
-import { supabase } from "../../../../lib/supabase";
+import { createClient } from "../../../../lib/supabase/server";
 
 type Pessoa = {
   id: string;
@@ -102,12 +102,14 @@ export default async function PessoaDetalhePage({
   params: Promise<{ id: string }>;
 }) {
   await requirePagePermission("pessoas.visualizar");
+  const supabase = await createClient();
 
   const { id } = await params;
 
   async function excluirPessoa(formData: FormData) {
     "use server";
     await requirePermission("pessoas.arquivar");
+    const supabase = await createClient();
 
     const pessoaId = String(formData.get("id") ?? "").trim();
     if (!pessoaId) throw new Error("Pessoa nao informada.");

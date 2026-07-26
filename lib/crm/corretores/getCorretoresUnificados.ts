@@ -1,5 +1,5 @@
 import { hasPapel } from "../pessoas/papeis";
-import { supabase } from "../../supabase";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type CorretorOrigem = "pessoas" | "corretores";
 
@@ -81,7 +81,7 @@ function chaveDeduplicacao(corretor: Pick<CorretorUnificado, "creci" | "nome" | 
   return `nome-contato:${normalizar(corretor.nome)}:${contato}`;
 }
 
-export async function getCorretoresUnificados() {
+export async function getCorretoresUnificados(supabase: SupabaseClient) {
   const [pessoasResult, corretoresResult] = await Promise.all([
     supabase
       .from("pessoas")

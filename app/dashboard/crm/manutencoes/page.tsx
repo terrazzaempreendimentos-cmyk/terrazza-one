@@ -11,7 +11,8 @@ import {
   Wrench,
 } from "lucide-react";
 
-import { supabase } from "../../../../lib/supabase";
+import { createClient } from "../../../../lib/supabase/server";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
 import {
   requireActiveProfile,
@@ -192,6 +193,7 @@ function monthIndexFromDate(data: string | null) {
 }
 
 async function getRelatedEntityLabel(
+  supabase: SupabaseClient,
   table: "inquilinos" | "proprietarios" | "imoveis",
   id: string | null,
 ) {
@@ -230,11 +232,11 @@ async function buildRelatedMemoryEntities(input: {
   inquilinoId: string | null;
   proprietarioId: string | null;
   imovelId: string | null;
-}) {
+}, supabase: SupabaseClient) {
   const [inquilinoLabel, proprietarioLabel, imovelLabel] = await Promise.all([
-    getRelatedEntityLabel("inquilinos", input.inquilinoId),
-    getRelatedEntityLabel("proprietarios", input.proprietarioId),
-    getRelatedEntityLabel("imoveis", input.imovelId),
+    getRelatedEntityLabel(supabase, "inquilinos", input.inquilinoId),
+    getRelatedEntityLabel(supabase, "proprietarios", input.proprietarioId),
+    getRelatedEntityLabel(supabase, "imoveis", input.imovelId),
   ]);
   const entities: MemoryRelatedEntity[] = [];
 
@@ -271,6 +273,7 @@ export default async function ManutencoesPage({
   searchParams?: Promise<SearchParams>;
 }) {
   await requirePagePermission("manutencoes.visualizar");
+  const supabase = await createClient();
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const filtroTipo = paramValue(resolvedSearchParams, "tipo") ?? "";
@@ -290,6 +293,7 @@ export default async function ManutencoesPage({
   async function salvarCaso(formData: FormData) {
     "use server";
     await requireActiveProfile();
+    const supabase = await createClient();
 
     const id = valorTexto(formData, "id");
     const tipo = valorTexto(formData, "tipo");
@@ -341,9 +345,9 @@ export default async function ManutencoesPage({
         inquilinoId: payload.inquilino_id,
         proprietarioId: payload.proprietario_id,
         imovelId: payload.imovel_id,
-      });
+      }, supabase);
 
-      await createOperationalMemoryFromMaintenance({
+      await createOperationalMemoryFromMaintenance(supabase, {
         tipo: payload.tipo,
         categoria: payload.categoria,
         titulo: payload.titulo,
@@ -363,6 +367,7 @@ export default async function ManutencoesPage({
   async function excluirCaso(formData: FormData) {
     "use server";
     await requirePermission("manutencoes.arquivar");
+    const supabase = await createClient();
 
     const id = valorTexto(formData, "id");
 
@@ -427,7 +432,7 @@ export default async function ManutencoesPage({
     supabase.from("proprietarios").select("id, nome").order("nome", { ascending: true }),
     supabase.from("inquilinos").select("id, nome").order("nome", { ascending: true }),
     supabase.from("corretores").select("id, nome").order("nome", { ascending: true }),
-    searchMemories({ limit: 120 }).catch(() => [] as UCEMemory[]),
+    searchMemories(supabase, { limit: 120 }).catch(() => [] as UCEMemory[]),
     filtroImovel
       ? supabase
           .from("manutencoes_conflitos")

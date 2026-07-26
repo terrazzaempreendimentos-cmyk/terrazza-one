@@ -11,7 +11,7 @@ import {
 } from "../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../lib/auth/page-permission";
 import { hasPapel } from "../../../lib/crm/pessoas/papeis";
-import { supabase } from "../../../lib/supabase";
+import { createClient } from "../../../lib/supabase/server";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -409,6 +409,7 @@ export default async function ImoveisPage({
   searchParams?: Promise<SearchParams>;
 }) {
   await requirePagePermission("imoveis.visualizar");
+  const supabase = await createClient();
 
   const resolvedSearchParams = (await searchParams) ?? {};
   const editId = paramValue(resolvedSearchParams, "edit") ?? "";
@@ -432,6 +433,7 @@ export default async function ImoveisPage({
   async function salvarImovel(formData: FormData) {
     "use server";
     await requireActiveProfile();
+    const supabase = await createClient();
 
     const id = valorTexto(formData, "id");
     const pessoasProprietarias = formData
@@ -659,6 +661,7 @@ export default async function ImoveisPage({
   async function excluirImovel(formData: FormData) {
     "use server";
     await requirePermission("imoveis.arquivar");
+    const supabase = await createClient();
 
     const id = valorTexto(formData, "id");
     if (!id) throw new Error("Imovel nao informado.");
@@ -677,6 +680,7 @@ export default async function ImoveisPage({
   async function duplicarImovel(formData: FormData) {
     "use server";
     await requireActiveProfile();
+    const supabase = await createClient();
 
     const id = valorTexto(formData, "id");
     if (!id) throw new Error("Imovel nao informado.");

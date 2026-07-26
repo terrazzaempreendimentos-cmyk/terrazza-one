@@ -70,6 +70,11 @@ const responseModes: UCEApiResponseMode[] = ["uce_puro", "openai_assistida"];
 const MAX_BODY_BYTES = 64 * 1024;
 const MAX_MESSAGE_LENGTH = 4_000;
 const BODY_TOO_LARGE = Symbol("body-too-large");
+const STATELESS_PERSISTENCE = {
+  mode: "stateless",
+  memoriesRead: false,
+  interactionSaved: false,
+} as const;
 
 function jsonError(status: number, error: string) {
   return NextResponse.json({ ok: false, error }, { status });
@@ -295,6 +300,7 @@ export async function POST(request: NextRequest) {
       context: result.contexto,
       briefing: result.uceResult.briefing,
       knowledgeSummary: result.knowledgeSummary,
+      persistence: STATELESS_PERSISTENCE,
       llm,
       actions: buildActions(handoffReady),
     });

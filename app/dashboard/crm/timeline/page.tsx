@@ -6,7 +6,7 @@ import {
   montarTimelineItems,
   type TimelineEvento,
 } from "../../../../lib/timeline";
-import { supabase } from "../../../../lib/supabase";
+import { createClient } from "../../../../lib/supabase/server";
 
 type Lead = {
   id: string;
@@ -56,6 +56,7 @@ function nomeImovel(imovel: Imovel) {
 
 export default async function TimelinePage() {
   await requirePagePermission("timeline.visualizar");
+  const supabase = await createClient();
 
   const [
     timelineResult,

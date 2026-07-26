@@ -1,4 +1,5 @@
 import { createMemory } from "./repository";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import type {
   CreateUCEMemoryInput,
@@ -83,6 +84,7 @@ function buildMemoryInput(
 }
 
 export async function createOperationalMemoryFromMaintenance(
+  client: SupabaseClient,
   input: CreateOperationalMemoryFromMaintenanceInput,
 ) {
   const primaryEntity: OperationalEntity = {
@@ -96,7 +98,7 @@ export async function createOperationalMemoryFromMaintenance(
   const memories: UCEMemory[] = [];
 
   for (const entity of entities) {
-    memories.push(await createMemory(buildMemoryInput(input, entity)));
+    memories.push(await createMemory(client, buildMemoryInput(input, entity)));
   }
 
   return memories;
