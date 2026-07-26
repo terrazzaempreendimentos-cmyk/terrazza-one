@@ -42,6 +42,10 @@ type ImovelProprietario = {
   percentual_participacao: number | string | null;
   contato_principal: boolean | null;
   observacoes: string | null;
+  pessoa: {
+    id: string;
+    nome: string;
+  } | null;
 };
 
 type Imovel = {
@@ -53,6 +57,7 @@ type Imovel = {
   subtipo?: string | null;
   finalidade?: string | null;
   status?: string | null;
+  situacao?: string | null;
   responsavel_id?: string | null;
   origem?: string | null;
   data_captacao?: string | null;
@@ -144,8 +149,126 @@ type Imovel = {
   score_comercial?: number | string | null;
   score_locacao?: number | string | null;
   liquidez?: string | null;
+  ativo?: boolean | null;
   created_at?: string | null;
+  updated_at?: string | null;
 };
+
+const imoveisLeituraFields = `
+  id,
+  proprietario_id,
+  codigo,
+  titulo,
+  tipo,
+  subtipo,
+  finalidade,
+  status,
+  situacao,
+  responsavel_id,
+  origem,
+  data_captacao,
+  exclusividade,
+  observacoes,
+  cep,
+  endereco,
+  numero,
+  complemento,
+  bairro,
+  cidade,
+  estado,
+  latitude,
+  longitude,
+  google_maps,
+  condominio,
+  valor_venda,
+  valor_locacao,
+  aluguel_pretendido,
+  valor_condominio,
+  valor_iptu,
+  taxa_bombeiro,
+  taxa_administracao,
+  comissao_venda,
+  comissao_locacao,
+  valor_minimo_aceito,
+  valor_ideal,
+  valor_anunciado,
+  area_total,
+  area_util,
+  area_construida,
+  metragem,
+  dormitorios,
+  quartos,
+  suites,
+  banheiros,
+  lavabos,
+  garagens,
+  garagem,
+  andar,
+  elevadores,
+  ano_construcao,
+  piscina,
+  academia,
+  varanda,
+  varanda_gourmet,
+  sacada,
+  churrasqueira,
+  energia_solar,
+  mobiliado,
+  aceita_pet,
+  ar_condicionado,
+  portaria,
+  condominio_fechado,
+  vista_mar,
+  frente_mar,
+  beira_lago,
+  acessibilidade,
+  matricula,
+  cartorio,
+  iptu_documento,
+  habite_se,
+  escritura,
+  registro,
+  documentacao_completa,
+  pendencias_documentacao,
+  upload_pdf,
+  fotos,
+  videos,
+  tour_360,
+  drone,
+  planta,
+  thumbnail,
+  foto_principal,
+  ordenacao_midias,
+  portal_proprio,
+  site,
+  chaves_na_mao,
+  olx,
+  viva_real,
+  zap,
+  status_publicacao,
+  data_publicacao,
+  ultima_atualizacao_publicacao,
+  resumo_comercial,
+  resumo_tecnico,
+  perfil_ideal,
+  observacoes_ia,
+  score_comercial,
+  score_locacao,
+  liquidez,
+  ativo,
+  created_at,
+  updated_at
+`;
+
+const imovelProprietariosLeituraFields = `
+  id,
+  imovel_id,
+  pessoa_id,
+  percentual_participacao,
+  contato_principal,
+  observacoes,
+  pessoa:pessoas(id, nome)
+`;
 
 const abas = [
   ["dados", "Dados Gerais"],
@@ -254,20 +377,72 @@ function formatarData(value: string | null | undefined) {
   }).format(new Date(value));
 }
 
+function textoPreenchido(value: string | null | undefined) {
+  const texto = value?.trim();
+  return texto ? texto : null;
+}
+
+function statusImovel(imovel: Imovel) {
+  return imovel.status ?? imovel.situacao ?? "rascunho";
+}
+
+function valorLocacaoImovel(imovel: Imovel) {
+  return imovel.valor_locacao ?? imovel.aluguel_pretendido ?? null;
+}
+
+function areaUtilImovel(imovel: Imovel) {
+  return imovel.area_util ?? imovel.metragem ?? null;
+}
+
+function dormitoriosImovel(imovel: Imovel) {
+  return imovel.dormitorios ?? imovel.quartos ?? null;
+}
+
+function garagensImovel(imovel: Imovel) {
+  if (imovel.garagens !== null && imovel.garagens !== undefined) {
+    return imovel.garagens;
+  }
+
+  if (imovel.garagem === true) return 1;
+  if (imovel.garagem === false) return 0;
+
+  return null;
+}
+
+function finalidadeImovel(imovel: Imovel) {
+  if (imovel.finalidade !== null && imovel.finalidade !== undefined) {
+    return imovel.finalidade;
+  }
+
+  const situacao = normalizarTexto(imovel.situacao).trim();
+  if (["alugado", "locado", "locacao"].includes(situacao)) return "locacao";
+  if (["vendido", "venda"].includes(situacao)) return "venda";
+
+  return null;
+}
+
+function codigoImovel(imovel: Imovel) {
+  return textoPreenchido(imovel.codigo) ?? "Sem codigo";
+}
+
 function valorPrincipal(imovel: Imovel) {
   return (
-    imovel.valor_anunciado ||
-    imovel.valor_venda ||
-    imovel.valor_locacao ||
-    imovel.aluguel_pretendido ||
+    imovel.valor_anunciado ??
+    imovel.valor_venda ??
+    valorLocacaoImovel(imovel) ??
     null
   );
 }
 
 function tituloImovel(imovel: Imovel) {
+  const composicao = [imovel.tipo, imovel.bairro, imovel.cidade]
+    .filter(Boolean)
+    .join(" em ");
+
   return (
-    imovel.titulo ||
-    [imovel.tipo, imovel.bairro, imovel.cidade].filter(Boolean).join(" em ") ||
+    textoPreenchido(imovel.titulo) ??
+    textoPreenchido(imovel.complemento) ??
+    textoPreenchido(composicao) ??
     "Imovel sem titulo"
   );
 }
@@ -713,9 +888,11 @@ export default async function ImoveisPage({
 
   const [imoveisResult, pessoasResult, corretoresResult, legadosResult, relacoesResult] =
     await Promise.all([
-      supabase.from("imoveis").select("*").eq("ativo", true).order("created_at", {
-        ascending: false,
-      }),
+      supabase
+        .from("imoveis")
+        .select(imoveisLeituraFields)
+        .eq("ativo", true)
+        .order("created_at", { ascending: false }),
       supabase
         .from("pessoas")
         .select("id, nome, telefone, celular, whatsapp, email, papeis")
@@ -727,8 +904,18 @@ export default async function ImoveisPage({
         .eq("ativo", true)
         .order("nome", { ascending: true }),
       supabase.from("proprietarios").select("id, nome").order("nome", { ascending: true }),
-      supabase.from("imovel_proprietarios").select("*").eq("ativo", true),
+      supabase
+        .from("imovel_proprietarios")
+        .select(imovelProprietariosLeituraFields)
+        .eq("ativo", true)
+        .order("contato_principal", { ascending: false }),
     ]);
+
+  if (relacoesResult.error) {
+    console.error("Falha ao consultar vinculos ativos de proprietarios de imoveis.", {
+      code: relacoesResult.error.code,
+    });
+  }
 
   const imoveis = (imoveisResult.data ?? []) as Imovel[];
   const imoveisAtivosParaValidacao = imoveis.map((imovel) => ({
@@ -741,7 +928,9 @@ export default async function ImoveisPage({
   );
   const corretores = (corretoresResult.data ?? []) as Corretor[];
   const proprietariosLegados = (legadosResult.data ?? []) as ProprietarioLegado[];
-  const relacoes = (relacoesResult.data ?? []) as ImovelProprietario[];
+  const relacoes = (
+    relacoesResult.error ? [] : (relacoesResult.data ?? [])
+  ) as ImovelProprietario[];
   const pessoasPorId = new Map(pessoasProprietarias.map((pessoa) => [pessoa.id, pessoa]));
   const corretoresPorId = new Map(corretores.map((corretor) => [corretor.id, corretor.nome]));
   const legadosPorId = new Map(
@@ -758,11 +947,14 @@ export default async function ImoveisPage({
     const valorImovel = Number(valorPrincipal(imovel));
     const valorMinimo = Number(filtroValorMin);
     const valorMaximo = Number(filtroValorMax);
-    const dormitorios = Number(imovel.dormitorios || imovel.quartos || 0);
-    const garagens = Number(imovel.garagens || (imovel.garagem ? 1 : 0));
+    const dormitorios = Number(dormitoriosImovel(imovel) ?? 0);
+    const garagens = Number(garagensImovel(imovel) ?? 0);
     const proprietarios = relacoesPorImovel
       .get(imovel.id)
-      ?.map((relacao) => pessoasPorId.get(relacao.pessoa_id)?.nome)
+      ?.map(
+        (relacao) =>
+          relacao.pessoa?.nome ?? pessoasPorId.get(relacao.pessoa_id)?.nome,
+      )
       .filter(Boolean)
       .join(" ");
     const textoBusca = normalizarTexto(
@@ -773,8 +965,8 @@ export default async function ImoveisPage({
         imovel.tipo,
         imovel.bairro,
         imovel.cidade,
-        imovel.status,
-        imovel.finalidade,
+        statusImovel(imovel),
+        finalidadeImovel(imovel),
         proprietarios,
         imovel.responsavel_id ? corretoresPorId.get(imovel.responsavel_id) : "",
       ].join(" "),
@@ -783,8 +975,8 @@ export default async function ImoveisPage({
     return (
       (!busca || textoBusca.includes(normalizarTexto(busca))) &&
       (!filtroTipo || imovel.tipo === filtroTipo) &&
-      (!filtroFinalidade || imovel.finalidade === filtroFinalidade) &&
-      (!filtroStatus || imovel.status === filtroStatus) &&
+      (!filtroFinalidade || finalidadeImovel(imovel) === filtroFinalidade) &&
+      (!filtroStatus || statusImovel(imovel) === filtroStatus) &&
       (!filtroCidade || normalizarTexto(imovel.cidade).includes(normalizarTexto(filtroCidade))) &&
       (!filtroBairro || normalizarTexto(imovel.bairro).includes(normalizarTexto(filtroBairro))) &&
       (!filtroValorMin ||
@@ -996,9 +1188,9 @@ export default async function ImoveisPage({
             </div>
             <div className="mt-5 grid gap-4 md:grid-cols-4">
               {[
-                ["Codigo", imovelVisualizado.codigo || "-"],
-                ["Status", imovelVisualizado.status || "-"],
-                ["Finalidade", imovelVisualizado.finalidade || "-"],
+                ["Codigo", codigoImovel(imovelVisualizado)],
+                ["Status", statusImovel(imovelVisualizado)],
+                ["Finalidade", finalidadeImovel(imovelVisualizado) ?? "-"],
                 ["Responsavel", corretoresPorId.get(imovelVisualizado.responsavel_id ?? "") || "-"],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl bg-white/10 p-4">
@@ -1022,14 +1214,23 @@ export default async function ImoveisPage({
           ) : (
             imoveisFiltrados.map((imovel) => {
               const relacoesDoImovel = relacoesPorImovel.get(imovel.id) ?? [];
+              const proprietariosPessoa = relacoesDoImovel
+                .map(
+                  (relacao) =>
+                    relacao.pessoa?.nome ?? pessoasPorId.get(relacao.pessoa_id)?.nome,
+                )
+                .filter((nome): nome is string => Boolean(nome));
               const proprietarioPrincipal =
-                relacoesDoImovel
-                  .map((relacao) => pessoasPorId.get(relacao.pessoa_id)?.nome)
-                  .filter(Boolean)[0] ||
-                (imovel.proprietario_id ? legadosPorId.get(imovel.proprietario_id) : "") ||
-                "Sem proprietario";
+                (proprietariosPessoa.length > 0
+                  ? proprietariosPessoa.join(", ")
+                  : null) ??
+                (imovel.proprietario_id
+                  ? legadosPorId.get(imovel.proprietario_id)
+                  : undefined) ??
+                "Proprietário não vinculado";
+              const areaUtil = areaUtilImovel(imovel);
               const compartilharHref = `mailto:?subject=${encodeURIComponent(
-                `Imovel ${imovel.codigo || tituloImovel(imovel)}`,
+                `Imovel ${textoPreenchido(imovel.codigo) ?? tituloImovel(imovel)}`,
               )}&body=${encodeURIComponent(
                 `${tituloImovel(imovel)}\n${imovel.bairro || "-"} - ${
                   imovel.cidade || "-"
@@ -1048,17 +1249,17 @@ export default async function ImoveisPage({
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8B6827]">
-                          {imovel.codigo || "Sem codigo"}
+                          {codigoImovel(imovel)}
                         </p>
                         <h2 className="mt-2 line-clamp-2 text-lg font-bold text-[#071E36]">
                           {tituloImovel(imovel)}
                         </h2>
                         <p className="mt-1 text-xs font-semibold uppercase tracking-[0.12em] text-[#64736D]">
-                          Titulo: {imovel.titulo || "-"}
+                          Titulo: {textoPreenchido(imovel.titulo) ?? tituloImovel(imovel)}
                         </p>
                       </div>
                       <span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold text-[#8B6827]">
-                        {imovel.status || "rascunho"}
+                        {statusImovel(imovel)}
                       </span>
                     </div>
                     <p className="mt-3 text-sm text-[#64736D]">
@@ -1077,15 +1278,18 @@ export default async function ImoveisPage({
                     <p className="mt-3 text-2xl font-bold text-[#071E36]">
                       {formatarMoeda(valorPrincipal(imovel))}
                     </p>
-                    <div className="mt-4 grid grid-cols-3 gap-2 text-center text-xs text-[#64736D]">
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-center text-xs text-[#64736D] sm:grid-cols-4">
                       <span className="rounded-lg bg-[#F7F3ED] px-2 py-2">
                         {imovel.tipo || "Tipo"}
                       </span>
                       <span className="rounded-lg bg-[#F7F3ED] px-2 py-2">
-                        {imovel.dormitorios || imovel.quartos || 0} dorm.
+                        {dormitoriosImovel(imovel) ?? 0} dorm.
                       </span>
                       <span className="rounded-lg bg-[#F7F3ED] px-2 py-2">
-                        {imovel.garagens || (imovel.garagem ? 1 : 0)} vagas
+                        {garagensImovel(imovel) ?? 0} vagas
+                      </span>
+                      <span className="rounded-lg bg-[#F7F3ED] px-2 py-2">
+                        {areaUtil !== null ? `${areaUtil} m²` : "Area n/d"}
                       </span>
                     </div>
                     <div className="mt-4 rounded-xl border border-[#E8DDCB] bg-[#F7F3ED] p-3 text-sm text-[#102A27]">
@@ -1093,10 +1297,10 @@ export default async function ImoveisPage({
                         <strong>Proprietario:</strong> {proprietarioPrincipal}
                       </p>
                       <p>
-                        <strong>Finalidade:</strong> {imovel.finalidade || "-"}
+                        <strong>Finalidade:</strong> {finalidadeImovel(imovel) ?? "-"}
                       </p>
                       <p>
-                        <strong>Status:</strong> {imovel.status || "rascunho"}
+                        <strong>Status:</strong> {statusImovel(imovel)}
                       </p>
                       <p>
                         <strong>Responsavel:</strong>{" "}
@@ -1191,7 +1395,11 @@ export default async function ImoveisPage({
                 placeholder="Apto 402, sala 12, casa principal..."
               />
             </label>
-            <Field label="Titulo" name="titulo" defaultValue={imovelEmEdicao?.titulo} />
+            <Field
+              label="Titulo"
+              name="titulo"
+              defaultValue={imovelEmEdicao ? tituloImovel(imovelEmEdicao) : undefined}
+            />
             <SelectField
               label="Tipo"
               name="tipo"
@@ -1202,13 +1410,13 @@ export default async function ImoveisPage({
             <SelectField
               label="Finalidade"
               name="finalidade"
-              defaultValue={imovelEmEdicao?.finalidade}
+              defaultValue={imovelEmEdicao ? finalidadeImovel(imovelEmEdicao) : undefined}
               options={["venda", "locacao", "temporada", "administracao", "investimento"]}
             />
             <SelectField
               label="Status"
               name="status"
-              defaultValue={imovelEmEdicao?.status}
+              defaultValue={imovelEmEdicao ? statusImovel(imovelEmEdicao) : undefined}
               options={["rascunho", "ativo", "reservado", "vendido", "locado", "inativo"]}
             />
             <label className="grid gap-2 text-sm font-medium text-[#102A27]">
@@ -1341,12 +1549,13 @@ export default async function ImoveisPage({
               {[
                 [
                   "Posicionamento",
-                  imovelEmEdicao?.finalidade || "Defina a finalidade nos Dados Gerais.",
+                  (imovelEmEdicao ? finalidadeImovel(imovelEmEdicao) : null) ??
+                    "Defina a finalidade nos Dados Gerais.",
                   "Venda, locacao, temporada, administracao ou investimento.",
                 ],
                 [
                   "Disponibilidade",
-                  imovelEmEdicao?.status || "rascunho",
+                  imovelEmEdicao ? statusImovel(imovelEmEdicao) : "rascunho",
                   "Status comercial exibido na listagem e nos filtros operacionais.",
                 ],
                 [
@@ -1379,7 +1588,12 @@ export default async function ImoveisPage({
 
           <Section id="financeiro" title="Financeiro">
             <Field label="Valor venda" name="valor_venda" type="number" defaultValue={imovelEmEdicao?.valor_venda} />
-            <Field label="Valor locacao" name="valor_locacao" type="number" defaultValue={imovelEmEdicao?.valor_locacao ?? imovelEmEdicao?.aluguel_pretendido} />
+            <Field
+              label="Valor locacao"
+              name="valor_locacao"
+              type="number"
+              defaultValue={imovelEmEdicao ? valorLocacaoImovel(imovelEmEdicao) : undefined}
+            />
             <Field label="Condominio" name="valor_condominio" type="number" defaultValue={imovelEmEdicao?.valor_condominio} />
             <Field label="IPTU" name="valor_iptu" type="number" defaultValue={imovelEmEdicao?.valor_iptu} />
             <Field label="Taxa bombeiro" name="taxa_bombeiro" type="number" defaultValue={imovelEmEdicao?.taxa_bombeiro} />
@@ -1394,13 +1608,28 @@ export default async function ImoveisPage({
 
           <Section id="caracteristicas" title="Caracteristicas">
             <Field label="Area total" name="area_total" type="number" defaultValue={imovelEmEdicao?.area_total} />
-            <Field label="Area util" name="area_util" type="number" defaultValue={imovelEmEdicao?.area_util ?? imovelEmEdicao?.metragem} />
+            <Field
+              label="Area util"
+              name="area_util"
+              type="number"
+              defaultValue={imovelEmEdicao ? areaUtilImovel(imovelEmEdicao) : undefined}
+            />
             <Field label="Area construida" name="area_construida" type="number" defaultValue={imovelEmEdicao?.area_construida} />
-            <Field label="Dormitorios" name="dormitorios" type="number" defaultValue={imovelEmEdicao?.dormitorios ?? imovelEmEdicao?.quartos} />
+            <Field
+              label="Dormitorios"
+              name="dormitorios"
+              type="number"
+              defaultValue={imovelEmEdicao ? dormitoriosImovel(imovelEmEdicao) : undefined}
+            />
             <Field label="Suites" name="suites" type="number" defaultValue={imovelEmEdicao?.suites} />
             <Field label="Banheiros" name="banheiros" type="number" defaultValue={imovelEmEdicao?.banheiros} />
             <Field label="Lavabos" name="lavabos" type="number" defaultValue={imovelEmEdicao?.lavabos} />
-            <Field label="Garagens" name="garagens" type="number" defaultValue={imovelEmEdicao?.garagens ?? (imovelEmEdicao?.garagem ? 1 : "")} />
+            <Field
+              label="Garagens"
+              name="garagens"
+              type="number"
+              defaultValue={imovelEmEdicao ? garagensImovel(imovelEmEdicao) : undefined}
+            />
             <Field label="Andar" name="andar" type="number" defaultValue={imovelEmEdicao?.andar} />
             <Field label="Elevadores" name="elevadores" type="number" defaultValue={imovelEmEdicao?.elevadores} />
             <Field label="Ano construcao" name="ano_construcao" type="number" defaultValue={imovelEmEdicao?.ano_construcao} />
