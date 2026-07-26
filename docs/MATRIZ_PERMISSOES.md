@@ -118,4 +118,6 @@ As páginas de Atendimentos, Negócios e Atividades continuam usando dados simul
 - os arquivamentos lógicos de pessoas, proprietários, inquilinos, corretores, imóveis, leads e manutenções;
 - a criação e edição operacional de corretores.
 
-Temporariamente, `salvarPessoa`, `salvarProprietario`, `salvarInquilino`, `salvarImovel`, `duplicarImovel`, `salvarLead`, `cadastrarTarefa`, `salvarCaso` e a mensagem da IA Comercial continuam protegidos apenas por `requireActiveProfile()`. A autorização granular dessas operações depende de escopos próprios, atribuídos ou relacionados e não deve ser inferida como implementada.
+Temporariamente, `salvarPessoa`, `salvarProprietario`, `salvarInquilino`, `salvarLead`, `cadastrarTarefa`, `salvarCaso` e a mensagem da IA Comercial continuam protegidos apenas por `requireActiveProfile()`. A autorização granular dessas operações depende de escopos próprios, atribuídos ou relacionados e não deve ser inferida como implementada.
+
+`salvarImovel` exige `imoveis.criar` ou `imoveis.editar`, conforme a operação, e `duplicarImovel` reutiliza `imoveis.criar`. Enquanto o escopo de ownership dos corretores não estiver implementado, ambas também restringem a operação aos papéis `administrador` e `gestor`, falhando fechadas para corretor e atendimento.

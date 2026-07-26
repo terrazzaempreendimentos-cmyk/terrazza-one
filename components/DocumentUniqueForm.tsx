@@ -1,6 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from "react";
 
 import { limparDocumento, validarCNPJ, validarCPF } from "../lib/utils/validators";
 
@@ -9,8 +16,12 @@ type DocumentoAtivo = {
   cpf_cnpj: string | null;
 };
 
+export type DocumentFormState =
+  | { status: "erro"; mensagem: string }
+  | undefined;
+
 type Props = {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => void | Promise<void | DocumentFormState>;
   children: ReactNode;
   className?: string;
   currentId?: string;
@@ -35,6 +46,8 @@ export function DocumentUniqueForm({
 }: Props) {
   const formRef = useRef<HTMLFormElement>(null);
   const [message, setMessage] = useState("");
+  const [serverMessage, setServerMessage] = useState("");
+  const [pending, startTransition] = useTransition();
 
   const documentosNormalizados = useMemo(
     () =>
@@ -83,10 +96,10 @@ export function DocumentUniqueForm({
     );
 
     submitButtons.forEach((button) => {
-      button.disabled = Boolean(message);
-      button.classList.toggle("cursor-not-allowed", Boolean(message));
-      button.classList.toggle("bg-slate-300", Boolean(message));
-      button.classList.toggle("text-slate-600", Boolean(message));
+      button.disabled = Boolean(message) || pending;
+      button.classList.toggle("cursor-not-allowed", Boolean(message) || pending);
+      button.classList.toggle("bg-slate-300", Boolean(message) || pending);
+      button.classList.toggle("text-slate-600", Boolean(message) || pending);
     });
 
     if (input) {
@@ -94,7 +107,7 @@ export function DocumentUniqueForm({
       toggleClasses(input, fieldErrorClass, Boolean(message));
       toggleClasses(input, fieldBaseClass, !message);
     }
-  }, [message]);
+  }, [message, pending]);
 
   return (
     <form
@@ -106,13 +119,24 @@ export function DocumentUniqueForm({
       onSubmit={(event) => {
         const error = validate(event.currentTarget);
         setMessage(error);
-        if (error) event.preventDefault();
+        if (error || pending) {
+          event.preventDefault();
+          return;
+        }
+
+        event.preventDefault();
+        const formData = new FormData(event.currentTarget);
+        setServerMessage("");
+        startTransition(async () => {
+          const state = await action(formData);
+          if (state?.status === "erro") setServerMessage(state.mensagem);
+        });
       }}
     >
       {children}
-      {message ? (
-        <p className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-          {message}
+      {message || serverMessage ? (
+        <p role="alert" className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
+          {message || serverMessage}
         </p>
       ) : null}
     </form>

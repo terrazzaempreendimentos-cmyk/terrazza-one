@@ -165,35 +165,15 @@ export default async function RoletaPage({
 
     if (leadUpdateError) throw new Error("Nao foi possivel atualizar o lead distribuido.");
 
-    if (corretor.origem === "corretores") {
-      const { error: distribuicaoError } = await supabase.from("roleta_distribuicoes").insert({
-        lead_id: leadId,
-        corretor_id: corretor.sourceId,
-        criterio: "manual",
-        motivo: "Distribuicao manual assistida pela Roleta Inteligente.",
-        status: "distribuido",
-      });
+    const { error: distribuicaoError } = await supabase.from("roleta_distribuicoes").insert({
+      lead_id: leadId,
+      corretor_id: null,
+      criterio: "manual",
+      motivo: "Distribuicao manual para Pessoa com papel corretor.",
+      status: "distribuido",
+    });
 
-      if (distribuicaoError) throw new Error("Nao foi possivel registrar a distribuicao.");
-
-      const leadsRecebidos = Number(corretor.leads_recebidos ?? 0) + 1;
-      const { error: corretorUpdateError } = await supabase
-        .from("corretores")
-        .update({ leads_recebidos: leadsRecebidos })
-        .eq("id", corretor.sourceId);
-
-      if (corretorUpdateError) throw new Error("Nao foi possivel atualizar os indicadores do corretor.");
-    } else {
-      const { error: distribuicaoError } = await supabase.from("roleta_distribuicoes").insert({
-        lead_id: leadId,
-        corretor_id: null,
-        criterio: "manual",
-        motivo: `Distribuicao manual para ${corretor.nome} do Cadastro Universal.`,
-        status: "distribuido",
-      });
-
-      if (distribuicaoError) throw new Error("Nao foi possivel registrar a distribuicao.");
-    }
+    if (distribuicaoError) throw new Error("Nao foi possivel registrar a distribuicao.");
 
     const descricao = `Lead ${lead.nome} distribuido para corretor ${corretor.nome}`;
     const { error: timelineError } = await supabase.from("timeline").insert({
@@ -201,7 +181,7 @@ export default async function RoletaPage({
       titulo: "Lead distribuido",
       descricao,
       lead_id: leadId,
-      corretor_id: corretor.origem === "corretores" ? corretor.sourceId : null,
+      corretor_id: null,
       origem: "roleta_inteligente",
     });
 

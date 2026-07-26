@@ -5,12 +5,16 @@ import { Search, UsersRound } from "lucide-react";
 
 import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
-import { DocumentUniqueForm } from "../../../components/DocumentUniqueForm";
 import {
-  requireActiveProfile,
-  requirePermission,
-} from "../../../lib/auth/access-profile";
+  DocumentUniqueForm,
+  type DocumentFormState,
+} from "../../../components/DocumentUniqueForm";
+import { requirePermission } from "../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../lib/auth/page-permission";
+import {
+  isPapelComercial,
+  PAPEIS_COMERCIAIS,
+} from "../../../lib/crm/pessoas/papeis";
 import { createClient } from "../../../lib/supabase/server";
 import {
   formatarCNPJ,
@@ -21,11 +25,6 @@ import {
 } from "../../../lib/utils/validators";
 
 type SearchParams = Record<string, string | string[] | undefined>;
-
-type Corretor = {
-  id: string;
-  nome: string | null;
-};
 
 type Pessoa = {
   id: string;
@@ -60,16 +59,7 @@ type Pessoa = {
   created_at: string | null;
 };
 
-const papeisDisponiveis = [
-  "proprietario",
-  "inquilino",
-  "comprador",
-  "vendedor",
-  "corretor",
-  "parceiro",
-  "prestador",
-  "investidor",
-];
+const papeisDisponiveis = PAPEIS_COMERCIAIS;
 const statusOptions = ["ativo", "em_atendimento", "inativo", "bloqueado"];
 const temperaturas = ["frio", "morno", "quente"];
 const tiposPessoa = ["fisica", "juridica"];
@@ -97,10 +87,19 @@ function valorInteiro(formData: FormData, campo: string) {
 }
 
 function papeisSelecionados(formData: FormData) {
-  return formData
+  const papeis = formData
     .getAll("papeis")
     .map((papel) => String(papel).trim())
     .filter(Boolean);
+
+  if (!papeis.every(isPapelComercial)) return null;
+  return Array.from(new Set(papeis));
+}
+
+function uuidValido(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
 }
 
 function labelTexto(valor: string | null | undefined) {
@@ -161,17 +160,48 @@ export default async function PessoasPage({
   const filtroTemperatura = paramValue(resolvedSearchParams, "temperatura") ?? "";
   const busca = paramValue(resolvedSearchParams, "busca") ?? "";
   const errorCode = paramValue(resolvedSearchParams, "error") ?? "";
+  const papelSolicitado = paramValue(resolvedSearchParams, "papel") ?? "";
+  const papelInicial = isPapelComercial(papelSolicitado) ? papelSolicitado : "";
 
-  async function salvarPessoa(formData: FormData) {
+  async function salvarPessoa(formData: FormData): Promise<DocumentFormState> {
     "use server";
-    await requireActiveProfile();
-    const supabase = await createClient();
-
     const id = valorTexto(formData, "id");
+    try {
+      await requirePermission(id ? "pessoas.editar" : "pessoas.criar");
+    } catch {
+      return {
+        status: "erro",
+        mensagem: "Voce nao possui permissao para realizar esta operacao.",
+      };
+    }
+
+    if (id && !uuidValido(id)) {
+      return { status: "erro", mensagem: "A pessoa informada nao foi encontrada." };
+    }
+
+    let supabase;
+    try {
+      supabase = await createClient();
+    } catch (error) {
+      console.error("Falha ao preparar persistencia de Pessoa.", {
+        module: "pessoas.salvar",
+        stage: "client",
+        code: error instanceof Error ? error.name : "unknown_error",
+      });
+      return {
+        status: "erro",
+        mensagem: "Nao foi possivel salvar. Tente novamente.",
+      };
+    }
     const nome = valorTexto(formData, "nome");
 
     if (!nome) {
-      throw new Error("O nome da pessoa e obrigatorio.");
+      return { status: "erro", mensagem: "O nome da pessoa e obrigatorio." };
+    }
+
+    const papeis = papeisSelecionados(formData);
+    if (papeis === null) {
+      return { status: "erro", mensagem: "Um dos papeis comerciais informados e invalido." };
     }
 
     const tipoPessoa = valorTexto(formData, "tipo_pessoa") || "fisica";
@@ -182,9 +212,10 @@ export default async function PessoasPage({
         tipoPessoa === "juridica" ? validarCNPJ(documento) : validarCPF(documento);
 
       if (!documentoValido) {
-        throw new Error(
-          tipoPessoa === "juridica" ? "CNPJ invalido." : "CPF invalido.",
-        );
+        return {
+          status: "erro",
+          mensagem: tipoPessoa === "juridica" ? "CNPJ invalido." : "CPF invalido.",
+        };
       }
 
       const { data: pessoasAtivas, error: documentoError } = await supabase
@@ -193,7 +224,15 @@ export default async function PessoasPage({
         .eq("ativo", true);
 
       if (documentoError) {
-        throw new Error("Nao foi possivel validar o CPF/CNPJ.");
+        console.error("Falha ao validar documento de Pessoa.", {
+          module: "pessoas.salvar",
+          stage: "document_validation",
+          code: documentoError.code,
+        });
+        return {
+          status: "erro",
+          mensagem: "Nao foi possivel salvar. Tente novamente.",
+        };
       }
 
       const documentoDuplicado = ((pessoasAtivas ?? []) as Pick<
@@ -206,7 +245,10 @@ export default async function PessoasPage({
       );
 
       if (documentoDuplicado) {
-        redirect("/dashboard/pessoas?error=documento_duplicado");
+        return {
+          status: "erro",
+          mensagem: "Ja existe uma pessoa ativa cadastrada com este CPF/CNPJ.",
+        };
       }
     }
 
@@ -233,10 +275,10 @@ export default async function PessoasPage({
       bairro: valorOpcional(formData, "bairro"),
       cidade: valorOpcional(formData, "cidade"),
       estado: valorOpcional(formData, "estado"),
-      papeis: papeisSelecionados(formData),
+      papeis,
       origem: valorTexto(formData, "origem") || "manual",
       status: valorTexto(formData, "status") || "ativo",
-      responsavel_id: valorOpcional(formData, "responsavel_id"),
+      responsavel_id: null,
       temperatura: valorOpcional(formData, "temperatura"),
       score_relacionamento: valorInteiro(formData, "score_relacionamento"),
       perfil_comportamental: valorOpcional(formData, "perfil_comportamental"),
@@ -246,22 +288,43 @@ export default async function PessoasPage({
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = id
-      ? await supabase.from("pessoas").update(payload).eq("id", id)
-      : await supabase.from("pessoas").insert(payload);
+    const { data: pessoaSalva, error } = id
+      ? await supabase.from("pessoas").update(payload).eq("id", id).select("id").maybeSingle()
+      : await supabase.from("pessoas").insert(payload).select("id").single();
 
     if (error) {
-      const mensagem = `${error.message ?? ""} ${error.code ?? ""}`.toLowerCase();
-      if (
-        mensagem.includes("cpf") ||
-        mensagem.includes("cnpj") ||
-        mensagem.includes("unique") ||
-        mensagem.includes("duplicate")
-      ) {
-        redirect("/dashboard/pessoas?error=documento_indice");
+      console.error("Falha ao persistir Pessoa.", {
+        module: "pessoas.salvar",
+        stage: id ? "update" : "insert",
+        code: error.code,
+      });
+      if (error.code === "23505") {
+        return {
+          status: "erro",
+          mensagem: "Ja existe uma pessoa cadastrada com este CPF/CNPJ.",
+        };
       }
 
-      throw new Error("Nao foi possivel salvar a pessoa.");
+      if (error.code === "42501") {
+        return {
+          status: "erro",
+          mensagem: "Voce nao possui permissao para realizar esta operacao.",
+        };
+      }
+
+      return {
+        status: "erro",
+        mensagem: "Nao foi possivel salvar. Tente novamente.",
+      };
+    }
+
+    if (!pessoaSalva?.id) {
+      return {
+        status: "erro",
+        mensagem: id
+          ? "A pessoa informada nao foi encontrada."
+          : "Nao foi possivel salvar. Tente novamente.",
+      };
     }
 
     revalidatePath("/dashboard/pessoas");
@@ -305,16 +368,12 @@ export default async function PessoasPage({
     );
   }
 
-  const [pessoasResult, corretoresResult] = await Promise.all([
-    pessoasQuery,
-    supabase.from("corretores").select("id, nome").eq("ativo", true).order("nome"),
-  ]);
+  const pessoasResult = await pessoasQuery;
 
   const pessoas = (pessoasResult.data ?? []) as Pessoa[];
   const documentosAtivos = pessoas
     .filter((pessoa) => pessoa.cpf_cnpj)
     .map((pessoa) => ({ id: pessoa.id, cpf_cnpj: pessoa.cpf_cnpj }));
-  const corretores = (corretoresResult.data ?? []) as Corretor[];
   const pessoaEmEdicao = pessoas.find((pessoa) => pessoa.id === editId) ?? null;
   const mensagemErro =
     errorCode === "documento_duplicado"
@@ -322,9 +381,6 @@ export default async function PessoasPage({
       : errorCode === "documento_indice"
         ? "Nao foi possivel salvar. Este CPF/CNPJ ja esta cadastrado em outra pessoa ativa."
         : "";
-  const corretoresPorId = new Map(
-    corretores.map((corretor) => [corretor.id, corretor.nome ?? "-"]),
-  );
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -350,7 +406,7 @@ export default async function PessoasPage({
           </div>
         </header>
 
-        {pessoasResult.error || corretoresResult.error ? (
+        {pessoasResult.error ? (
           <p className="mt-6 rounded-xl bg-[#fbebe7] px-4 py-3 text-sm text-[#8a2e1c]">
             Nao foi possivel carregar todos os dados. Verifique se o SQL 014 foi aplicado.
           </p>
@@ -492,7 +548,9 @@ export default async function PessoasPage({
                       name="papeis"
                       type="checkbox"
                       value={papel}
-                      defaultChecked={Boolean(pessoaEmEdicao?.papeis?.includes(papel))}
+                      defaultChecked={Boolean(
+                        pessoaEmEdicao?.papeis?.includes(papel) || papelInicial === papel,
+                      )}
                       className="size-4 accent-[#C89B3C]"
                     />
                     {labelTexto(papel)}
@@ -514,15 +572,6 @@ export default async function PessoasPage({
                 <select name="status" defaultValue={pessoaEmEdicao?.status ?? "ativo"} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]">
                   {statusOptions.map((status) => (
                     <option key={status} value={status}>{labelTexto(status)}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-                Responsavel
-                <select name="responsavel_id" defaultValue={pessoaEmEdicao?.responsavel_id ?? ""} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none transition focus:border-[#C89B3C]">
-                  <option value="">Sem responsavel</option>
-                  {corretores.map((corretor) => (
-                    <option key={corretor.id} value={corretor.id}>{corretor.nome}</option>
                   ))}
                 </select>
               </label>
@@ -652,7 +701,7 @@ export default async function PessoasPage({
                         <span>Telefone/WhatsApp: {pessoa.whatsapp || pessoa.celular || pessoa.telefone || "-"}</span>
                         <span>Email: {pessoa.email || "-"}</span>
                         <span>Cidade/Bairro: {[pessoa.cidade, pessoa.bairro].filter(Boolean).join(" / ") || "-"}</span>
-                        <span>Responsavel: {corretoresPorId.get(pessoa.responsavel_id ?? "") ?? "-"}</span>
+                        <span>Responsavel: aguardando vinculo canonico</span>
                         <span>Score: {pessoa.score_relacionamento ?? 0}</span>
                       </div>
                     </div>

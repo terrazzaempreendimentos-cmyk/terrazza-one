@@ -8,12 +8,10 @@ import { requirePagePermission } from "../../../lib/auth/page-permission";
 import { CreciValidationForm } from "../crm/corretores/CreciValidationForm";
 import {
   addPapel,
-  isOnlyPapel,
   removePapel,
 } from "../../../lib/crm/pessoas/papeis";
 import {
   getCorretoresUnificados,
-  type CorretorOrigem,
 } from "../../../lib/crm/corretores/getCorretoresUnificados";
 import { createClient } from "../../../lib/supabase/server";
 
@@ -28,6 +26,10 @@ function valorTexto(formData: FormData, campo: string) {
   return String(formData.get(campo) ?? "").trim();
 }
 
+function uuidValido(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
 function normalizarTexto(value: unknown) {
   return String(value ?? "")
     .toLowerCase()
@@ -37,18 +39,6 @@ function normalizarTexto(value: unknown) {
 
 function normalizarCreci(value: string | null) {
   return String(value ?? "").trim().toUpperCase().replace(/\s+/g, "");
-}
-
-function badgeOrigem(origem: CorretorOrigem) {
-  return origem === "pessoas"
-    ? {
-        label: "Cadastro Universal",
-        className: "bg-[#071E36] text-[#E1B866]",
-      }
-    : {
-        label: "Cadastro antigo",
-        className: "bg-slate-100 text-slate-700",
-      };
 }
 
 function badgeStatus(status: string | null) {
@@ -68,7 +58,6 @@ export default async function CorretoresPage({
   const resolvedSearchParams = (await searchParams) ?? {};
   const editId = paramValue(resolvedSearchParams, "edit") ?? "";
   const busca = paramValue(resolvedSearchParams, "busca") ?? "";
-  const filtroOrigem = paramValue(resolvedSearchParams, "origem") ?? "";
   const filtroStatus = paramValue(resolvedSearchParams, "status") ?? "";
   const errorCode = paramValue(resolvedSearchParams, "error") ?? "";
 
@@ -79,7 +68,7 @@ export default async function CorretoresPage({
 
     const id = valorTexto(formData, "id");
     const sourceId = valorTexto(formData, "source_id");
-    const origem = (valorTexto(formData, "origem") || "pessoas") as CorretorOrigem;
+    if (sourceId && !uuidValido(sourceId)) throw new Error("Corretor invalido.");
     const nome = valorTexto(formData, "nome");
     const creci = valorTexto(formData, "creci");
     const ativo = formData.get("ativo") === "on";
@@ -103,35 +92,11 @@ export default async function CorretoresPage({
       }
     }
 
-    if (sourceId && origem === "corretores") {
-      const { error } = await supabase
-        .from("corretores")
-        .update({
-          nome,
-          creci: creci || null,
-          ativo,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", sourceId);
+    const { data: pessoaAtual } = sourceId
+      ? await supabase.from("pessoas").select("papeis").eq("id", sourceId).single()
+      : { data: null };
 
-      if (error) {
-        const mensagem = `${error.message ?? ""} ${error.code ?? ""}`.toLowerCase();
-        if (
-          mensagem.includes("creci") ||
-          mensagem.includes("unique") ||
-          mensagem.includes("duplicate")
-        ) {
-          redirect("/dashboard/corretores?error=creci_indice");
-        }
-
-        throw new Error("Nao foi possivel salvar o corretor antigo.");
-      }
-    } else {
-      const { data: pessoaAtual } = sourceId
-        ? await supabase.from("pessoas").select("papeis").eq("id", sourceId).single()
-        : { data: null };
-
-      const payload = {
+    const payload = {
         nome,
         telefone: valorTexto(formData, "telefone") || null,
         email: valorTexto(formData, "email") || null,
@@ -146,22 +111,21 @@ export default async function CorretoresPage({
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = sourceId
-        ? await supabase.from("pessoas").update(payload).eq("id", sourceId)
-        : await supabase.from("pessoas").insert(payload);
+    const { error } = sourceId
+      ? await supabase.from("pessoas").update(payload).eq("id", sourceId)
+      : await supabase.from("pessoas").insert(payload);
 
-      if (error) {
-        const mensagem = `${error.message ?? ""} ${error.code ?? ""}`.toLowerCase();
-        if (
-          mensagem.includes("creci") ||
-          mensagem.includes("unique") ||
-          mensagem.includes("duplicate")
-        ) {
-          redirect("/dashboard/corretores?error=creci_indice");
-        }
-
-        throw new Error("Nao foi possivel salvar o corretor.");
+    if (error) {
+      const mensagem = `${error.message ?? ""} ${error.code ?? ""}`.toLowerCase();
+      if (
+        mensagem.includes("creci") ||
+        mensagem.includes("unique") ||
+        mensagem.includes("duplicate")
+      ) {
+        redirect("/dashboard/corretores?error=creci_indice");
       }
+
+      throw new Error("Nao foi possivel salvar o corretor.");
     }
 
     revalidatePath("/dashboard/corretores");
@@ -176,39 +140,27 @@ export default async function CorretoresPage({
     const supabase = await createClient();
 
     const sourceId = valorTexto(formData, "source_id");
-    const origem = valorTexto(formData, "origem") as CorretorOrigem;
-
     if (!sourceId) {
       throw new Error("Corretor nao informado.");
     }
+    if (!uuidValido(sourceId)) throw new Error("Corretor invalido.");
 
-    if (origem === "corretores") {
-      const { error } = await supabase
-        .from("corretores")
-        .update({ ativo: false, updated_at: new Date().toISOString() })
-        .eq("id", sourceId);
+    const { data: pessoa, error: pessoaError } = await supabase
+      .from("pessoas")
+      .select("papeis")
+      .eq("id", sourceId)
+      .single();
 
-      if (error) throw new Error("Nao foi possivel excluir o corretor antigo.");
-    } else {
-      const { data: pessoa, error: pessoaError } = await supabase
-        .from("pessoas")
-        .select("papeis")
-        .eq("id", sourceId)
-        .single();
+    if (pessoaError) throw new Error("Nao foi possivel localizar o corretor.");
 
-      if (pessoaError) throw new Error("Nao foi possivel localizar o corretor.");
+    const papeis = (pessoa as { papeis?: string[] | null }).papeis;
+    const payload = {
+      papeis: removePapel(papeis, "corretor"),
+      updated_at: new Date().toISOString(),
+    };
 
-      const papeis = (pessoa as { papeis?: string[] | null }).papeis;
-      const payload = isOnlyPapel(papeis, "corretor")
-        ? { ativo: false, updated_at: new Date().toISOString() }
-        : {
-            papeis: removePapel(papeis, "corretor"),
-            updated_at: new Date().toISOString(),
-          };
-
-      const { error } = await supabase.from("pessoas").update(payload).eq("id", sourceId);
-      if (error) throw new Error("Nao foi possivel excluir logicamente o corretor.");
-    }
+    const { error } = await supabase.from("pessoas").update(payload).eq("id", sourceId);
+    if (error) throw new Error("Nao foi possivel excluir logicamente o corretor.");
 
     revalidatePath("/dashboard/corretores");
     revalidatePath("/dashboard/crm/corretores");
@@ -232,7 +184,6 @@ export default async function CorretoresPage({
 
     return (
       (!busca || texto.includes(normalizarTexto(busca))) &&
-      (!filtroOrigem || corretor.origem === filtroOrigem) &&
       (!filtroStatus || corretor.status === filtroStatus)
     );
   });
@@ -266,23 +217,20 @@ export default async function CorretoresPage({
             Corretores
           </h1>
           <p className="mt-2 max-w-3xl text-[#64736D]">
-            Visao unificada de corretores do Cadastro Universal de Pessoas e do
-            cadastro antigo, com deduplicacao por CRECI ou nome e contato.
+            Pessoas ativas com papel corretor no cadastro central do CRM.
           </p>
+          <Link href="/dashboard/pessoas?papel=corretor" className="mt-5 inline-flex rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white">
+            Criar no cadastro central
+          </Link>
         </header>
 
         <section className="mt-8 grid gap-4 md:grid-cols-4">
           {[
-            ["Total", corretores.length, "corretores unificados"],
+            ["Total", corretores.length, "pessoas-corretoras"],
             [
               "Cadastro Universal",
-              corretores.filter((corretor) => corretor.origem === "pessoas").length,
-              "base futura",
-            ],
-            [
-              "Cadastro antigo",
-              corretores.filter((corretor) => corretor.origem === "corretores").length,
-              "compatibilidade",
+              corretores.length,
+              "fonte unica",
             ],
             ["Filtrados", corretoresFiltrados.length, "resultado atual"],
           ].map(([titulo, valor, descricao]) => (
@@ -295,22 +243,13 @@ export default async function CorretoresPage({
         </section>
 
         <section className="mt-6 rounded-2xl border border-[#E8DDCB] bg-white p-5 shadow-sm">
-          <form className="grid gap-4 md:grid-cols-5">
+          <form className="grid gap-4 md:grid-cols-4">
             <input
               name="busca"
               defaultValue={busca}
               className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C] md:col-span-2"
               placeholder="Nome, telefone, WhatsApp, email, cidade ou CRECI"
             />
-            <select
-              name="origem"
-              defaultValue={filtroOrigem}
-              className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C]"
-            >
-              <option value="">Todas as origens</option>
-              <option value="pessoas">Cadastro Universal</option>
-              <option value="corretores">Cadastro antigo</option>
-            </select>
             <select
               name="status"
               defaultValue={filtroStatus}
@@ -386,14 +325,11 @@ export default async function CorretoresPage({
                     <th className="px-4 py-3 font-medium">E-mail</th>
                     <th className="px-4 py-3 font-medium">Cidade</th>
                     <th className="px-4 py-3 font-medium">Status</th>
-                    <th className="px-4 py-3 font-medium">Origem</th>
                     <th className="px-4 py-3 font-medium">Acoes</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#eee7dc] text-[#102A27]">
                   {corretoresFiltrados.map((corretor) => {
-                    const origem = badgeOrigem(corretor.origem);
-
                     return (
                       <tr key={corretor.id}>
                         <td className="px-4 py-4 font-medium text-[#071E36]">
@@ -411,11 +347,6 @@ export default async function CorretoresPage({
                           </span>
                         </td>
                         <td className="px-4 py-4">
-                          <span className={`rounded-full px-3 py-1 text-xs font-semibold ${origem.className}`}>
-                            {origem.label}
-                          </span>
-                        </td>
-                        <td className="px-4 py-4">
                           <div className="flex flex-wrap gap-2">
                             <Link
                               href={`/dashboard/corretores?edit=${encodeURIComponent(corretor.id)}`}
@@ -425,7 +356,6 @@ export default async function CorretoresPage({
                             </Link>
                             <form action={excluirCorretor}>
                               <input type="hidden" name="source_id" value={corretor.sourceId} />
-                              <input type="hidden" name="origem" value={corretor.origem} />
                               <ConfirmSubmitButton
                                 message="Confirmar exclusao logica deste corretor?"
                                 className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100"

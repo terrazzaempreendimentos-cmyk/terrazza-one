@@ -5,15 +5,11 @@ import { redirect } from "next/navigation";
 import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { DocumentUniqueForm } from "../../../components/DocumentUniqueForm";
-import {
-  requireActiveProfile,
-  requirePermission,
-} from "../../../lib/auth/access-profile";
+import { requirePermission } from "../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../lib/auth/page-permission";
 import {
   addPapel,
   hasPapel,
-  isOnlyPapel,
   removePapel,
 } from "../../../lib/crm/pessoas/papeis";
 import { createClient } from "../../../lib/supabase/server";
@@ -50,11 +46,6 @@ type Inquilino = {
   created_at: string | null;
 };
 
-type Corretor = {
-  id: string;
-  nome: string;
-};
-
 type SearchParams = Record<string, string | string[] | undefined>;
 
 const statusInquilinos = ["prospect", "em_atendimento", "em_analise", "aprovado", "pendente", "perdido"];
@@ -66,6 +57,10 @@ function paramValue(searchParams: SearchParams, key: string) {
 
 function valorTexto(formData: FormData, campo: string) {
   return String(formData.get(campo) ?? "").trim();
+}
+
+function uuidValido(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function valorNumero(formData: FormData, campo: string) {
@@ -107,16 +102,15 @@ export default async function InquilinosPage({
   const busca = paramValue(resolvedSearchParams, "busca") ?? "";
   const cidade = paramValue(resolvedSearchParams, "cidade") ?? "";
   const status = paramValue(resolvedSearchParams, "status") ?? "";
-  const responsavel = paramValue(resolvedSearchParams, "responsavel") ?? "";
   const temperatura = paramValue(resolvedSearchParams, "temperatura") ?? "";
   const errorCode = paramValue(resolvedSearchParams, "error") ?? "";
 
   async function salvarInquilino(formData: FormData) {
     "use server";
-    await requireActiveProfile();
-    const supabase = await createClient();
-
     const id = valorTexto(formData, "id");
+    await requirePermission(id ? "pessoas.editar" : "pessoas.criar");
+    if (id && !uuidValido(id)) throw new Error("Inquilino invalido.");
+    const supabase = await createClient();
     const nome = valorTexto(formData, "nome");
 
     if (!nome) {
@@ -197,7 +191,7 @@ export default async function InquilinosPage({
       estado: valorTexto(formData, "estado") || null,
       status: valorTexto(formData, "status") || "prospect",
       temperatura: valorTexto(formData, "temperatura") || null,
-      responsavel_id: valorTexto(formData, "responsavel_id") || null,
+      responsavel_id: null,
       score_relacionamento: valorNumero(formData, "score_relacionamento"),
       observacoes: [observacao, ...detalhes].filter(Boolean).join("\n") || null,
       papeis: addPapel(
@@ -249,12 +243,10 @@ export default async function InquilinosPage({
     if (pessoaError) throw new Error("Nao foi possivel localizar o inquilino.");
 
     const papeis = (pessoa as { papeis?: string[] | null }).papeis;
-    const payload = isOnlyPapel(papeis, "inquilino")
-      ? { ativo: false, updated_at: new Date().toISOString() }
-      : {
-          papeis: removePapel(papeis, "inquilino"),
-          updated_at: new Date().toISOString(),
-        };
+    const payload = {
+      papeis: removePapel(papeis, "inquilino"),
+      updated_at: new Date().toISOString(),
+    };
 
     const { error } = await supabase.from("pessoas").update(payload).eq("id", id);
     if (error) throw new Error("Nao foi possivel excluir logicamente o inquilino.");
@@ -263,19 +255,14 @@ export default async function InquilinosPage({
     revalidatePath("/dashboard");
   }
 
-  const [pessoasResult, corretoresResult] = await Promise.all([
-    supabase
+  const pessoasResult = await supabase
       .from("pessoas")
       .select(
         "id, nome, tipo_pessoa, telefone, celular, whatsapp, email, cpf_cnpj, cep, endereco, numero, complemento, cidade, bairro, estado, status, temperatura, score_relacionamento, responsavel_id, observacoes, papeis, created_at",
       )
       .eq("ativo", true)
-      .order("created_at", { ascending: false }),
-    supabase.from("corretores").select("id, nome").eq("ativo", true).order("nome"),
-  ]);
+      .order("created_at", { ascending: false });
 
-  const corretores = (corretoresResult.data ?? []) as Corretor[];
-  const corretoresPorId = new Map(corretores.map((corretor) => [corretor.id, corretor.nome]));
   const inquilinos = ((pessoasResult.data ?? []) as Inquilino[]).filter((pessoa) =>
     hasPapel(pessoa, "inquilino"),
   );
@@ -291,7 +278,6 @@ export default async function InquilinosPage({
       (!busca || texto.includes(normalizar(busca))) &&
       (!cidade || normalizar(pessoa.cidade).includes(normalizar(cidade))) &&
       (!status || pessoa.status === status) &&
-      (!responsavel || pessoa.responsavel_id === responsavel) &&
       (!temperatura || pessoa.temperatura === temperatura)
     );
   });
@@ -326,6 +312,9 @@ export default async function InquilinosPage({
             Visao operacional de Pessoas com papel inquilino, conectando locacao,
             relacionamento, historico e futuras manutencoes.
           </p>
+          <Link href="/dashboard/pessoas?papel=inquilino" className="mt-5 inline-flex rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white">
+            Criar no cadastro central
+          </Link>
         </header>
 
         <section className="mt-8 grid gap-4 md:grid-cols-5">
@@ -352,12 +341,6 @@ export default async function InquilinosPage({
               <option value="">Status</option>
               {statusInquilinos.map((item) => (
                 <option key={item} value={item}>{item.replaceAll("_", " ")}</option>
-              ))}
-            </select>
-            <select name="responsavel" defaultValue={responsavel} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C]">
-              <option value="">Responsavel</option>
-              {corretores.map((corretor) => (
-                <option key={corretor.id} value={corretor.id}>{corretor.nome}</option>
               ))}
             </select>
             <select name="temperatura" defaultValue={temperatura} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C]">
@@ -444,15 +427,6 @@ export default async function InquilinosPage({
                 ))}
               </select>
             </label>
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              Responsavel
-              <select name="responsavel_id" defaultValue={inquilinoEmEdicao?.responsavel_id ?? ""} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]">
-                <option value="">Sem responsavel</option>
-                {corretores.map((corretor) => (
-                  <option key={corretor.id} value={corretor.id}>{corretor.nome}</option>
-                ))}
-              </select>
-            </label>
             <label className="flex items-center gap-3 rounded-xl border border-[#E8DDCB] px-4 py-3 text-sm font-medium text-[#102A27]">
               <input name="possui_pet" type="checkbox" className="size-4 accent-[#C89B3C]" />
               Possui pet
@@ -513,7 +487,7 @@ export default async function InquilinosPage({
                 <div className="mt-4 grid gap-2 text-sm text-[#102A27]">
                   <p>{[inquilino.cidade, inquilino.bairro].filter(Boolean).join(" / ") || "Cidade nao informada"}</p>
                   <p>Imovel relacionado: <strong>placeholder</strong></p>
-                  <p>Responsavel: {corretoresPorId.get(inquilino.responsavel_id ?? "") || "-"}</p>
+                  <p>Responsavel: aguardando vinculo canonico</p>
                   <p>Score: {inquilino.score_relacionamento ?? 0}</p>
                   <p>Status: {inquilino.status || "prospect"}</p>
                 </div>

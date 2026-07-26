@@ -2,6 +2,19 @@ export type PessoaComPapeis = {
   papeis?: string[] | null;
 };
 
+export const PAPEIS_COMERCIAIS = Object.freeze([
+  "proprietario",
+  "inquilino",
+  "comprador",
+  "vendedor",
+  "corretor",
+  "parceiro",
+  "prestador",
+  "investidor",
+] as const);
+
+export type PapelComercial = (typeof PAPEIS_COMERCIAIS)[number];
+
 const PAPEL_ALIASES: Record<string, string> = {
   proprietario: "proprietario",
   proprietaria: "proprietario",
@@ -22,6 +35,13 @@ export function normalizePapel(papel: string) {
     .replace(/\s+/g, "_");
 
   return PAPEL_ALIASES[normalized] ?? normalized;
+}
+
+export function isPapelComercial(value: unknown): value is PapelComercial {
+  return (
+    typeof value === "string" &&
+    (PAPEIS_COMERCIAIS as readonly string[]).includes(normalizePapel(value))
+  );
 }
 
 function normalizePapeis(papeis: string[] | null | undefined) {

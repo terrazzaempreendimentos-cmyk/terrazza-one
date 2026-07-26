@@ -1,6 +1,20 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+  type ButtonHTMLAttributes,
+  type ReactNode,
+} from "react";
+
+export type SalvarImovelState =
+  | { status: "idle"; mensagem: null }
+  | { status: "erro"; mensagem: string };
 
 type ImovelAtivo = {
   id: string;
@@ -9,7 +23,7 @@ type ImovelAtivo = {
 };
 
 type Props = {
-  action: (formData: FormData) => void | Promise<void>;
+  action: (formData: FormData) => Promise<SalvarImovelState>;
   children: ReactNode;
   className?: string;
   currentId?: string;
@@ -18,6 +32,28 @@ type Props = {
 
 const fieldErrorClass = "border-red-300 bg-red-50/50 focus:border-red-400";
 const fieldBaseClass = "border-[#E8DDCB]";
+const estadoInicial: SalvarImovelState = { status: "idle", mensagem: null };
+const ImovelFormPendingContext = createContext(false);
+
+export function ImovelSaveButton({
+  children,
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement>) {
+  const pending = useContext(ImovelFormPendingContext);
+
+  return (
+    <button
+      {...props}
+      type="submit"
+      name="imovel_intent"
+      value="salvar"
+      disabled={pending || props.disabled}
+      aria-disabled={pending || props.disabled}
+    >
+      {pending ? "Salvando..." : children}
+    </button>
+  );
+}
 
 function toggleClasses(element: HTMLElement, classes: string, force: boolean) {
   for (const className of classes.split(" ")) {
@@ -27,6 +63,37 @@ function toggleClasses(element: HTMLElement, classes: string, force: boolean) {
 
 function normalizar(value: string) {
   return value.trim().toUpperCase().replace(/\s+/g, "");
+}
+
+function normalizarContatoPrincipal(form: HTMLFormElement) {
+  const proprietariosSelecionados = Array.from(
+    form.querySelectorAll<HTMLInputElement>(
+      'input[name="proprietario_pessoa_ids"]:checked',
+    ),
+  ).map((input) => input.value);
+  const contatos = Array.from(
+    form.querySelectorAll<HTMLInputElement>(
+      'input[name="contato_principal_pessoa_id"]',
+    ),
+  );
+
+  if (proprietariosSelecionados.length === 0) {
+    contatos.forEach((contato) => {
+      contato.checked = false;
+    });
+    return;
+  }
+
+  const contatoAtual = contatos.find(
+    (contato) => contato.checked && proprietariosSelecionados.includes(contato.value),
+  );
+  const contatoPrincipal =
+    contatoAtual ??
+    contatos.find((contato) => contato.value === proprietariosSelecionados[0]);
+
+  contatos.forEach((contato) => {
+    contato.checked = contato === contatoPrincipal;
+  });
 }
 
 export function ImovelUniqueForm({
@@ -39,6 +106,8 @@ export function ImovelUniqueForm({
   const formRef = useRef<HTMLFormElement>(null);
   const [message, setMessage] = useState("");
   const [fieldName, setFieldName] = useState<"codigo" | "matricula" | "">("");
+  const [actionState, setActionState] = useState<SalvarImovelState>(estadoInicial);
+  const [pending, startTransition] = useTransition();
 
   const registros = useMemo(
     () =>
@@ -51,11 +120,12 @@ export function ImovelUniqueForm({
   );
 
   function validate(form: HTMLFormElement) {
+    normalizarContatoPrincipal(form);
     const formData = new FormData(form);
     const codigo = normalizar(String(formData.get("codigo") ?? ""));
     const matricula = normalizar(String(formData.get("matricula") ?? ""));
 
-    if (!codigo) {
+    if (!codigo && !currentId) {
       return {
         field: "codigo" as const,
         message: "O codigo do imovel e obrigatorio.",
@@ -86,7 +156,16 @@ export function ImovelUniqueForm({
       };
     }
 
-    return { field: "" as const, message: "" };
+    const proprietariosSelecionados = formData.getAll("proprietario_pessoa_ids");
+    if (!currentId && proprietariosSelecionados.length === 0) {
+      return {
+        field: "" as const,
+        message: "Selecione pelo menos um proprietário antes de salvar o imóvel.",
+        section: "proprietarios",
+      };
+    }
+
+    return { field: "" as const, message: "", section: "" };
   }
 
   function refreshValidation() {
@@ -129,25 +208,60 @@ export function ImovelUniqueForm({
   }, [fieldName, message]);
 
   return (
-    <form
-      ref={formRef}
-      action={action}
-      className={className}
-      onBlur={refreshValidation}
-      onChange={refreshValidation}
-      onSubmit={(event) => {
-        const result = validate(event.currentTarget);
-        setFieldName(result.field);
-        setMessage(result.message);
-        if (result.message) event.preventDefault();
-      }}
-    >
-      {children}
-      {message ? (
-        <p className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-          {message}
-        </p>
-      ) : null}
-    </form>
+    <ImovelFormPendingContext.Provider value={pending}>
+      <form
+        ref={formRef}
+        className={className}
+        onBlur={refreshValidation}
+        onChange={refreshValidation}
+        onSubmit={(event) => {
+          const submitter = (event.nativeEvent as SubmitEvent)
+            .submitter as HTMLButtonElement | null;
+          if (submitter?.name !== "imovel_intent" || submitter.value !== "salvar") {
+            return;
+          }
+
+          event.preventDefault();
+          if (pending) return;
+
+          const result = validate(event.currentTarget);
+          setFieldName(result.field);
+          setMessage(result.message);
+          if (result.message) {
+            if ("section" in result && result.section) {
+              document.getElementById(result.section)?.scrollIntoView({
+                behavior: "smooth",
+                block: "start",
+              });
+            }
+            return;
+          }
+
+          const formData = new FormData(event.currentTarget);
+          setActionState(estadoInicial);
+          startTransition(async () => {
+            try {
+              const nextState = await action(formData);
+              setActionState(nextState);
+            } catch {
+              setActionState({
+                status: "erro",
+                mensagem: "Nao foi possivel salvar o imovel. Tente novamente.",
+              });
+            }
+          });
+        }}
+      >
+        {children}
+        {message || actionState.status === "erro" ? (
+          <p
+            role="alert"
+            className="rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-medium text-red-700"
+          >
+            {message || actionState.mensagem}
+          </p>
+        ) : null}
+      </form>
+    </ImovelFormPendingContext.Provider>
   );
 }

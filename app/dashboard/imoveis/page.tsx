@@ -4,10 +4,14 @@ import { redirect } from "next/navigation";
 
 import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
-import { ImovelUniqueForm } from "../../../components/ImovelUniqueForm";
 import {
-  requireActiveProfile,
+  ImovelSaveButton,
+  ImovelUniqueForm,
+  type SalvarImovelState,
+} from "../../../components/ImovelUniqueForm";
+import {
   requirePermission,
+  requireRole,
 } from "../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../lib/auth/page-permission";
 import { hasPapel } from "../../../lib/crm/pessoas/papeis";
@@ -26,11 +30,6 @@ type PessoaProprietario = {
 };
 
 type Corretor = {
-  id: string;
-  nome: string;
-};
-
-type ProprietarioLegado = {
   id: string;
   nome: string;
 };
@@ -274,6 +273,94 @@ const imovelProprietariosLeituraFields = `
   pessoa:pessoas(id, nome)
 `;
 
+const imovelDuplicacaoFields = [
+  "titulo",
+  "tipo",
+  "subtipo",
+  "finalidade",
+  "origem",
+  "data_captacao",
+  "exclusividade",
+  "observacoes",
+  "cep",
+  "endereco",
+  "numero",
+  "complemento",
+  "bairro",
+  "cidade",
+  "estado",
+  "latitude",
+  "longitude",
+  "google_maps",
+  "valor_venda",
+  "valor_locacao",
+  "aluguel_pretendido",
+  "valor_condominio",
+  "valor_iptu",
+  "taxa_bombeiro",
+  "taxa_administracao",
+  "comissao_venda",
+  "comissao_locacao",
+  "valor_minimo_aceito",
+  "valor_ideal",
+  "valor_anunciado",
+  "area_total",
+  "area_util",
+  "area_construida",
+  "metragem",
+  "dormitorios",
+  "quartos",
+  "suites",
+  "banheiros",
+  "lavabos",
+  "garagens",
+  "garagem",
+  "andar",
+  "elevadores",
+  "ano_construcao",
+  "piscina",
+  "academia",
+  "varanda",
+  "varanda_gourmet",
+  "sacada",
+  "churrasqueira",
+  "energia_solar",
+  "mobiliado",
+  "aceita_pet",
+  "ar_condicionado",
+  "portaria",
+  "condominio_fechado",
+  "vista_mar",
+  "frente_mar",
+  "beira_lago",
+  "acessibilidade",
+  "cartorio",
+  "iptu_documento",
+  "habite_se",
+  "escritura",
+  "registro",
+  "documentacao_completa",
+  "pendencias_documentacao",
+  "upload_pdf",
+  "fotos",
+  "videos",
+  "tour_360",
+  "drone",
+  "planta",
+  "thumbnail",
+  "foto_principal",
+  "ordenacao_midias",
+  "resumo_comercial",
+  "resumo_tecnico",
+  "perfil_ideal",
+  "observacoes_ia",
+  "score_comercial",
+  "score_locacao",
+  "liquidez",
+] as const;
+
+const imovelDuplicacaoSelect = imovelDuplicacaoFields.join(", ");
+
 const abas = [
   ["dados", "Dados Gerais"],
   ["localizacao", "Localizacao"],
@@ -342,16 +429,85 @@ function valorTexto(formData: FormData, campo: string) {
   return String(formData.get(campo) ?? "").trim();
 }
 
-function valorNumero(formData: FormData, campo: string) {
-  const value = valorTexto(formData, campo);
-  if (!value) return null;
+class ImovelValidationError extends Error {
+  constructor(public readonly code: string) {
+    super("Dados do imovel invalidos.");
+    this.name = "ImovelValidationError";
+  }
+}
 
+function textoObrigatorio(formData: FormData, campo: string) {
+  const value = valorTexto(formData, campo);
+  if (!value) throw new ImovelValidationError(`campo_${campo}`);
+  return value;
+}
+
+function textoOpcional(formData: FormData, campo: string) {
+  return valorTexto(formData, campo) || null;
+}
+
+function validarUuid(value: string, campo: string) {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value)) {
+    throw new ImovelValidationError(`campo_${campo}`);
+  }
+  return value;
+}
+
+function uuidValido(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+    value,
+  );
+}
+
+function uuidOpcional(formData: FormData, campo: string) {
+  const value = textoOpcional(formData, campo);
+  if (value === null) return null;
+  return validarUuid(value, campo);
+}
+
+function dataOpcional(formData: FormData, campo: string) {
+  const value = textoOpcional(formData, campo);
+  if (value === null) return null;
+  const timestamp = Date.parse(`${value}T00:00:00Z`);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(value) ||
+    Number.isNaN(timestamp) ||
+    new Date(timestamp).toISOString().slice(0, 10) !== value
+  ) {
+    throw new ImovelValidationError(`campo_${campo}`);
+  }
+  return value;
+}
+
+function timestamptzOpcional(formData: FormData, campo: string) {
+  const value = textoOpcional(formData, campo);
+  if (value === null) return null;
+  const timestamp = Date.parse(value);
+  if (Number.isNaN(timestamp)) throw new ImovelValidationError(`campo_${campo}`);
+  return new Date(timestamp).toISOString();
+}
+
+function numeroOpcional(formData: FormData, campo: string) {
+  const value = textoOpcional(formData, campo);
+  if (value === null) return null;
   const number = Number(value);
-  return Number.isFinite(number) ? number : null;
+  if (!Number.isFinite(number)) throw new ImovelValidationError(`campo_${campo}`);
+  return number;
+}
+
+function inteiroOpcional(formData: FormData, campo: string) {
+  const value = numeroOpcional(formData, campo);
+  if (value === null) return null;
+  if (!Number.isInteger(value)) throw new ImovelValidationError(`campo_${campo}`);
+  return value;
 }
 
 function valorBooleano(formData: FormData, campo: string) {
   return formData.get(campo) === "on";
+}
+
+function midiaSerializada(formData: FormData, campo: string) {
+  return textoOpcional(formData, campo);
 }
 
 function normalizarTexto(value: unknown) {
@@ -465,6 +621,12 @@ function nomePessoaRelacionada(relacao: ImovelProprietario) {
 
 function fieldValue(value: unknown) {
   return value === null || value === undefined ? "" : String(value);
+}
+
+function datetimeLocalValue(value: string | null | undefined) {
+  if (!value) return "";
+  const timestamp = new Date(value);
+  return Number.isNaN(timestamp.getTime()) ? "" : timestamp.toISOString().slice(0, 16);
 }
 
 function inputClass() {
@@ -616,238 +778,299 @@ export default async function ImoveisPage({
   const filtroResponsavel = paramValue(resolvedSearchParams, "responsavel_id") ?? "";
   const errorCode = paramValue(resolvedSearchParams, "error") ?? "";
 
-  async function salvarImovel(formData: FormData) {
+  if (editId && !uuidValido(editId)) {
+    redirect("/dashboard/imoveis?error=imovel_invalido");
+  }
+
+  async function salvarImovel(formData: FormData): Promise<SalvarImovelState> {
     "use server";
-    await requireActiveProfile();
-    const supabase = await createClient();
-
-    const id = valorTexto(formData, "id");
-    const pessoasProprietarias = formData
-      .getAll("proprietario_pessoa_ids")
-      .map(String)
-      .filter(Boolean);
-    const proprietarioLegadoId = valorTexto(formData, "proprietario_legado_id");
-
-    if (pessoasProprietarias.length === 0 && !proprietarioLegadoId) {
-      throw new Error("Selecione ao menos um proprietario.");
-    }
-
-    const codigo = valorTexto(formData, "codigo");
-    const complemento = valorTexto(formData, "complemento");
-    const titulo = valorTexto(formData, "titulo") || complemento;
-
-    if (!codigo) {
-      throw new Error("O codigo do imovel e obrigatorio.");
-    }
-
-    if (!complemento) {
-      throw new Error("O complemento do imovel e obrigatorio.");
-    }
-
-    const matricula = valorTexto(formData, "matricula");
-    const { data: imoveisAtivos, error: unicidadeError } = await supabase
-      .from("imoveis")
-      .select("id, codigo, matricula")
-      .eq("ativo", true);
-
-    if (unicidadeError) {
-      console.error("Falha ao validar unicidade do imovel.", {
-        module: "imoveis.unicidade",
-        code: unicidadeError.code,
+    try {
+      await requireRole("administrador", "gestor");
+      await requirePermission("imoveis.criar");
+      await requirePermission("imoveis.editar");
+    } catch {
+      console.error("Falha de autorizacao ao salvar imovel.", {
+        module: "imoveis.salvar",
+        stage: "authorization",
+        code: "not_authorized",
       });
-      throw new Error("Nao foi possivel validar codigo e matricula do imovel.");
+      return {
+        status: "erro",
+        mensagem: "Voce nao possui permissao para realizar esta operacao.",
+      };
     }
 
-    const codigoNormalizado = codigo.trim().toUpperCase().replace(/\s+/g, "");
-    const matriculaNormalizada = matricula.trim().toUpperCase().replace(/\s+/g, "");
-    const codigoDuplicado = ((imoveisAtivos ?? []) as Pick<
-      Imovel,
-      "id" | "codigo" | "matricula"
-    >[]).some(
-      (imovel) =>
-        imovel.id !== id &&
-        String(imovel.codigo ?? "").trim().toUpperCase().replace(/\s+/g, "") ===
-          codigoNormalizado,
-    );
+    let id: string | null;
+    let payload: Record<string, string | number | boolean | null>;
+    let pessoasProprietarias: string[];
+    let proprietarios: Array<{
+      pessoa_id: string;
+      percentual_participacao: number | null;
+      contato_principal: boolean;
+      observacoes: string | null;
+    }>;
 
-    if (codigoDuplicado) {
-      redirect("/dashboard/imoveis?error=codigo_duplicado");
+    try {
+      id = uuidOpcional(formData, "id");
+
+      pessoasProprietarias = formData
+        .getAll("proprietario_pessoa_ids")
+        .map(String)
+        .map((value) => value.trim())
+        .filter(Boolean)
+        .map((value) => validarUuid(value, "proprietario_pessoa_ids"));
+
+      if (new Set(pessoasProprietarias).size !== pessoasProprietarias.length) {
+        throw new ImovelValidationError("proprietario_duplicado");
+      }
+
+      if (!id && pessoasProprietarias.length === 0) {
+        throw new ImovelValidationError("proprietario_obrigatorio");
+      }
+
+      const contatoPrincipalInformado = textoOpcional(
+        formData,
+        "contato_principal_pessoa_id",
+      );
+      const contatoPrincipalValido =
+        contatoPrincipalInformado && pessoasProprietarias.includes(contatoPrincipalInformado)
+          ? validarUuid(contatoPrincipalInformado, "contato_principal_pessoa_id")
+          : pessoasProprietarias[0] ?? null;
+
+      proprietarios = pessoasProprietarias.map((pessoaId) => {
+        const percentual = numeroOpcional(formData, `percentual_${pessoaId}`);
+        if (percentual !== null && (percentual < 0 || percentual > 100)) {
+          throw new ImovelValidationError("percentual_proprietario");
+        }
+
+        return {
+          pessoa_id: pessoaId,
+          percentual_participacao: percentual,
+          contato_principal: pessoaId === contatoPrincipalValido,
+          observacoes: textoOpcional(formData, `observacoes_proprietario_${pessoaId}`),
+        };
+      });
+
+      const totalContatosPrincipais = proprietarios.filter(
+        (proprietario) => proprietario.contato_principal,
+      ).length;
+      if (proprietarios.length > 0 && totalContatosPrincipais !== 1) {
+        throw new ImovelValidationError("contato_principal");
+      }
+
+      const codigo = id
+        ? textoOpcional(formData, "codigo")
+        : textoObrigatorio(formData, "codigo");
+      const complemento = id
+        ? textoOpcional(formData, "complemento")
+        : textoObrigatorio(formData, "complemento");
+      const tipo = id ? textoOpcional(formData, "tipo") : textoObrigatorio(formData, "tipo");
+      const finalidade = id
+        ? textoOpcional(formData, "finalidade")
+        : textoObrigatorio(formData, "finalidade");
+      const status = id
+        ? textoOpcional(formData, "status")
+        : textoObrigatorio(formData, "status");
+      const cidade = id
+        ? textoOpcional(formData, "cidade")
+        : textoObrigatorio(formData, "cidade");
+      const titulo = textoOpcional(formData, "titulo") ?? complemento;
+      const valorLocacao = numeroOpcional(formData, "valor_locacao");
+      const areaUtil = numeroOpcional(formData, "area_util");
+      const dormitorios = inteiroOpcional(formData, "dormitorios");
+      const garagens = inteiroOpcional(formData, "garagens");
+
+      payload = {
+        proprietario_id: null,
+        codigo,
+        titulo,
+        tipo,
+        subtipo: textoOpcional(formData, "subtipo"),
+        finalidade,
+        status,
+        situacao: status,
+        responsavel_id: uuidOpcional(formData, "responsavel_id"),
+        origem: textoOpcional(formData, "origem") ?? "manual",
+        data_captacao: dataOpcional(formData, "data_captacao"),
+        exclusividade: valorBooleano(formData, "exclusividade"),
+        observacoes: textoOpcional(formData, "observacoes"),
+        cep: textoOpcional(formData, "cep"),
+        endereco: textoOpcional(formData, "endereco"),
+        numero: textoOpcional(formData, "numero"),
+        complemento,
+        bairro: textoOpcional(formData, "bairro"),
+        cidade,
+        estado: textoOpcional(formData, "estado"),
+        latitude: numeroOpcional(formData, "latitude"),
+        longitude: numeroOpcional(formData, "longitude"),
+        google_maps: textoOpcional(formData, "google_maps"),
+        valor_venda: numeroOpcional(formData, "valor_venda"),
+        valor_locacao: valorLocacao,
+        aluguel_pretendido: valorLocacao,
+        valor_condominio: numeroOpcional(formData, "valor_condominio"),
+        valor_iptu: numeroOpcional(formData, "valor_iptu"),
+        taxa_bombeiro: numeroOpcional(formData, "taxa_bombeiro"),
+        taxa_administracao: numeroOpcional(formData, "taxa_administracao"),
+        comissao_venda: numeroOpcional(formData, "comissao_venda"),
+        comissao_locacao: numeroOpcional(formData, "comissao_locacao"),
+        valor_minimo_aceito: numeroOpcional(formData, "valor_minimo_aceito"),
+        valor_ideal: numeroOpcional(formData, "valor_ideal"),
+        valor_anunciado: numeroOpcional(formData, "valor_anunciado"),
+        area_total: numeroOpcional(formData, "area_total"),
+        area_util: areaUtil,
+        area_construida: numeroOpcional(formData, "area_construida"),
+        metragem: areaUtil,
+        dormitorios,
+        quartos: dormitorios,
+        suites: inteiroOpcional(formData, "suites"),
+        banheiros: inteiroOpcional(formData, "banheiros"),
+        lavabos: inteiroOpcional(formData, "lavabos"),
+        garagens,
+        garagem: garagens !== null && garagens > 0,
+        andar: inteiroOpcional(formData, "andar"),
+        elevadores: inteiroOpcional(formData, "elevadores"),
+        ano_construcao: inteiroOpcional(formData, "ano_construcao"),
+        piscina: valorBooleano(formData, "piscina"),
+        academia: valorBooleano(formData, "academia"),
+        varanda: valorBooleano(formData, "varanda"),
+        varanda_gourmet: valorBooleano(formData, "varanda_gourmet"),
+        sacada: valorBooleano(formData, "sacada"),
+        churrasqueira: valorBooleano(formData, "churrasqueira"),
+        energia_solar: valorBooleano(formData, "energia_solar"),
+        mobiliado: valorBooleano(formData, "mobiliado"),
+        aceita_pet: valorBooleano(formData, "aceita_pet"),
+        ar_condicionado: valorBooleano(formData, "ar_condicionado"),
+        portaria: valorBooleano(formData, "portaria"),
+        condominio_fechado: valorBooleano(formData, "condominio_fechado"),
+        vista_mar: valorBooleano(formData, "vista_mar"),
+        frente_mar: valorBooleano(formData, "frente_mar"),
+        beira_lago: valorBooleano(formData, "beira_lago"),
+        acessibilidade: valorBooleano(formData, "acessibilidade"),
+        matricula: textoOpcional(formData, "matricula"),
+        cartorio: textoOpcional(formData, "cartorio"),
+        iptu_documento: textoOpcional(formData, "iptu_documento"),
+        habite_se: textoOpcional(formData, "habite_se"),
+        escritura: textoOpcional(formData, "escritura"),
+        registro: textoOpcional(formData, "registro"),
+        documentacao_completa: valorBooleano(formData, "documentacao_completa"),
+        pendencias_documentacao: textoOpcional(formData, "pendencias_documentacao"),
+        upload_pdf: midiaSerializada(formData, "upload_pdf"),
+        fotos: midiaSerializada(formData, "fotos"),
+        videos: midiaSerializada(formData, "videos"),
+        tour_360: midiaSerializada(formData, "tour_360"),
+        drone: midiaSerializada(formData, "drone"),
+        planta: midiaSerializada(formData, "planta"),
+        thumbnail: midiaSerializada(formData, "thumbnail"),
+        foto_principal: midiaSerializada(formData, "foto_principal"),
+        ordenacao_midias: midiaSerializada(formData, "ordenacao_midias"),
+        portal_proprio: valorBooleano(formData, "portal_proprio"),
+        site: valorBooleano(formData, "site"),
+        chaves_na_mao: valorBooleano(formData, "chaves_na_mao"),
+        olx: valorBooleano(formData, "olx"),
+        viva_real: valorBooleano(formData, "viva_real"),
+        zap: valorBooleano(formData, "zap"),
+        status_publicacao:
+          textoOpcional(formData, "status_publicacao") ?? "nao_publicado",
+        data_publicacao: dataOpcional(formData, "data_publicacao"),
+        ultima_atualizacao_publicacao: timestamptzOpcional(
+          formData,
+          "ultima_atualizacao_publicacao",
+        ),
+        resumo_comercial: textoOpcional(formData, "resumo_comercial"),
+        resumo_tecnico: textoOpcional(formData, "resumo_tecnico"),
+        perfil_ideal: textoOpcional(formData, "perfil_ideal"),
+        observacoes_ia: textoOpcional(formData, "observacoes_ia"),
+        score_comercial: inteiroOpcional(formData, "score_comercial"),
+        score_locacao: inteiroOpcional(formData, "score_locacao"),
+        liquidez: textoOpcional(formData, "liquidez"),
+      };
+    } catch (error) {
+      if (error instanceof ImovelValidationError) {
+        if (error.code === "proprietario_obrigatorio") {
+          return {
+            status: "erro",
+            mensagem: "Selecione pelo menos um proprietário antes de salvar o imóvel.",
+          };
+        }
+
+        if (
+          error.code.startsWith("proprietario_") ||
+          error.code === "percentual_proprietario" ||
+          error.code === "contato_principal"
+        ) {
+          return {
+            status: "erro",
+            mensagem: "Revise os proprietarios e o contato principal informados.",
+          };
+        }
+
+        return {
+          status: "erro",
+          mensagem: "Revise os campos obrigatorios e os valores informados.",
+        };
+      }
+
+      console.error("Falha inesperada ao validar formulario de imovel.", {
+        module: "imoveis.salvar",
+        stage: "validation",
+        code: error instanceof Error ? error.name : "unknown_error",
+      });
+      return {
+        status: "erro",
+        mensagem: "Nao foi possivel salvar o imovel. Tente novamente.",
+      };
     }
 
-    const matriculaDuplicada =
-      matriculaNormalizada &&
-      ((imoveisAtivos ?? []) as Pick<Imovel, "id" | "codigo" | "matricula">[]).some(
-        (imovel) =>
-          imovel.id !== id &&
-          String(imovel.matricula ?? "").trim().toUpperCase().replace(/\s+/g, "") ===
-            matriculaNormalizada,
+    try {
+      const supabase = await createClient();
+      const { data: resultado, error } = await supabase.rpc(
+        "salvar_imovel_com_proprietarios",
+        {
+          p_imovel_id: id,
+          p_payload: payload,
+          p_proprietarios: proprietarios,
+        },
       );
 
-    if (matriculaDuplicada) {
-      redirect("/dashboard/imoveis?error=matricula_duplicada");
-    }
-
-    const payload = {
-      proprietario_id: proprietarioLegadoId || null,
-      codigo,
-      titulo,
-      tipo: valorTexto(formData, "tipo") || null,
-      subtipo: valorTexto(formData, "subtipo") || null,
-      finalidade: valorTexto(formData, "finalidade") || null,
-      status: valorTexto(formData, "status") || "rascunho",
-      situacao: valorTexto(formData, "status") || "rascunho",
-      responsavel_id: valorTexto(formData, "responsavel_id") || null,
-      origem: valorTexto(formData, "origem") || "manual",
-      data_captacao: valorTexto(formData, "data_captacao") || null,
-      exclusividade: valorBooleano(formData, "exclusividade"),
-      observacoes: valorTexto(formData, "observacoes") || null,
-      cep: valorTexto(formData, "cep") || null,
-      endereco: valorTexto(formData, "endereco") || null,
-      numero: valorTexto(formData, "numero") || null,
-      complemento,
-      bairro: valorTexto(formData, "bairro") || null,
-      cidade: valorTexto(formData, "cidade") || null,
-      estado: valorTexto(formData, "estado") || null,
-      latitude: valorNumero(formData, "latitude"),
-      longitude: valorNumero(formData, "longitude"),
-      google_maps: valorTexto(formData, "google_maps") || null,
-      valor_venda: valorNumero(formData, "valor_venda"),
-      valor_locacao: valorNumero(formData, "valor_locacao"),
-      aluguel_pretendido: valorNumero(formData, "valor_locacao"),
-      valor_condominio: valorNumero(formData, "valor_condominio"),
-      valor_iptu: valorNumero(formData, "valor_iptu"),
-      taxa_bombeiro: valorNumero(formData, "taxa_bombeiro"),
-      taxa_administracao: valorNumero(formData, "taxa_administracao"),
-      comissao_venda: valorNumero(formData, "comissao_venda"),
-      comissao_locacao: valorNumero(formData, "comissao_locacao"),
-      valor_minimo_aceito: valorNumero(formData, "valor_minimo_aceito"),
-      valor_ideal: valorNumero(formData, "valor_ideal"),
-      valor_anunciado: valorNumero(formData, "valor_anunciado"),
-      area_total: valorNumero(formData, "area_total"),
-      area_util: valorNumero(formData, "area_util"),
-      area_construida: valorNumero(formData, "area_construida"),
-      metragem: valorNumero(formData, "area_util"),
-      dormitorios: valorNumero(formData, "dormitorios"),
-      quartos: valorNumero(formData, "dormitorios"),
-      suites: valorNumero(formData, "suites"),
-      banheiros: valorNumero(formData, "banheiros"),
-      lavabos: valorNumero(formData, "lavabos"),
-      garagens: valorNumero(formData, "garagens"),
-      garagem: Number(valorNumero(formData, "garagens") ?? 0) > 0,
-      andar: valorNumero(formData, "andar"),
-      elevadores: valorNumero(formData, "elevadores"),
-      ano_construcao: valorNumero(formData, "ano_construcao"),
-      piscina: valorBooleano(formData, "piscina"),
-      academia: valorBooleano(formData, "academia"),
-      varanda: valorBooleano(formData, "varanda"),
-      varanda_gourmet: valorBooleano(formData, "varanda_gourmet"),
-      sacada: valorBooleano(formData, "sacada"),
-      churrasqueira: valorBooleano(formData, "churrasqueira"),
-      energia_solar: valorBooleano(formData, "energia_solar"),
-      mobiliado: valorBooleano(formData, "mobiliado"),
-      aceita_pet: valorBooleano(formData, "aceita_pet"),
-      ar_condicionado: valorBooleano(formData, "ar_condicionado"),
-      portaria: valorBooleano(formData, "portaria"),
-      condominio_fechado: valorBooleano(formData, "condominio_fechado"),
-      vista_mar: valorBooleano(formData, "vista_mar"),
-      frente_mar: valorBooleano(formData, "frente_mar"),
-      beira_lago: valorBooleano(formData, "beira_lago"),
-      acessibilidade: valorBooleano(formData, "acessibilidade"),
-      matricula: matricula || null,
-      cartorio: valorTexto(formData, "cartorio") || null,
-      iptu_documento: valorTexto(formData, "iptu_documento") || null,
-      habite_se: valorTexto(formData, "habite_se") || null,
-      escritura: valorTexto(formData, "escritura") || null,
-      registro: valorTexto(formData, "registro") || null,
-      documentacao_completa: valorBooleano(formData, "documentacao_completa"),
-      pendencias_documentacao: valorTexto(formData, "pendencias_documentacao") || null,
-      upload_pdf: valorTexto(formData, "upload_pdf") || null,
-      fotos: valorTexto(formData, "fotos") || null,
-      videos: valorTexto(formData, "videos") || null,
-      tour_360: valorTexto(formData, "tour_360") || null,
-      drone: valorTexto(formData, "drone") || null,
-      planta: valorTexto(formData, "planta") || null,
-      thumbnail: valorTexto(formData, "thumbnail") || null,
-      foto_principal: valorTexto(formData, "foto_principal") || null,
-      ordenacao_midias: valorTexto(formData, "ordenacao_midias") || null,
-      portal_proprio: valorBooleano(formData, "portal_proprio"),
-      site: valorBooleano(formData, "site"),
-      chaves_na_mao: valorBooleano(formData, "chaves_na_mao"),
-      olx: valorBooleano(formData, "olx"),
-      viva_real: valorBooleano(formData, "viva_real"),
-      zap: valorBooleano(formData, "zap"),
-      status_publicacao: valorTexto(formData, "status_publicacao") || "nao_publicado",
-      data_publicacao: valorTexto(formData, "data_publicacao") || null,
-      ultima_atualizacao_publicacao:
-        valorTexto(formData, "ultima_atualizacao_publicacao") || null,
-      resumo_comercial: valorTexto(formData, "resumo_comercial") || null,
-      resumo_tecnico: valorTexto(formData, "resumo_tecnico") || null,
-      perfil_ideal: valorTexto(formData, "perfil_ideal") || null,
-      observacoes_ia: valorTexto(formData, "observacoes_ia") || null,
-      score_comercial: valorNumero(formData, "score_comercial"),
-      score_locacao: valorNumero(formData, "score_locacao"),
-      liquidez: valorTexto(formData, "liquidez") || null,
-      ativo: true,
-      updated_at: new Date().toISOString(),
-    };
-
-    const mutation = id
-      ? supabase.from("imoveis").update(payload).eq("id", id).select("id").single()
-      : supabase.from("imoveis").insert(payload).select("id").single();
-
-    const { data: imovelSalvo, error } = await mutation;
-
-    if (error || !imovelSalvo?.id) {
-      console.error("Falha ao salvar imovel.", {
-        module: "imoveis.salvar",
-        code: error?.code ?? "missing_result",
-      });
-      const mensagem = `${error?.message ?? ""} ${error?.code ?? ""}`.toLowerCase();
-      if (mensagem.includes("matricula")) {
-        redirect("/dashboard/imoveis?error=matricula_duplicada");
-      }
-
-      if (mensagem.includes("codigo")) {
-        redirect("/dashboard/imoveis?error=codigo_duplicado");
-      }
-
-      if (mensagem.includes("unique") || mensagem.includes("duplicate")) {
-        redirect("/dashboard/imoveis?error=unicidade_indice");
-      }
-
-      throw new Error("Nao foi possivel salvar o imovel.");
-    }
-
-    const imovelId = imovelSalvo.id as string;
-
-    await supabase
-      .from("imovel_proprietarios")
-      .update({ ativo: false, updated_at: new Date().toISOString() })
-      .eq("imovel_id", imovelId);
-
-    if (pessoasProprietarias.length > 0) {
-      const relacoes = pessoasProprietarias.map((pessoaId, index) => ({
-        imovel_id: imovelId,
-        pessoa_id: pessoaId,
-        percentual_participacao: valorNumero(formData, `percentual_${pessoaId}`),
-        contato_principal:
-          valorTexto(formData, "contato_principal_pessoa_id") === pessoaId || index === 0,
-        observacoes: valorTexto(formData, `observacoes_proprietario_${pessoaId}`) || null,
-        ativo: true,
-        updated_at: new Date().toISOString(),
-      }));
-
-      const { error: relacoesError } = await supabase
-        .from("imovel_proprietarios")
-        .insert(relacoes);
-
-      if (relacoesError) {
-        console.error("Falha ao salvar vinculos de proprietarios do imovel.", {
-          module: "imoveis.proprietarios",
-          code: relacoesError.code,
+      const resultadoRpc = Array.isArray(resultado) ? resultado[0] : null;
+      const operacaoEsperada = id ? "editado" : "criado";
+      if (
+        error ||
+        typeof resultadoRpc?.imovel_id !== "string" ||
+        resultadoRpc?.operacao !== operacaoEsperada
+      ) {
+        const code = error?.code ?? "missing_result";
+        console.error("Falha na RPC de persistencia do imovel.", {
+          module: "imoveis.salvar",
+          stage: "rpc",
+          code,
         });
-        throw new Error("Nao foi possivel salvar os proprietarios do imovel.");
+
+        const mensagem =
+          code === "23505"
+            ? "Codigo ou matricula ja cadastrados em outro imovel ativo."
+            : code === "23503"
+              ? "Um dos proprietarios ou relacionamentos informados e invalido."
+              : code === "23514"
+                ? "Revise os dados do imovel e dos proprietarios."
+                : code === "42501"
+                  ? "Voce nao possui permissao para realizar esta operacao."
+                  : code === "P0001"
+                    ? "Nao foi possivel validar o imovel e seus proprietarios."
+                    : "Nao foi possivel salvar o imovel. Tente novamente.";
+
+        return { status: "erro", mensagem };
       }
+    } catch (error) {
+      console.error("Falha inesperada na persistencia do imovel.", {
+        module: "imoveis.salvar",
+        stage: "rpc_unexpected",
+        code: error instanceof Error ? error.name : "unknown_error",
+      });
+      return {
+        status: "erro",
+        mensagem: "Nao foi possivel salvar o imovel. Tente novamente.",
+      };
     }
 
     revalidatePath("/dashboard/imoveis");
@@ -876,39 +1099,78 @@ export default async function ImoveisPage({
 
   async function duplicarImovel(formData: FormData) {
     "use server";
-    await requireActiveProfile();
+    await requirePermission("imoveis.criar");
+    await requireRole("administrador", "gestor");
     const supabase = await createClient();
 
-    const id = valorTexto(formData, "id");
-    if (!id) throw new Error("Imovel nao informado.");
+    let id: string | null;
+    try {
+      id = uuidOpcional(formData, "id");
+    } catch (error) {
+      if (error instanceof ImovelValidationError) {
+        redirect("/dashboard/imoveis?error=imovel_invalido");
+      }
+      throw error;
+    }
+    if (!id) redirect("/dashboard/imoveis?error=imovel_invalido");
 
     const { data: original, error } = await supabase
       .from("imoveis")
-      .select("*")
+      .select(imovelDuplicacaoSelect)
       .eq("id", id)
-      .single();
+      .eq("ativo", true)
+      .maybeSingle();
 
-    if (error || !original) throw new Error("Nao foi possivel duplicar o imovel.");
+    if (error) {
+      console.error("Falha ao consultar imovel para duplicacao.", {
+        module: "imoveis.duplicacao",
+        stage: "consulta",
+        code: error.code,
+      });
+      throw new Error("Nao foi possivel preparar a duplicacao do imovel.");
+    }
+    if (!original) redirect("/dashboard/imoveis?error=imovel_nao_encontrado");
 
-    const clone = {
-      ...(original as Record<string, unknown>),
-      id: undefined,
-      codigo: `${String((original as Imovel).codigo ?? "IMOVEL")}-COPIA-${Date.now()}`,
-      titulo: `${tituloImovel(original as Imovel)} (copia)`,
-      matricula: null,
-      status: "rascunho",
-      created_at: undefined,
-      updated_at: new Date().toISOString(),
-    };
+    const originalImovel = original as Imovel;
+    const originalPermitido = original as Record<string, unknown>;
+    const clone: Record<string, unknown> = {};
+    for (const field of imovelDuplicacaoFields) clone[field] = originalPermitido[field];
+
+    clone.proprietario_id = null;
+    clone.codigo = null;
+    clone.matricula = null;
+    clone.titulo = `${tituloImovel(originalImovel)} (copia)`;
+    clone.complemento = originalImovel.complemento
+      ? `${originalImovel.complemento} (copia)`
+      : "Copia";
+    clone.status = "rascunho";
+    clone.situacao = "rascunho";
+    clone.portal_proprio = false;
+    clone.site = false;
+    clone.chaves_na_mao = false;
+    clone.olx = false;
+    clone.viva_real = false;
+    clone.zap = false;
+    clone.status_publicacao = "nao_publicado";
+    clone.data_publicacao = null;
+    clone.ultima_atualizacao_publicacao = null;
+    clone.ativo = true;
 
     const { error: insertError } = await supabase.from("imoveis").insert(clone);
-    if (insertError) throw new Error("Nao foi possivel criar a copia do imovel.");
+    if (insertError) {
+      console.error("Falha ao duplicar imovel.", {
+        module: "imoveis.duplicacao",
+        stage: "insert",
+        code: insertError.code,
+      });
+      throw new Error("Nao foi possivel criar a copia do imovel.");
+    }
 
     revalidatePath("/dashboard/imoveis");
     redirect("/dashboard/imoveis");
   }
 
-  const [imoveisResult, pessoasResult, corretoresResult, legadosResult, relacoesResult] =
+  const [imoveisResult, pessoasResult, corretoresResult, relacoesResult] =
     await Promise.all([
       supabase
         .from("imoveis")
@@ -925,7 +1187,6 @@ export default async function ImoveisPage({
         .select("id, nome")
         .eq("ativo", true)
         .order("nome", { ascending: true }),
-      supabase.from("proprietarios").select("id, nome").order("nome", { ascending: true }),
       supabase
         .from("imovel_proprietarios")
         .select(imovelProprietariosLeituraFields)
@@ -957,15 +1218,36 @@ export default async function ImoveisPage({
     (pessoa) => hasPapel(pessoa, "proprietario"),
   );
   const corretores = (corretoresResult.data ?? []) as Corretor[];
-  const proprietariosLegados = (legadosResult.data ?? []) as ProprietarioLegado[];
   const relacoes = (
     relacoesResult.error ? [] : (relacoesResult.data ?? [])
   ) as ImovelProprietario[];
+
+  let imovelEmEdicao: Imovel | null = null;
+  if (editId) {
+    const { data, error } = await supabase
+      .from("imoveis")
+      .select(imoveisLeituraFields)
+      .eq("id", editId)
+      .eq("ativo", true)
+      .maybeSingle();
+
+    if (error) {
+      console.error("Falha ao consultar imovel para edicao.", {
+        module: "imoveis.edicao",
+        code: error.code,
+      });
+      redirect("/dashboard/imoveis?error=imovel_nao_encontrado");
+    }
+
+    if (!data) {
+      redirect("/dashboard/imoveis?error=imovel_nao_encontrado");
+    }
+
+    imovelEmEdicao = data as Imovel;
+  }
+
   const pessoasPorId = new Map(pessoasProprietarias.map((pessoa) => [pessoa.id, pessoa]));
   const corretoresPorId = new Map(corretores.map((corretor) => [corretor.id, corretor.nome]));
-  const legadosPorId = new Map(
-    proprietariosLegados.map((proprietario) => [proprietario.id, proprietario.nome]),
-  );
 
   const relacoesPorImovel = new Map<string, ImovelProprietario[]>();
   for (const relacao of relacoes) {
@@ -1028,7 +1310,6 @@ export default async function ImoveisPage({
     );
   });
 
-  const imovelEmEdicao = imoveis.find((imovel) => imovel.id === editId) ?? null;
   const imovelVisualizado = imoveis.find((imovel) => imovel.id === viewId) ?? null;
   const imovelParaHistorico = imovelEmEdicao ?? imovelVisualizado;
   const manutencoesHref = imovelParaHistorico
@@ -1049,7 +1330,29 @@ export default async function ImoveisPage({
         ? "Ja existe um imovel ativo cadastrado com esta matricula."
         : errorCode === "unicidade_indice"
           ? "Nao foi possivel salvar. Codigo ou matricula ja cadastrado em outro imovel ativo."
-          : "";
+          : errorCode === "imovel_nao_encontrado"
+            ? "O imovel informado nao existe ou nao esta ativo."
+            : errorCode === "imovel_invalido"
+              ? "O imovel informado e invalido."
+              : errorCode === "proprietario_obrigatorio"
+                ? "Selecione ao menos um proprietario."
+                : errorCode === "relacionamento_invalido"
+                  ? "Um dos proprietarios ou relacionamentos informados e invalido."
+                  : errorCode === "dados_invalidos"
+                    ? "Revise os dados do imovel e dos proprietarios."
+                    : errorCode === "operacao_nao_autorizada"
+                      ? "Voce nao possui permissao para realizar esta operacao."
+                      : errorCode === "validacao_rpc"
+                        ? "Nao foi possivel validar o imovel e seus proprietarios."
+                        : errorCode === "erro_salvar"
+                          ? "Nao foi possivel salvar o imovel. Tente novamente."
+                          : errorCode.startsWith("proprietario_") ||
+                              errorCode === "percentual_proprietario" ||
+                              errorCode === "contato_principal"
+                            ? "Revise os proprietarios e o contato principal informados."
+                : errorCode.startsWith("campo_")
+                  ? "Revise os campos obrigatorios e os valores informados."
+                  : "";
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -1247,9 +1550,6 @@ export default async function ImoveisPage({
                 (proprietariosPessoa.length > 0
                   ? proprietariosPessoa.join(", ")
                   : null) ??
-                (imovel.proprietario_id
-                  ? legadosPorId.get(imovel.proprietario_id)
-                  : undefined) ??
                 "Proprietário não vinculado";
               const areaUtil = areaUtilImovel(imovel);
               const compartilharHref = `mailto:?subject=${encodeURIComponent(
@@ -1391,6 +1691,7 @@ export default async function ImoveisPage({
         ) : null}
 
         <ImovelUniqueForm
+          key={imovelEmEdicao?.id ?? "novo"}
           action={salvarImovel}
           className="mt-6 grid gap-6"
           currentId={imovelEmEdicao?.id ?? ""}
@@ -1403,7 +1704,7 @@ export default async function ImoveisPage({
               Codigo
               <input
                 name="codigo"
-                required
+                required={!imovelEmEdicao}
                 defaultValue={fieldValue(imovelEmEdicao?.codigo)}
                 className={inputClass()}
               />
@@ -1412,7 +1713,7 @@ export default async function ImoveisPage({
               Complemento
               <input
                 name="complemento"
-                required
+                required={!imovelEmEdicao}
                 defaultValue={fieldValue(imovelEmEdicao?.complemento)}
                 className={inputClass()}
                 placeholder="Apto 402, sala 12, casa principal..."
@@ -1480,7 +1781,7 @@ export default async function ImoveisPage({
           <Section id="localizacao" title="Localizacao">
             <div className="md:col-span-3">
               <AddressFields
-                complementoRequired
+                complementoRequired={!imovelEmEdicao}
                 defaultValues={{
                   cep: imovelEmEdicao?.cep,
                   endereco: imovelEmEdicao?.endereco,
@@ -1498,21 +1799,6 @@ export default async function ImoveisPage({
           </Section>
 
           <Section id="proprietarios" title="Proprietarios">
-            <label className="grid gap-2 text-sm font-medium text-[#102A27] md:col-span-3">
-              Fallback legado
-              <select
-                name="proprietario_legado_id"
-                defaultValue={imovelEmEdicao?.proprietario_id ?? ""}
-                className={inputClass()}
-              >
-                <option value="">Sem proprietario legado</option>
-                {proprietariosLegados.map((proprietario) => (
-                  <option key={proprietario.id} value={proprietario.id}>
-                    {proprietario.nome}
-                  </option>
-                ))}
-              </select>
-            </label>
             <div className="md:col-span-3 grid gap-3">
               {pessoasProprietarias.length === 0 ? (
                 <p className="rounded-xl bg-[#F7F3ED] p-4 text-sm text-[#64736D]">
@@ -1744,7 +2030,9 @@ export default async function ImoveisPage({
               label="Ultima atualizacao"
               name="ultima_atualizacao_publicacao"
               type="datetime-local"
-              defaultValue={imovelEmEdicao?.ultima_atualizacao_publicacao}
+              defaultValue={datetimeLocalValue(
+                imovelEmEdicao?.ultima_atualizacao_publicacao,
+              )}
             />
           </Section>
 
@@ -1841,19 +2129,18 @@ export default async function ImoveisPage({
                 </ConfirmSubmitButton>
               </>
             ) : null}
-            <button
-              type="submit"
+            <ImovelSaveButton
               className="rounded-xl bg-[#071E36] px-6 py-3 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
             >
               {imovelEmEdicao ? "Salvar alteracoes" : "Criar imovel"}
-            </button>
+            </ImovelSaveButton>
           </div>
         </ImovelUniqueForm>
 
         <p className="mt-6 text-xs text-[#64736D]">
-          Campos profissionais ativos: codigo e complemento obrigatorios, titulo editavel
-          com preenchimento automatico pelo complemento quando vazio, e matricula opcional
-          com validacao de unicidade quando preenchida.
+          Novos imoveis exigem codigo, complemento, tipo, finalidade, status e cidade.
+          Proprietarios sao Pessoas com papel proprietario; matricula vazia continua
+          opcional e, quando preenchida, possui validacao de unicidade.
         </p>
         <p className="mt-2 text-xs text-[#64736D]">
           Ultima atualizacao de publicacao: {formatarData(new Date().toISOString())}

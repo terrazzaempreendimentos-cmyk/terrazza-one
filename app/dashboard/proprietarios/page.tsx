@@ -5,15 +5,11 @@ import { redirect } from "next/navigation";
 import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { DocumentUniqueForm } from "../../../components/DocumentUniqueForm";
-import {
-  requireActiveProfile,
-  requirePermission,
-} from "../../../lib/auth/access-profile";
+import { requirePermission } from "../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../lib/auth/page-permission";
 import {
   addPapel,
   hasPapel,
-  isOnlyPapel,
   removePapel,
 } from "../../../lib/crm/pessoas/papeis";
 import { createClient } from "../../../lib/supabase/server";
@@ -50,11 +46,6 @@ type Proprietario = {
   created_at: string | null;
 };
 
-type Corretor = {
-  id: string;
-  nome: string;
-};
-
 type SearchParams = Record<string, string | string[] | undefined>;
 
 function paramValue(searchParams: SearchParams, key: string) {
@@ -64,6 +55,10 @@ function paramValue(searchParams: SearchParams, key: string) {
 
 function valorTexto(formData: FormData, campo: string) {
   return String(formData.get(campo) ?? "").trim();
+}
+
+function uuidValido(value: string) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }
 
 function valorNumero(formData: FormData, campo: string) {
@@ -111,16 +106,15 @@ export default async function ProprietariosPage({
   const busca = paramValue(resolvedSearchParams, "busca") ?? "";
   const cidade = paramValue(resolvedSearchParams, "cidade") ?? "";
   const status = paramValue(resolvedSearchParams, "status") ?? "";
-  const responsavel = paramValue(resolvedSearchParams, "responsavel") ?? "";
   const temperatura = paramValue(resolvedSearchParams, "temperatura") ?? "";
   const errorCode = paramValue(resolvedSearchParams, "error") ?? "";
 
   async function salvarProprietario(formData: FormData) {
     "use server";
-    await requireActiveProfile();
-    const supabase = await createClient();
-
     const id = valorTexto(formData, "id");
+    await requirePermission(id ? "pessoas.editar" : "pessoas.criar");
+    if (id && !uuidValido(id)) throw new Error("Proprietario invalido.");
+    const supabase = await createClient();
     const nome = valorTexto(formData, "nome");
 
     if (!nome) {
@@ -187,7 +181,7 @@ export default async function ProprietariosPage({
       estado: valorTexto(formData, "estado") || null,
       status: valorTexto(formData, "status") || "ativo",
       temperatura: valorTexto(formData, "temperatura") || null,
-      responsavel_id: valorTexto(formData, "responsavel_id") || null,
+      responsavel_id: null,
       score_relacionamento: valorNumero(formData, "score_relacionamento"),
       observacoes: valorTexto(formData, "observacoes") || null,
       papeis: addPapel(
@@ -239,12 +233,10 @@ export default async function ProprietariosPage({
     if (pessoaError) throw new Error("Nao foi possivel localizar o proprietario.");
 
     const papeis = (pessoa as { papeis?: string[] | null }).papeis;
-    const payload = isOnlyPapel(papeis, "proprietario")
-      ? { ativo: false, updated_at: new Date().toISOString() }
-      : {
-          papeis: removePapel(papeis, "proprietario"),
-          updated_at: new Date().toISOString(),
-        };
+    const payload = {
+      papeis: removePapel(papeis, "proprietario"),
+      updated_at: new Date().toISOString(),
+    };
 
     const { error } = await supabase.from("pessoas").update(payload).eq("id", id);
     if (error) throw new Error("Nao foi possivel excluir logicamente o proprietario.");
@@ -253,19 +245,14 @@ export default async function ProprietariosPage({
     revalidatePath("/dashboard");
   }
 
-  const [pessoasResult, corretoresResult] = await Promise.all([
-    supabase
+  const pessoasResult = await supabase
       .from("pessoas")
       .select(
         "id, nome, tipo_pessoa, cpf_cnpj, telefone, celular, whatsapp, email, cep, endereco, numero, complemento, cidade, bairro, estado, status, temperatura, score_relacionamento, responsavel_id, observacoes, papeis, created_at",
       )
       .eq("ativo", true)
-      .order("created_at", { ascending: false }),
-    supabase.from("corretores").select("id, nome").eq("ativo", true).order("nome"),
-  ]);
+      .order("created_at", { ascending: false });
 
-  const corretores = (corretoresResult.data ?? []) as Corretor[];
-  const corretoresPorId = new Map(corretores.map((corretor) => [corretor.id, corretor.nome]));
   const proprietarios = ((pessoasResult.data ?? []) as Proprietario[]).filter((pessoa) =>
     hasPapel(pessoa, "proprietario"),
   );
@@ -281,7 +268,6 @@ export default async function ProprietariosPage({
       (!busca || texto.includes(normalizar(busca))) &&
       (!cidade || normalizar(pessoa.cidade).includes(normalizar(cidade))) &&
       (!status || pessoa.status === status) &&
-      (!responsavel || pessoa.responsavel_id === responsavel) &&
       (!temperatura || pessoa.temperatura === temperatura)
     );
   });
@@ -319,6 +305,9 @@ export default async function ProprietariosPage({
             Visao operacional de Pessoas com papel proprietario, mantendo o cadastro
             matriz como fonte unica do relacionamento.
           </p>
+          <Link href="/dashboard/pessoas?papel=proprietario" className="mt-5 inline-flex rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white">
+            Criar no cadastro central
+          </Link>
         </header>
 
         <section className="mt-8 grid gap-4 md:grid-cols-5">
@@ -345,12 +334,6 @@ export default async function ProprietariosPage({
               <option value="">Status</option>
               {["ativo", "em_atendimento", "aguardando_retorno", "inativo"].map((item) => (
                 <option key={item} value={item}>{item.replaceAll("_", " ")}</option>
-              ))}
-            </select>
-            <select name="responsavel" defaultValue={responsavel} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C]">
-              <option value="">Responsavel</option>
-              {corretores.map((corretor) => (
-                <option key={corretor.id} value={corretor.id}>{corretor.nome}</option>
               ))}
             </select>
             <select name="temperatura" defaultValue={temperatura} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C]">
@@ -434,15 +417,6 @@ export default async function ProprietariosPage({
                 ))}
               </select>
             </label>
-            <label className="grid gap-2 text-sm font-medium text-[#102A27]">
-              Responsavel
-              <select name="responsavel_id" defaultValue={proprietarioEmEdicao?.responsavel_id ?? ""} className="rounded-xl border border-[#E8DDCB] bg-white px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]">
-                <option value="">Sem responsavel</option>
-                {corretores.map((corretor) => (
-                  <option key={corretor.id} value={corretor.id}>{corretor.nome}</option>
-                ))}
-              </select>
-            </label>
             <label className="grid gap-2 text-sm font-medium text-[#102A27] md:col-span-3">
               Observacoes
               <textarea name="observacoes" rows={4} defaultValue={proprietarioEmEdicao?.observacoes ?? ""} className="rounded-xl border border-[#E8DDCB] px-4 py-3 text-[#071E36] outline-none focus:border-[#C89B3C]" />
@@ -499,7 +473,7 @@ export default async function ProprietariosPage({
                 <div className="mt-4 grid gap-2 text-sm text-[#102A27]">
                   <p>{[proprietario.cidade, proprietario.bairro].filter(Boolean).join(" / ") || "Cidade nao informada"}</p>
                   <p>Imoveis vinculados: <strong>placeholder</strong></p>
-                  <p>Responsavel: {corretoresPorId.get(proprietario.responsavel_id ?? "") || "-"}</p>
+                  <p>Responsavel: aguardando vinculo canonico</p>
                   <p>Score: {proprietario.score_relacionamento ?? 0}</p>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
