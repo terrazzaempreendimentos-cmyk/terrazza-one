@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { DocumentUniqueForm } from "../../../components/DocumentUniqueForm";
-import { requireUser } from "../../../lib/auth/require-user";
+import { requireActiveProfile } from "../../../lib/auth/access-profile";
 import {
   addPapel,
   hasPapel,
@@ -106,7 +106,7 @@ export default async function InquilinosPage({
 
   async function salvarInquilino(formData: FormData) {
     "use server";
-    await requireUser();
+    await requireActiveProfile();
 
     const id = valorTexto(formData, "id");
     const nome = valorTexto(formData, "nome");
@@ -226,7 +226,7 @@ export default async function InquilinosPage({
 
   async function excluirInquilino(formData: FormData) {
     "use server";
-    await requireUser();
+    await requireActiveProfile();
 
     const id = valorTexto(formData, "id");
     if (!id) throw new Error("Inquilino nao informado.");

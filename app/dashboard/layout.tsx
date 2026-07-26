@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { getOptionalUser } from "../../lib/auth/require-user";
+import { getAccessState } from "../../lib/auth/access-profile";
 import { DashboardSidebar } from "./dashboard-sidebar";
 
 export default async function DashboardLayout({
@@ -8,10 +8,14 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const user = await getOptionalUser();
+  const access = await getAccessState();
 
-  if (!user) {
+  if (access.status === "unauthenticated") {
     redirect("/login");
+  }
+
+  if (access.status !== "active_profile") {
+    redirect("/acesso-pendente");
   }
 
   return (

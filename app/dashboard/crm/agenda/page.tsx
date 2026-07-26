@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 
 import { AgendaSemanal } from "../../../../components/crm/AgendaSemanal";
-import { requireUser } from "../../../../lib/auth/require-user";
+import { requireActiveProfile } from "../../../../lib/auth/access-profile";
 import { supabase } from "../../../../lib/supabase";
 
 type Lead = {
@@ -111,7 +111,7 @@ function nomeImovel(imovel: Imovel | undefined) {
 export default async function AgendaPage() {
   async function cadastrarTarefa(formData: FormData) {
     "use server";
-    await requireUser();
+    await requireActiveProfile();
 
     const titulo = valorTexto(formData, "titulo");
 

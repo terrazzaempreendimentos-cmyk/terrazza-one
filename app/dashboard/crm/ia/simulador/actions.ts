@@ -1,6 +1,6 @@
 "use server";
 
-import { requireUser } from "../../../../../lib/auth/require-user";
+import { requireActiveProfile } from "../../../../../lib/auth/access-profile";
 import type { UCEProcessResult } from "../../../../../lib/uce";
 import { generateNaturalResponse, type UCELLMOutput } from "../../../../../lib/uce/llm";
 
@@ -8,7 +8,7 @@ export async function gerarRespostaOpenAIAssistida(input: {
   uceResult: UCEProcessResult;
   userMessage: string;
 }): Promise<UCELLMOutput> {
-  await requireUser();
+  await requireActiveProfile();
 
   const { uceResult, userMessage } = input;
 

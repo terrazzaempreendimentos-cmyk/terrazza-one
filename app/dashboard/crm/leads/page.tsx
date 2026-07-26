@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { BarChart3, Clock3, Flame, Plus, Search, UserCheck } from "lucide-react";
 
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
-import { requireUser } from "../../../../lib/auth/require-user";
+import { requireActiveProfile } from "../../../../lib/auth/access-profile";
 import { supabase } from "../../../../lib/supabase";
 
 type SearchParams = Record<string, string | string[] | undefined>;
@@ -115,7 +115,7 @@ export default async function LeadsPage({
 
   async function salvarLead(formData: FormData) {
     "use server";
-    await requireUser();
+    await requireActiveProfile();
 
     const id = valorTexto(formData, "id");
     const nome = valorTexto(formData, "nome");
@@ -151,7 +151,7 @@ export default async function LeadsPage({
 
   async function excluirLead(formData: FormData) {
     "use server";
-    await requireUser();
+    await requireActiveProfile();
 
     const id = valorTexto(formData, "id");
 
