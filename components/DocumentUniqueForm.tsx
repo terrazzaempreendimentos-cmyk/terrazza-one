@@ -112,7 +112,6 @@ export function DocumentUniqueForm({
   return (
     <form
       ref={formRef}
-      action={action}
       className={className}
       onBlur={refreshValidation}
       onChange={refreshValidation}
