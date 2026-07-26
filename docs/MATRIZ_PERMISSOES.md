@@ -1,0 +1,89 @@
+# Matriz central de permissões
+
+Esta matriz define o catálogo e a intenção de acesso por papel. Ela está aplicada somente ao conjunto inicial de Server Actions não condicionadas descrito abaixo. Ainda não está aplicada às páginas, à sidebar, às demais Server Actions ou ao RLS. Uma tela visível não significa que a autorização por permissão esteja ativa.
+
+Hoje, `requireActiveProfile()` verifica somente se há usuário autenticado com perfil válido e ativo. Os escopos por responsável dependem da futura unificação entre Supabase Auth, Corretores, Pessoas, Leads e os demais registros operacionais. O RLS operacional também ainda não foi criado.
+
+Legenda:
+
+- **Permitido**: incluído na matriz do papel, sem escopo individual previsto nesta etapa.
+- **Negado**: não incluído na matriz do papel.
+- **Futuro/condicionado**: incluído na matriz, mas dependerá de vínculo e escopo seguro ainda não implementados.
+
+| Módulo/Ação | Administrador | Gestor | Corretor | Atendimento | Escopo futuro |
+|---|---|---|---|---|---|
+| dashboard.visualizar | Permitido | Permitido | Permitido | Permitido | — |
+| pessoas.visualizar | Permitido | Permitido | Permitido | Permitido | Relacionado para corretor, a definir |
+| pessoas.criar | Permitido | Permitido | Futuro/condicionado | Permitido | Relacionado ao atendimento do corretor |
+| pessoas.editar | Permitido | Permitido | Futuro/condicionado | Permitido | Relacionado ao atendimento do corretor |
+| pessoas.arquivar | Permitido | Permitido | Negado | Negado | — |
+| corretores.visualizar | Permitido | Permitido | Negado | Negado | — |
+| corretores.administrar | Permitido | Permitido | Negado | Negado | — |
+| corretores.arquivar | Permitido | Permitido | Negado | Negado | — |
+| imoveis.visualizar | Permitido | Permitido | Permitido | Permitido | — |
+| imoveis.criar | Permitido | Permitido | Futuro/condicionado | Negado | Próprio/captado pelo corretor |
+| imoveis.editar | Permitido | Permitido | Futuro/condicionado | Negado | Próprio/captado pelo corretor |
+| imoveis.arquivar | Permitido | Permitido | Negado | Negado | — |
+| leads.visualizar | Permitido | Permitido | Futuro/condicionado | Permitido | Atribuído ao corretor |
+| leads.criar | Permitido | Permitido | Negado | Permitido | — |
+| leads.editar | Permitido | Permitido | Futuro/condicionado | Permitido | Atribuído ao corretor |
+| leads.arquivar | Permitido | Permitido | Negado | Negado | — |
+| leads.distribuir | Permitido | Permitido | Negado | Negado | — |
+| kanban.usar | Permitido | Permitido | Futuro/condicionado | Permitido | Leads atribuídos ao corretor |
+| agenda.visualizar | Permitido | Permitido | Futuro/condicionado | Permitido | Própria para corretor |
+| agenda.criar | Permitido | Permitido | Negado | Permitido | — |
+| agenda.editar | Permitido | Permitido | Futuro/condicionado | Permitido | Própria para corretor |
+| timeline.visualizar | Permitido | Permitido | Futuro/condicionado | Permitido | Relacionada ao corretor |
+| timeline.criar | Permitido | Permitido | Negado | Permitido | Registrar evento |
+| roleta.visualizar | Permitido | Permitido | Permitido | Permitido | Corretor vê somente o resultado, regra futura |
+| roleta.usar | Permitido | Permitido | Negado | Negado | Operação da roleta |
+| atendimentos.visualizar | Permitido | Permitido | Futuro/condicionado | Permitido | Atribuído ao corretor |
+| atendimentos.criar | Permitido | Permitido | Negado | Permitido | — |
+| atendimentos.editar | Permitido | Permitido | Futuro/condicionado | Permitido | Atribuído ao corretor |
+| atendimentos.assumir | Permitido | Permitido | Futuro/condicionado | Permitido | Atribuição segura a definir |
+| negocios.visualizar | Permitido | Permitido | Futuro/condicionado | Permitido | Próprio para corretor |
+| negocios.criar | Permitido | Permitido | Negado | Negado | — |
+| negocios.editar | Permitido | Permitido | Negado | Negado | — |
+| negocios.arquivar | Permitido | Permitido | Negado | Negado | — |
+| atividades.visualizar | Permitido | Permitido | Futuro/condicionado | Permitido | Própria para corretor |
+| atividades.criar | Permitido | Permitido | Negado | Permitido | — |
+| atividades.editar | Permitido | Permitido | Futuro/condicionado | Permitido | Própria para corretor |
+| manutencoes.visualizar | Permitido | Permitido | Futuro/condicionado | Permitido | Atribuída ao corretor |
+| manutencoes.criar | Permitido | Permitido | Negado | Negado | — |
+| manutencoes.editar | Permitido | Permitido | Negado | Permitido | — |
+| manutencoes.arquivar | Permitido | Permitido | Negado | Negado | — |
+| ia.usar | Permitido | Permitido | Permitido | Permitido | — |
+| ia_conhecimento.visualizar | Permitido | Permitido | Negado | Negado | — |
+| ia_conhecimento.criar | Permitido | Permitido | Negado | Negado | — |
+| ia_conhecimento.editar | Permitido | Permitido | Negado | Negado | — |
+| ia_memorias.visualizar | Permitido | Permitido | Negado | Negado | — |
+| ia_memorias.criar | Permitido | Permitido | Negado | Negado | — |
+| usuarios.administrar | Permitido | Negado | Negado | Negado | — |
+| configuracoes.administrar | Permitido | Negado | Negado | Negado | Configurações críticas |
+
+## Escopos futuros
+
+Os metadados em `FUTURE_PERMISSION_SCOPES` registram os escopos previstos — `proprio`, `atribuido`, `relacionado` e `todos` — sem aplicá-los. A primeira etapa de implementação deverá criar relacionamentos confiáveis e regras de banco para:
+
+- leads atribuídos ao corretor;
+- agenda própria do corretor;
+- imóveis captados pelo corretor;
+- atendimentos atribuídos;
+- negócios próprios;
+- atividades próprias;
+- timeline relacionada;
+- manutenções atribuídas.
+
+Até essa infraestrutura existir, essas marcações são documentação de intenção e não uma garantia de isolamento de dados.
+
+## Aplicação atual
+
+`requirePermission()` protege somente:
+
+- o uso do simulador OpenAI;
+- a criação de conhecimento e memórias da IA;
+- a distribuição de leads;
+- os arquivamentos lógicos de pessoas, proprietários, inquilinos, corretores, imóveis, leads e manutenções;
+- a criação e edição operacional de corretores.
+
+Temporariamente, `salvarPessoa`, `salvarProprietario`, `salvarInquilino`, `salvarImovel`, `duplicarImovel`, `salvarLead`, `cadastrarTarefa`, `salvarCaso` e a mensagem da IA Comercial continuam protegidos apenas por `requireActiveProfile()`. A autorização granular dessas operações depende de escopos próprios, atribuídos ou relacionados e não deve ser inferida como implementada.

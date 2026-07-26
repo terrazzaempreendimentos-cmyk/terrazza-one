@@ -13,7 +13,10 @@ import {
 
 import { supabase } from "../../../../lib/supabase";
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
-import { requireActiveProfile } from "../../../../lib/auth/access-profile";
+import {
+  requireActiveProfile,
+  requirePermission,
+} from "../../../../lib/auth/access-profile";
 import {
   createOperationalMemoryFromMaintenance,
   searchMemories,
@@ -356,7 +359,7 @@ export default async function ManutencoesPage({
 
   async function excluirCaso(formData: FormData) {
     "use server";
-    await requireActiveProfile();
+    await requirePermission("manutencoes.arquivar");
 
     const id = valorTexto(formData, "id");
 

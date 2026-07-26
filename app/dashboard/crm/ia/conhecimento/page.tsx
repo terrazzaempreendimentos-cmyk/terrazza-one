@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { BookOpen, Brain, CheckCircle2, Database, PlusCircle } from "lucide-react";
 
-import { requireActiveProfile } from "../../../../../lib/auth/access-profile";
+import { requirePermission } from "../../../../../lib/auth/access-profile";
 import { supabase } from "../../../../../lib/supabase";
 
 type Conhecimento = {
@@ -105,7 +105,7 @@ function ordenarConhecimentos(conhecimentos: Conhecimento[]) {
 export default async function BaseConhecimentoPage() {
   async function cadastrarConhecimento(formData: FormData) {
     "use server";
-    await requireActiveProfile();
+    await requirePermission("ia_conhecimento.criar");
 
     const categoria = valorTexto(formData, "categoria");
     const titulo = valorTexto(formData, "titulo");

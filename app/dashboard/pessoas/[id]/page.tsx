@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
-import { requireActiveProfile } from "../../../../lib/auth/access-profile";
+import { requirePermission } from "../../../../lib/auth/access-profile";
 import { supabase } from "../../../../lib/supabase";
 
 type Pessoa = {
@@ -104,7 +104,7 @@ export default async function PessoaDetalhePage({
 
   async function excluirPessoa(formData: FormData) {
     "use server";
-    await requireActiveProfile();
+    await requirePermission("pessoas.arquivar");
 
     const pessoaId = String(formData.get("id") ?? "").trim();
     if (!pessoaId) throw new Error("Pessoa nao informada.");

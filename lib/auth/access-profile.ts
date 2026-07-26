@@ -3,6 +3,11 @@ import "server-only";
 import { cache } from "react";
 
 import { createClient } from "../supabase/server";
+import {
+  hasPermission,
+  isPermission,
+  type Permission,
+} from "./permissions";
 import { isPapelAcesso, type PapelAcesso } from "./roles";
 
 export type AccessProfile = Readonly<{
@@ -36,6 +41,13 @@ export class AccessRoleRequiredError extends Error {
   constructor() {
     super("Permissao operacional insuficiente.");
     this.name = "AccessRoleRequiredError";
+  }
+}
+
+export class AccessPermissionRequiredError extends Error {
+  constructor() {
+    super("Permissao operacional insuficiente.");
+    this.name = "AccessPermissionRequiredError";
   }
 }
 
@@ -106,6 +118,16 @@ export async function requireRole(
 
   if (!allowedRoles.includes(profile.papel)) {
     throw new AccessRoleRequiredError();
+  }
+
+  return profile;
+}
+
+export async function requirePermission(permissao: Permission) {
+  const profile = await requireActiveProfile();
+
+  if (!isPermission(permissao) || !hasPermission(profile.papel, permissao)) {
+    throw new AccessPermissionRequiredError();
   }
 
   return profile;

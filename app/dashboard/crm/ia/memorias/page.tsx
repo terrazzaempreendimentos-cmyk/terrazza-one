@@ -1,7 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { Brain, Database, PlusCircle } from "lucide-react";
 
-import { requireActiveProfile } from "../../../../../lib/auth/access-profile";
+import { requirePermission } from "../../../../../lib/auth/access-profile";
 import {
   createMemory,
   searchMemories,
@@ -82,7 +82,7 @@ async function loadRecentMemories() {
 export default async function UceMemoriasPage() {
   async function cadastrarMemoria(formData: FormData) {
     "use server";
-    await requireActiveProfile();
+    await requirePermission("ia_memorias.criar");
 
     const entityType = valorTexto(formData, "entity_type") as UCEMemoryEntityType;
     const memoryType = valorTexto(formData, "memory_type") as UCEMemoryType;

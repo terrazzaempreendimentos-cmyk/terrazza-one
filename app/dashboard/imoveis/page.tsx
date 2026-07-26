@@ -5,7 +5,10 @@ import { redirect } from "next/navigation";
 import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { ImovelUniqueForm } from "../../../components/ImovelUniqueForm";
-import { requireActiveProfile } from "../../../lib/auth/access-profile";
+import {
+  requireActiveProfile,
+  requirePermission,
+} from "../../../lib/auth/access-profile";
 import { hasPapel } from "../../../lib/crm/pessoas/papeis";
 import { supabase } from "../../../lib/supabase";
 
@@ -652,7 +655,7 @@ export default async function ImoveisPage({
 
   async function excluirImovel(formData: FormData) {
     "use server";
-    await requireActiveProfile();
+    await requirePermission("imoveis.arquivar");
 
     const id = valorTexto(formData, "id");
     if (!id) throw new Error("Imovel nao informado.");

@@ -6,7 +6,10 @@ import { Search, UsersRound } from "lucide-react";
 import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { DocumentUniqueForm } from "../../../components/DocumentUniqueForm";
-import { requireActiveProfile } from "../../../lib/auth/access-profile";
+import {
+  requireActiveProfile,
+  requirePermission,
+} from "../../../lib/auth/access-profile";
 import { supabase } from "../../../lib/supabase";
 import {
   formatarCNPJ,
@@ -262,7 +265,7 @@ export default async function PessoasPage({
 
   async function excluirPessoa(formData: FormData) {
     "use server";
-    await requireActiveProfile();
+    await requirePermission("pessoas.arquivar");
 
     const id = valorTexto(formData, "id");
     if (!id) throw new Error("Pessoa nao informada.");

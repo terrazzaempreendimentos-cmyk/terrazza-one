@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
-import { requireActiveProfile } from "../../../lib/auth/access-profile";
+import { requirePermission } from "../../../lib/auth/access-profile";
 import { CreciValidationForm } from "../crm/corretores/CreciValidationForm";
 import {
   addPapel,
@@ -70,7 +70,7 @@ export default async function CorretoresPage({
 
   async function salvarCorretor(formData: FormData) {
     "use server";
-    await requireActiveProfile();
+    await requirePermission("corretores.administrar");
 
     const id = valorTexto(formData, "id");
     const sourceId = valorTexto(formData, "source_id");
@@ -167,7 +167,7 @@ export default async function CorretoresPage({
 
   async function excluirCorretor(formData: FormData) {
     "use server";
-    await requireActiveProfile();
+    await requirePermission("corretores.arquivar");
 
     const sourceId = valorTexto(formData, "source_id");
     const origem = valorTexto(formData, "origem") as CorretorOrigem;
