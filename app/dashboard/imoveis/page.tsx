@@ -1131,8 +1131,8 @@ export default async function ImoveisPage({
     }
     if (!original) redirect("/dashboard/imoveis?error=imovel_nao_encontrado");
 
-    const originalImovel = original as Imovel;
-    const originalPermitido = original as Record<string, unknown>;
+    const originalImovel = original as unknown as Imovel;
+    const originalPermitido = original as unknown as Record<string, unknown>;
     const clone: Record<string, unknown> = {};
     for (const field of imovelDuplicacaoFields) clone[field] = originalPermitido[field];
 
