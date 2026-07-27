@@ -150,6 +150,23 @@ export function mapLegacyLeadStage(value: unknown): LeadFunnelStage | null {
   return LEGACY_STAGE_MAP[normalized as keyof typeof LEGACY_STAGE_MAP] ?? null;
 }
 
+const CANONICAL_TO_LEGACY_STAGE_MAP = {
+  novo: "novo",
+  qualificacao: "ia_qualificando",
+  atendimento: "corretor",
+  visita_avaliacao: "visita",
+  proposta: "proposta",
+  negociacao: "negociacao",
+  documentacao: "documentacao",
+  fechado: "fechado",
+  perdido: "perdido",
+} as const satisfies Readonly<Record<LeadFunnelStage, string>>;
+
+export function mapCanonicalLeadStageToLegacy(value: unknown): string | null {
+  if (!isLeadFunnelStage(value)) return null;
+  return CANONICAL_TO_LEGACY_STAGE_MAP[value];
+}
+
 export const LEAD_OPERATIONAL_STATUSES = [
   { id: "ativo", label: "Ativo", description: "Em operação comercial." },
   { id: "convertido", label: "Convertido", description: "Conversão concluída." },
@@ -295,4 +312,3 @@ export const isLeadHandoffState = (value: unknown): value is LeadHandoffState =>
   catalogHasId(LEAD_HANDOFF_STATES, value);
 export const getLeadHandoffStateLabel = (value: unknown) =>
   catalogLabel(LEAD_HANDOFF_STATES, value);
-

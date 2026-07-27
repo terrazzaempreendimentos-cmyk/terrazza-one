@@ -106,3 +106,15 @@ O helper não consulta banco, não recebe papel informado pelo frontend e não c
 ## Próxima migration proposta
 
 Após aprovação comercial, uma migration incremental poderá separar os conceitos em colunas próprias: etapa canônica, status operacional, temperatura, tipo, objetivo, canal, origem detalhada, handoff e `responsavel_id`. Ela deverá criar constraints/índices/FK de forma compatível, preservar valores legados para reconciliação, migrar apenas mapeamentos inequívocos e não remover `status`, `origem` ou `responsavel` textual até a aplicação estar totalmente migrada.
+
+## Compatibilidade temporária da aplicação
+
+Desde a Sprint 2D, o cadastro e a edição manual gravam os campos canônicos como autoridade. Enquanto Kanban, detalhe e consumidores legados não forem migrados, a mesma mutação também deriva:
+
+- `status` de `etapa_funil`, pelo helper canônico de compatibilidade;
+- `tipo_lead` de `tipo_relacionamento`;
+- `objetivo` de `objetivo_imobiliario`;
+- `origem` de `canal`;
+- `responsavel` do nome da Pessoa-corretora validada no servidor.
+
+O responsável canônico é sempre `responsavel_id → pessoas.id`. Os campos textuais não podem ser usados como identidade ou autoridade e deverão ser removidos apenas após todos os consumidores serem migrados.
