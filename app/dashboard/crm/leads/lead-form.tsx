@@ -17,6 +17,7 @@ export type LeadFormValue = {
   id: string;
   nome: string;
   telefone: string | null;
+  email: string | null;
   cidade: string | null;
   bairro_interesse: string | null;
   tipo_relacionamento: string | null;
@@ -58,6 +59,10 @@ export function LeadForm({
       <label className="grid gap-2 text-sm font-medium text-[#102A27]">
         Telefone
         <input name="telefone" type="tel" maxLength={40} defaultValue={lead?.telefone ?? ""} className={fieldClass} />
+      </label>
+      <label className="grid gap-2 text-sm font-medium text-[#102A27]">
+        E-mail
+        <input name="email" type="email" maxLength={254} defaultValue={lead?.email ?? ""} className={fieldClass} />
       </label>
       <label className="grid gap-2 text-sm font-medium text-[#102A27]">
         Cidade

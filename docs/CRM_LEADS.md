@@ -118,3 +118,55 @@ Desde a Sprint 2D, o cadastro e a edição manual gravam os campos canônicos co
 - `responsavel` do nome da Pessoa-corretora validada no servidor.
 
 O responsável canônico é sempre `responsavel_id → pessoas.id`. Os campos textuais não podem ser usados como identidade ou autoridade e deverão ser removidos apenas após todos os consumidores serem migrados.
+
+## Identidade de contato e deduplicação
+
+No MVP, `telefone_normalizado` é a identidade telefônica principal e `email_normalizado` é a identidade de e-mail. Os valores originais continuam separados em `telefone` e `email`. A normalização é determinística, local e não consulta serviços externos.
+
+### Telefone brasileiro
+
+- Vazio resulta em `null`.
+- São aceitos 10 ou 11 dígitos nacionais com DDD.
+- Também são aceitos 12 ou 13 dígitos quando começam com o país `55`.
+- O resultado usa E.164: `+55` seguido de 10 ou 11 dígitos nacionais.
+- Número sem DDD, comprimento inválido, país diferente de 55 ou caracteres não reconhecidos são rejeitados.
+- O helper não inventa DDD, não comprova existência do número e não corrige estruturas inválidas.
+
+Casos canônicos:
+
+| Entrada | Resultado |
+| --- | --- |
+| `(82) 99999-0000` | `+5582999990000` |
+| `82999990000` | `+5582999990000` |
+| `5582999990000` | `+5582999990000` |
+
+São casos inválidos documentados: telefone sem DDD, curto, longo e código internacional diferente de 55.
+
+### E-mail
+
+O e-mail é aparado, convertido para lowercase e limitado a 254 caracteres. A validação conservadora exige uma parte local válida, um único `@` e domínio com ao menos dois segmentos válidos. Vazio resulta em `null`. O valor original aparado é preservado separadamente do normalizado.
+
+Exemplo: ` Contato@Exemplo.COM ` resulta em original `Contato@Exemplo.COM` e normalizado `contato@exemplo.com`. E-mails sem `@` ou excessivamente longos são rejeitados.
+
+### Unicidade operacional
+
+Índices únicos parciais impedem dois Leads com `status_operacional = ativo` de compartilhar o mesmo telefone normalizado ou o mesmo e-mail normalizado, inclusive sob concorrência. Leads convertidos, perdidos e arquivados permanecem no histórico e não participam dessa unicidade parcial.
+
+Um conflito futuro com Lead ativo deverá reutilizar o Lead existente. Se houver conflito apenas com histórico convertido, perdido ou arquivado, o fluxo deverá pedir uma decisão explícita. Esta sprint não reabre, mescla nem altera automaticamente qualquer Lead.
+
+### Limitações conhecidas
+
+- A proteção compara cada coluna apenas consigo mesma.
+- Não existe coluna separada de WhatsApp nesta etapa.
+- Múltiplos contatos por Lead exigirão uma estrutura relacional futura.
+- Pessoas diferentes que compartilham telefone exigirão tratamento administrativo.
+- Nenhum merge é automático.
+- Telefone e e-mail, originais ou normalizados, não podem aparecer em logs, mensagens técnicas ou payloads de diagnóstico.
+
+### Integração no cadastro manual
+
+Desde a Sprint 2E2, criação e edição normalizam telefone e e-mail exclusivamente no servidor. O formulário envia somente os valores originais; `telefone_normalizado` e `email_normalizado` nunca são campos visíveis nem dados confiados ao frontend.
+
+Antes da mutação, a aplicação consulta separadamente conflitos ativos por telefone e por e-mail. Na edição, o próprio UUID é excluído dessas consultas. Um conflito retorna mensagem funcional sem revelar o Lead existente e mantém o formulário preenchido.
+
+Os índices parciais continuam sendo a proteção definitiva contra concorrência. Uma violação `23505` é convertida em mensagem segura, específica quando o índice pode ser identificado sem dados pessoais e genérica nos demais casos. Arquivamento e registros históricos não foram alterados.

@@ -18,6 +18,10 @@ import {
   isLeadTemperature,
   mapCanonicalLeadStageToLegacy,
 } from "../../../../lib/crm/leads/catalogs";
+import {
+  normalizeBrazilianPhone,
+  normalizeEmail,
+} from "../../../../lib/crm/leads/contact-normalization";
 import { hasPapel } from "../../../../lib/crm/pessoas/papeis";
 import { createClient } from "../../../../lib/supabase/server";
 
@@ -91,13 +95,22 @@ async function saveLead(mode: SaveMode, formData: FormData): Promise<LeadFormSta
   if (!nome) return errorState("Informe o nome do lead.");
   if (nome.length > 160) return errorState("O nome deve possuir no maximo 160 caracteres.");
 
-  const telefone = optionalText(formData, "telefone", 40);
   const cidade = optionalText(formData, "cidade", 120);
   const bairro = optionalText(formData, "bairro_interesse", 120);
   const origemDetalhe = optionalText(formData, "origem_detalhe", 240);
   const observacao = optionalText(formData, "observacao", 4000);
-  if (!telefone.valid || !cidade.valid || !bairro.valid || !origemDetalhe.valid || !observacao.valid) {
+  if (!cidade.valid || !bairro.valid || !origemDetalhe.valid || !observacao.valid) {
     return errorState("Um ou mais campos excedem o limite permitido.");
+  }
+
+  const telefone = normalizeBrazilianPhone(textValue(formData, "telefone"));
+  if (!telefone.ok) {
+    return errorState("Informe um telefone brasileiro válido, com DDD.");
+  }
+
+  const email = normalizeEmail(textValue(formData, "email"));
+  if (!email.ok) {
+    return errorState("Informe um e-mail válido.");
   }
 
   const tipoRelacionamentoRaw = textValue(formData, "tipo_relacionamento");
@@ -167,6 +180,46 @@ async function saveLead(mode: SaveMode, formData: FormData): Promise<LeadFormSta
     responsible = person;
   }
 
+  const normalizedPhone = telefone.value?.normalized ?? null;
+  if (normalizedPhone) {
+    let phoneConflictQuery = supabase
+      .from("leads")
+      .select("id")
+      .eq("telefone_normalizado", normalizedPhone)
+      .eq("status_operacional", "ativo")
+      .limit(1);
+    if (mode === "edit") phoneConflictQuery = phoneConflictQuery.neq("id", id);
+
+    const phoneConflict = await phoneConflictQuery.maybeSingle();
+    if (phoneConflict.error) {
+      logLeadError("phone_conflict_check", phoneConflict.error.code);
+      return errorState("Nao foi possivel validar os dados de contato.");
+    }
+    if (phoneConflict.data) {
+      return errorState("Já existe um Lead ativo com este telefone.");
+    }
+  }
+
+  const normalizedEmail = email.value?.normalized ?? null;
+  if (normalizedEmail) {
+    let emailConflictQuery = supabase
+      .from("leads")
+      .select("id")
+      .eq("email_normalizado", normalizedEmail)
+      .eq("status_operacional", "ativo")
+      .limit(1);
+    if (mode === "edit") emailConflictQuery = emailConflictQuery.neq("id", id);
+
+    const emailConflict = await emailConflictQuery.maybeSingle();
+    if (emailConflict.error) {
+      logLeadError("email_conflict_check", emailConflict.error.code);
+      return errorState("Nao foi possivel validar os dados de contato.");
+    }
+    if (emailConflict.data) {
+      return errorState("Já existe um Lead ativo com este e-mail.");
+    }
+  }
+
   const responsibleChanged = existingLead?.responsavel_id !== (responsible?.id ?? null);
   const atribuidoEm = responsible
     ? responsibleChanged
@@ -178,7 +231,10 @@ async function saveLead(mode: SaveMode, formData: FormData): Promise<LeadFormSta
 
   const payload = {
     nome,
-    telefone: telefone.value,
+    telefone: telefone.value?.original ?? null,
+    telefone_normalizado: normalizedPhone,
+    email: email.value?.original ?? null,
+    email_normalizado: normalizedEmail,
     cidade: cidade.value,
     bairro_interesse: bairro.value,
     tipo_relacionamento: tipoRelacionamento,
@@ -206,6 +262,16 @@ async function saveLead(mode: SaveMode, formData: FormData): Promise<LeadFormSta
 
   if (result.error) {
     logLeadError(mode === "create" ? "insert" : "update", result.error.code);
+    if (result.error.code === "23505") {
+      const technicalMessage = result.error.message ?? "";
+      if (technicalMessage.includes("idx_leads_telefone_normalizado_unico_ativo")) {
+        return errorState("Já existe um Lead ativo com este telefone.");
+      }
+      if (technicalMessage.includes("idx_leads_email_normalizado_unico_ativo")) {
+        return errorState("Já existe um Lead ativo com este e-mail.");
+      }
+      return errorState("Já existe um Lead ativo com estes dados de contato.");
+    }
     return errorState("Nao foi possivel salvar o lead. Tente novamente.");
   }
 

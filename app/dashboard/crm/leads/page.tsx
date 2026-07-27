@@ -105,7 +105,7 @@ export default async function LeadsPage({
   const listPromise = supabase
     .from("leads")
     .select(
-      "id, nome, telefone, cidade, bairro_interesse, tipo_relacionamento, objetivo_imobiliario, canal, origem_detalhe, etapa_funil, status_operacional, temperatura, handoff_status, responsavel_id, atribuido_em, responsavel, observacao, created_at, responsavel_pessoa:pessoas!leads_responsavel_id_fkey(id, nome)",
+      "id, nome, telefone, email, cidade, bairro_interesse, tipo_relacionamento, objetivo_imobiliario, canal, origem_detalhe, etapa_funil, status_operacional, temperatura, handoff_status, responsavel_id, atribuido_em, responsavel, observacao, created_at, responsavel_pessoa:pessoas!leads_responsavel_id_fkey(id, nome)",
     )
     .order("created_at", { ascending: false });
   const responsiblePromise = supabase
@@ -118,7 +118,7 @@ export default async function LeadsPage({
     ? supabase
         .from("leads")
         .select(
-          "id, nome, telefone, cidade, bairro_interesse, tipo_relacionamento, objetivo_imobiliario, canal, origem_detalhe, etapa_funil, status_operacional, temperatura, handoff_status, responsavel_id, observacao",
+          "id, nome, telefone, email, cidade, bairro_interesse, tipo_relacionamento, objetivo_imobiliario, canal, origem_detalhe, etapa_funil, status_operacional, temperatura, handoff_status, responsavel_id, observacao",
         )
         .eq("id", editId)
         .maybeSingle()
@@ -152,6 +152,7 @@ export default async function LeadsPage({
     const searchable = normalizeText([
       lead.nome,
       lead.telefone,
+      lead.email,
       lead.cidade,
       lead.bairro_interesse,
       lead.tipo_relacionamento,
@@ -232,7 +233,7 @@ export default async function LeadsPage({
                 const responsibleName = relationName(lead.responsavel_pessoa) ?? lead.responsavel ?? "-";
                 return <article key={lead.id} className="rounded-3xl border border-[#E8DDCB] bg-[#fffdfa] p-5 shadow-sm">
                   <div className="grid gap-5 xl:grid-cols-[1.3fr_1fr_auto]">
-                    <div><Link href={`/dashboard/crm/leads/${lead.id}`} className="text-xl font-semibold text-[#071E36] hover:text-[#8B6827]">{lead.nome}</Link><p className="mt-1 text-sm text-[#64736D]">{lead.telefone || "Telefone nao informado"} · {lead.cidade || "Cidade nao informada"}</p><div className="mt-3 flex flex-wrap gap-2"><span className={badgeClass("channel")}>{getLeadEntryChannelLabel(lead.canal) ?? "Canal invalido"}</span>{lead.temperatura ? <span className={badgeClass("temperature")}>{getLeadTemperatureLabel(lead.temperatura)}</span> : null}<span className={badgeClass("handoff")}>{getLeadHandoffStateLabel(lead.handoff_status) ?? "Handoff invalido"}</span></div><p className="mt-4 text-sm text-[#64736D]">{lead.observacao || "Sem observacao operacional."}</p></div>
+                    <div><Link href={`/dashboard/crm/leads/${lead.id}`} className="text-xl font-semibold text-[#071E36] hover:text-[#8B6827]">{lead.nome}</Link><p className="mt-1 text-sm text-[#64736D]">{lead.telefone || "Telefone nao informado"} · {lead.email || "E-mail nao informado"} · {lead.cidade || "Cidade nao informada"}</p><div className="mt-3 flex flex-wrap gap-2"><span className={badgeClass("channel")}>{getLeadEntryChannelLabel(lead.canal) ?? "Canal invalido"}</span>{lead.temperatura ? <span className={badgeClass("temperature")}>{getLeadTemperatureLabel(lead.temperatura)}</span> : null}<span className={badgeClass("handoff")}>{getLeadHandoffStateLabel(lead.handoff_status) ?? "Handoff invalido"}</span></div><p className="mt-4 text-sm text-[#64736D]">{lead.observacao || "Sem observacao operacional."}</p></div>
                     <div className="grid gap-2 text-sm"><Info label="Etapa" value={getLeadFunnelStageLabel(lead.etapa_funil) ?? "Invalida"} /><Info label="Status" value={getLeadOperationalStatusLabel(lead.status_operacional) ?? "Invalido"} /><Info label="Tipo" value={getLeadRelationshipTypeLabel(lead.tipo_relacionamento) ?? "-"} /><Info label="Responsavel" value={responsibleName} /><Info label="Criado em" value={formatDate(lead.created_at)} /></div>
                     <div className="min-w-[220px] rounded-2xl border border-[#E8DDCB] bg-white p-4"><p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6827]">Proxima acao</p><p className="mt-2 text-sm font-semibold text-[#071E36]">{nextAction(lead)}</p></div>
                   </div>
