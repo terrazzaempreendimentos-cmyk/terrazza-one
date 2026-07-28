@@ -2,14 +2,14 @@
 
 ## Fase atual
 
-A Roleta opera com distribuicao canonica assistida. A interface seleciona o
-Lead, mas a Pessoa-corretora e calculada exclusivamente no servidor e nao e
-enviada pelo navegador.
+A Roleta opera com distribuicao canonica automatica. A interface envia somente
+o Lead e o motivo opcional; a Pessoa-corretora e calculada exclusivamente pela
+RPC `distribuir_lead_roleta_automatica` dentro do PostgreSQL.
 
 Sao elegiveis Pessoas ativas com papel `corretor` e nome valido. Leads precisam
 estar ativos, sem responsavel e nas etapas `novo` ou `qualificacao`.
 
-O algoritmo ordena as Pessoas-corretoras por:
+O algoritmo no banco ordena as Pessoas-corretoras por:
 
 1. menor numero de distribuicoes canonicas;
 2. quem nunca recebeu Lead;
@@ -20,13 +20,13 @@ O algoritmo ordena as Pessoas-corretoras por:
 Somente registros com `corretor_pessoa_id` e status `distribuido` entram no
 calculo. Dados de `public.corretores` e `corretor_id` legado sao ignorados.
 
-A unica mutacao da aplicacao e a RPC `distribuir_lead_para_corretor`, que
-atomicamente atribui o Lead a `pessoas.id`, move o Lead para atendimento e
-registra o historico da Roleta e a Timeline obrigatoria.
+A unica mutacao operacional da aplicacao e a RPC automatica. Ela reutiliza a
+RPC manual `distribuir_lead_para_corretor` para atribuir o Lead a `pessoas.id`,
+mover para atendimento e registrar historico e Timeline atomicamente. Nao
+existe fallback da pagina para a RPC manual.
 
-A escolha e deterministica com os dados disponiveis, mas nao garante
-balanceamento global perfeito entre requisicoes simultaneas de Leads diferentes,
-pois a selecao ocorre antes do bloqueio transacional realizado pela RPC.
+A escolha usa bloqueio transacional global da Roleta, evitando que duas
+distribuicoes automaticas calculem a mesma fotografia de balanceamento.
 
 ## Limites atuais
 
@@ -67,6 +67,28 @@ atribuição, historico e Timeline atomicos. O criterio automatico e a constante
 
 ## Limites atuais
 
-A infraestrutura ainda nao esta conectada a pagina. Tambem nao existem interface
-administrativa de configuracoes, horarios, pausas automaticas, reatribuicao,
-metas, integracao com WhatsApp ou distribuicao por webhook.
+A pagina possui painel administrativo para criar e editar configuracoes. Somente
+administrador com `configuracoes.administrar` pode consultar ou modificar pesos,
+capacidade, filtros e observacoes. Gestor pode distribuir pela RPC protegida,
+mas nao consulta detalhes administrativos.
+
+Cada card preserva os valores em erros esperados, bloqueia duplo envio e usa
+controle otimista de concorrencia por `updated_at`. Retirar da Roleta usa
+`participa_roleta=false`; pausa temporaria usa `disponivel=false`. Nao existe
+DELETE de configuracao.
+
+Ainda nao existem horarios, pausas programadas, reatribuicao, metas, integracao
+com WhatsApp ou distribuicao por webhook.
+
+## Testes manuais planejados
+
+1. Administrador ve todas as Pessoas-corretoras e gestor nao ve o painel.
+2. Corretor e atendimento nao conseguem salvar configuracoes.
+3. Criar, editar, pausar e retirar uma configuracao da Roleta.
+4. Rejeitar peso, capacidade, cidade duplicada, objetivo e canal invalidos.
+5. Rejeitar Pessoa inativa ou sem papel corretor.
+6. Validar ausencia de configuracao, indisponibilidade, capacidade e filtros.
+7. Distribuir com arrays vazios e com filtros compativeis.
+8. Confirmar criterio `roleta_automatica`, Lead em atendimento e Timeline.
+9. Executar duas distribuicoes concorrentes e validar serializacao.
+10. Validar retorno inesperado fail-closed e gestor sem acesso administrativo.

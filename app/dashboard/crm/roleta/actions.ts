@@ -2,11 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
-import {
-  AccessPermissionRequiredError,
-  AccessProfileRequiredError,
-  requirePermission,
-} from "../../../../lib/auth/access-profile";
+import { AccessPermissionRequiredError, AccessProfileRequiredError, requirePermission } from "../../../../lib/auth/access-profile";
+import { isLeadEntryChannel, isLeadObjective } from "../../../../lib/crm/leads/catalogs";
+import { isRouletteCapacity, isRouletteWeight, ROLETA_AUTOMATIC_CRITERION, ROLETA_NOTES_MAX_LENGTH } from "../../../../lib/crm/roleta/configuracoes";
 import { createClient } from "../../../../lib/supabase/server";
 
 export type DistributionState =
@@ -14,9 +12,16 @@ export type DistributionState =
   | { status: "erro"; mensagem: string }
   | { status: "sucesso"; mensagem: string };
 
-type EligiblePerson = { id: string; nome: string };
-type CanonicalDistribution = { corretor_pessoa_id: string; created_at: string | null };
-type RpcResult = { lead_id: unknown; corretor_pessoa_id: unknown; etapa_anterior: unknown; etapa_atual: unknown; distribuido_em: unknown };
+export type ConfigurationState = DistributionState;
+
+type AutomaticRpcResult = {
+  lead_id: unknown;
+  corretor_pessoa_id: unknown;
+  etapa_anterior: unknown;
+  etapa_atual: unknown;
+  distribuido_em: unknown;
+  criterio: unknown;
+};
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -24,61 +29,8 @@ function errorState(mensagem: string): DistributionState {
   return { status: "erro", mensagem };
 }
 
-function logDistributionError(etapa: string, codigo: unknown) {
+function logRouletteError(etapa: string, codigo: unknown) {
   console.error({ modulo: "crm_roleta", etapa, codigo: typeof codigo === "string" ? codigo : "unexpected_error" });
-}
-
-function normalizeName(value: string) {
-  return value.trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
-}
-
-function selectPerson(people: EligiblePerson[], distributions: CanonicalDistribution[]) {
-  const metrics = new Map<string, { count: number; latest: number | null }>();
-  for (const distribution of distributions) {
-    const current = metrics.get(distribution.corretor_pessoa_id) ?? { count: 0, latest: null };
-    const timestamp = distribution.created_at ? Date.parse(distribution.created_at) : Number.NaN;
-    metrics.set(distribution.corretor_pessoa_id, {
-      count: current.count + 1,
-      latest: Number.isNaN(timestamp) ? current.latest : Math.max(current.latest ?? timestamp, timestamp),
-    });
-  }
-
-  return [...people].sort((left, right) => {
-    const leftMetric = metrics.get(left.id) ?? { count: 0, latest: null };
-    const rightMetric = metrics.get(right.id) ?? { count: 0, latest: null };
-    if (leftMetric.count !== rightMetric.count) return leftMetric.count - rightMetric.count;
-    const leftNeverReceived = leftMetric.count === 0;
-    const rightNeverReceived = rightMetric.count === 0;
-    if (leftNeverReceived !== rightNeverReceived) return leftNeverReceived ? -1 : 1;
-    if (leftMetric.latest !== rightMetric.latest) {
-      if (leftMetric.latest === null) return -1;
-      if (rightMetric.latest === null) return 1;
-      return leftMetric.latest - rightMetric.latest;
-    }
-    const nameOrder = normalizeName(left.nome).localeCompare(normalizeName(right.nome), "pt-BR");
-    return nameOrder || left.id.localeCompare(right.id);
-  })[0] ?? null;
-}
-
-function mapRpcError(message: string) {
-  const allowedMessages: ReadonlyArray<readonly [string, string]> = [
-    ["Operacao nao autorizada.", "Operacao nao autorizada."],
-    ["Lead nao encontrado.", "Lead nao encontrado."],
-    ["Lead inelegivel para distribuicao.", "Este Lead nao esta mais elegivel para distribuicao."],
-    ["Lead ja distribuido.", "Este Lead ja foi distribuido por outra operacao."],
-    ["Pessoa-corretora nao encontrada.", "A Pessoa-corretora selecionada pelo sistema nao foi encontrada."],
-    ["Pessoa-corretora inativa.", "A Pessoa-corretora selecionada nao esta mais ativa."],
-    ["Pessoa sem papel corretor.", "A Pessoa selecionada nao possui mais o papel corretor."],
-    ["Motivo excede o limite permitido.", "O motivo excede o limite de 500 caracteres."],
-    ["Falha ao registrar historico da Roleta.", "Nao foi possivel registrar o historico da distribuicao."],
-    ["Falha ao registrar Timeline da distribuicao.", "Nao foi possivel registrar a Timeline da distribuicao."],
-    ["Nao foi possivel distribuir o Lead.", "Nao foi possivel distribuir o Lead."],
-  ];
-  return allowedMessages.find(([technical]) => message.includes(technical))?.[1] ?? null;
-}
-
-function isConcurrencyError(message: string) {
-  return message.includes("Lead ja distribuido.") || message.includes("Lead inelegivel para distribuicao.");
 }
 
 function revalidateDistributionPaths(leadId: string) {
@@ -86,6 +38,26 @@ function revalidateDistributionPaths(leadId: string) {
   revalidatePath("/dashboard/crm/leads");
   revalidatePath("/dashboard/crm/kanban");
   revalidatePath(`/dashboard/crm/leads/${leadId}`);
+  revalidatePath("/dashboard/crm/timeline");
+}
+
+function mapAutomaticRpcError(message: string) {
+  const allowedMessages: ReadonlyArray<readonly [string, string]> = [
+    ["Operacao nao autorizada.", "Operacao nao autorizada."],
+    ["Lead nao informado.", "Lead nao encontrado."],
+    ["Motivo excede o limite permitido.", "O motivo excede o limite de 500 caracteres."],
+    ["Lead nao encontrado.", "Lead nao encontrado."],
+    ["Estado atual do Lead inconsistente.", "O estado atual do Lead e inconsistente."],
+    ["Lead ja distribuido.", "Este Lead ja foi distribuido por outra operacao."],
+    ["Lead inelegivel para distribuicao.", "Este Lead nao esta mais elegivel para distribuicao."],
+    ["Nenhuma Pessoa-corretora elegivel para distribuicao.", "Nenhuma Pessoa-corretora disponivel atende as regras deste Lead."],
+    ["Retorno inesperado da distribuicao.", "Nao foi possivel confirmar o retorno da distribuicao."],
+    ["Falha ao registrar criterio automatico.", "Nao foi possivel confirmar o criterio automatico."],
+    ["Falha ao registrar historico da Roleta.", "Nao foi possivel registrar o historico da distribuicao."],
+    ["Falha ao registrar Timeline da distribuicao.", "Nao foi possivel registrar a Timeline da distribuicao."],
+    ["Nao foi possivel distribuir o Lead automaticamente.", "Nao foi possivel distribuir o Lead automaticamente."],
+  ];
+  return allowedMessages.find(([technical]) => message.includes(technical))?.[1] ?? null;
 }
 
 export async function distributeLead(_: DistributionState, formData: FormData): Promise<DistributionState> {
@@ -93,7 +65,7 @@ export async function distributeLead(_: DistributionState, formData: FormData): 
     await requirePermission("leads.distribuir");
     await requirePermission("leads.editar");
   } catch (error) {
-    logDistributionError("authorization", error instanceof AccessPermissionRequiredError || error instanceof AccessProfileRequiredError ? error.name : "authorization_error");
+    logRouletteError("distribution_authorization", error instanceof AccessPermissionRequiredError || error instanceof AccessProfileRequiredError ? error.name : "authorization_error");
     return errorState("Operacao nao autorizada.");
   }
 
@@ -103,55 +75,125 @@ export async function distributeLead(_: DistributionState, formData: FormData): 
   if (reason.length > 500) return errorState("O motivo excede o limite de 500 caracteres.");
 
   const supabase = await createClient();
-  const { data: lead, error: leadError } = await supabase.from("leads").select("id, etapa_funil, status_operacional, responsavel_id").eq("id", leadId).maybeSingle();
-  if (leadError) {
-    logDistributionError("lead_eligibility", leadError.code);
-    return errorState("Nao foi possivel validar o Lead.");
-  }
-  if (!lead) return errorState("Lead nao encontrado.");
-  if (lead.status_operacional !== "ativo" || !["novo", "qualificacao"].includes(lead.etapa_funil) || lead.responsavel_id !== null) {
-    revalidateDistributionPaths(leadId);
-    return errorState("Este Lead foi atualizado por outra operacao e nao esta mais elegivel.");
-  }
+  const { data, error } = await supabase.rpc("distribuir_lead_roleta_automatica", {
+    p_lead_id: leadId,
+    p_motivo: reason || null,
+  });
 
-  const [peopleResult, historyResult] = await Promise.all([
-    supabase.from("pessoas").select("id, nome").eq("ativo", true).contains("papeis", ["corretor"]).order("nome", { ascending: true }),
-    supabase.from("roleta_distribuicoes").select("corretor_pessoa_id, created_at").eq("status", "distribuido").not("corretor_pessoa_id", "is", null),
-  ]);
-  if (peopleResult.error) {
-    logDistributionError("eligible_people", peopleResult.error.code);
-    return errorState("Nao foi possivel carregar as Pessoas-corretoras elegiveis.");
-  }
-  if (historyResult.error) {
-    logDistributionError("canonical_history", historyResult.error.code);
-    return errorState("Nao foi possivel calcular a distribuicao com seguranca.");
-  }
-
-  const people = (peopleResult.data ?? []).filter((person): person is EligiblePerson => typeof person.id === "string" && typeof person.nome === "string" && person.nome.trim().length > 0);
-  if (people.length === 0) return errorState("Nao ha Pessoa-corretora elegivel disponivel.");
-  const history = (historyResult.data ?? []).filter((row): row is CanonicalDistribution => typeof row.corretor_pessoa_id === "string" && (row.created_at === null || typeof row.created_at === "string"));
-  const selectedPerson = selectPerson(people, history);
-  if (!selectedPerson) return errorState("Nao ha Pessoa-corretora elegivel disponivel.");
-
-  const { data, error } = await supabase.rpc("distribuir_lead_para_corretor", { p_lead_id: leadId, p_corretor_pessoa_id: selectedPerson.id, p_motivo: reason || null });
   if (error) {
-    logDistributionError("rpc", error.code);
-    if (isConcurrencyError(error.message ?? "")) {
-      revalidateDistributionPaths(leadId);
-      return errorState("Este Lead foi atualizado por outra operacao. A distribuicao nao foi repetida.");
-    }
-    return errorState(mapRpcError(error.message ?? "") ?? "Nao foi possivel distribuir o Lead.");
+    logRouletteError("automatic_rpc", error.code);
+    return errorState(mapAutomaticRpcError(error.message ?? "") ?? "Nao foi possivel distribuir o Lead automaticamente.");
   }
 
   const rows = Array.isArray(data) ? data : data ? [data] : [];
-  const row = rows[0] as unknown as RpcResult | undefined;
-  const validReturn = rows.length === 1 && row?.lead_id === leadId && row.corretor_pessoa_id === selectedPerson.id && (row.etapa_anterior === "novo" || row.etapa_anterior === "qualificacao") && row.etapa_atual === "atendimento" && typeof row.distribuido_em === "string" && !Number.isNaN(Date.parse(row.distribuido_em));
-  if (!validReturn) {
-    logDistributionError("rpc_return", "invalid_return");
-    revalidateDistributionPaths(leadId);
+  const row = rows[0] as unknown as AutomaticRpcResult | undefined;
+  const validReturn = rows.length === 1 && row?.lead_id === leadId && typeof row.corretor_pessoa_id === "string" && UUID_PATTERN.test(row.corretor_pessoa_id) && (row.etapa_anterior === "novo" || row.etapa_anterior === "qualificacao") && row.etapa_atual === "atendimento" && typeof row.distribuido_em === "string" && !Number.isNaN(Date.parse(row.distribuido_em)) && row.criterio === ROLETA_AUTOMATIC_CRITERION;
+
+  if (!validReturn || !row || typeof row.corretor_pessoa_id !== "string") {
+    logRouletteError("automatic_rpc_return", "invalid_return");
     return errorState("A distribuicao foi processada, mas o retorno nao pode ser confirmado.");
   }
 
   revalidateDistributionPaths(leadId);
-  return { status: "sucesso", mensagem: `Lead distribuido para ${selectedPerson.nome.trim()}.` };
+  const { data: selectedPerson, error: personError } = await supabase.from("pessoas").select("nome").eq("id", row.corretor_pessoa_id).maybeSingle();
+  if (personError) logRouletteError("selected_person_name", personError.code);
+  const selectedName = typeof selectedPerson?.nome === "string" ? selectedPerson.nome.trim() : "";
+  return { status: "sucesso", mensagem: selectedName ? `Lead distribuido para ${selectedName}.` : "Lead distribuido com sucesso." };
+}
+
+function parseCheckbox(value: FormDataEntryValue | null) {
+  if (value === null) return { valid: true as const, value: false };
+  if (value === "on") return { valid: true as const, value: true };
+  return { valid: false as const, value: false };
+}
+
+function parseInteger(value: FormDataEntryValue | null) {
+  if (typeof value !== "string" || !/^-?\d+$/.test(value.trim())) return null;
+  return Number(value.trim());
+}
+
+function parseCities(value: FormDataEntryValue | null) {
+  if (typeof value !== "string") return { valid: false as const, duplicate: false, values: [] as string[] };
+  const values = value.split(/\r?\n/).map((city) => city.trim()).filter(Boolean);
+  const normalized = values.map((city) => city.toLocaleLowerCase("pt-BR"));
+  return { valid: true as const, duplicate: new Set(normalized).size !== normalized.length, values };
+}
+
+function parseCanonicalList(formData: FormData, field: string, validator: (value: unknown) => boolean) {
+  const raw = formData.getAll(field);
+  if (!raw.every((value) => typeof value === "string" && validator(value))) return null;
+  const values = raw as string[];
+  return new Set(values).size === values.length ? values : null;
+}
+
+export async function saveBrokerConfiguration(_: ConfigurationState, formData: FormData): Promise<ConfigurationState> {
+  let profile;
+  try {
+    profile = await requirePermission("configuracoes.administrar");
+    if (profile.papel !== "administrador") return errorState("Operacao nao autorizada.");
+  } catch (error) {
+    logRouletteError("configuration_authorization", error instanceof AccessPermissionRequiredError || error instanceof AccessProfileRequiredError ? error.name : "authorization_error");
+    return errorState("Operacao nao autorizada.");
+  }
+
+  const personId = String(formData.get("pessoa_id") ?? "").trim();
+  const expectedUpdatedAt = String(formData.get("expected_updated_at") ?? "").trim();
+  const participation = parseCheckbox(formData.get("participa_roleta"));
+  const availability = parseCheckbox(formData.get("disponivel"));
+  const weight = parseInteger(formData.get("peso"));
+  const capacityRaw = String(formData.get("capacidade_atendimentos") ?? "").trim();
+  const capacity = capacityRaw === "" ? null : parseInteger(capacityRaw);
+  const cities = parseCities(formData.get("cidades"));
+  const objectives = parseCanonicalList(formData, "objetivos_imobiliarios", isLeadObjective);
+  const channels = parseCanonicalList(formData, "canais", isLeadEntryChannel);
+  const notes = String(formData.get("observacoes") ?? "").trim();
+
+  if (!UUID_PATTERN.test(personId)) return errorState("Pessoa-corretora invalida.");
+  if (!participation.valid || !availability.valid) return errorState("Configuracao invalida.");
+  if (!isRouletteWeight(weight)) return errorState("Peso invalido. Use um inteiro entre 1 e 10.");
+  if (capacityRaw !== "" && capacity === null) return errorState("Capacidade invalida. Use vazio ou um inteiro entre 1 e 100.");
+  if (!isRouletteCapacity(capacity)) return errorState("Capacidade invalida. Use vazio ou um inteiro entre 1 e 100.");
+  if (!cities.valid) return errorState("Lista de cidades invalida.");
+  if (cities.duplicate) return errorState("Cidade repetida. Informe cada cidade somente uma vez.");
+  if (objectives === null) return errorState("Objetivo imobiliario invalido ou repetido.");
+  if (channels === null) return errorState("Canal invalido ou repetido.");
+  if (notes.length > ROLETA_NOTES_MAX_LENGTH) return errorState("As observacoes excedem o limite de 1.000 caracteres.");
+
+  const supabase = await createClient();
+  const { data: person, error: personError } = await supabase.from("pessoas").select("id, nome, ativo, papeis").eq("id", personId).maybeSingle();
+  if (personError) {
+    logRouletteError("configuration_person", personError.code);
+    return errorState("Pessoa-corretora invalida.");
+  }
+  const roles = Array.isArray(person?.papeis) ? person.papeis : [];
+  if (!person || person.ativo !== true || !roles.includes("corretor") || typeof person.nome !== "string" || !person.nome.trim()) return errorState("Pessoa-corretora invalida.");
+
+  const { data: existing, error: existingError } = await supabase.from("corretores_configuracoes").select("id, pessoa_id, updated_at").eq("pessoa_id", personId).maybeSingle();
+  if (existingError) {
+    logRouletteError("configuration_lookup", existingError.code);
+    return errorState("Nao foi possivel carregar a configuracao atual.");
+  }
+
+  const payload = { participa_roleta: participation.value, disponivel: availability.value, peso: weight, capacidade_atendimentos: capacity, cidades: cities.values, objetivos_imobiliarios: objectives, canais: channels, observacoes: notes || null };
+
+  if (existing) {
+    if (!expectedUpdatedAt || existing.updated_at !== expectedUpdatedAt) return errorState("Configuracao atualizada por outra operacao. Recarregue a pagina.");
+    const { data: updated, error: updateError } = await supabase.from("corretores_configuracoes").update(payload).eq("id", existing.id).eq("pessoa_id", personId).eq("updated_at", expectedUpdatedAt).select("id").maybeSingle();
+    if (updateError) {
+      logRouletteError("configuration_update", updateError.code);
+      return errorState("Falha inesperada ao atualizar a configuracao.");
+    }
+    if (!updated) return errorState("Configuracao atualizada por outra operacao. Recarregue a pagina.");
+  } else {
+    if (expectedUpdatedAt) return errorState("Configuracao atualizada por outra operacao. Recarregue a pagina.");
+    const { data: inserted, error: insertError } = await supabase.from("corretores_configuracoes").insert({ pessoa_id: personId, ...payload }).select("id").maybeSingle();
+    if (insertError) {
+      logRouletteError("configuration_insert", insertError.code);
+      return errorState(insertError.code === "23505" ? "Configuracao atualizada por outra operacao. Recarregue a pagina." : "Falha inesperada ao criar a configuracao.");
+    }
+    if (!inserted) return errorState("Falha inesperada ao criar a configuracao.");
+  }
+
+  revalidatePath("/dashboard/crm/roleta");
+  return { status: "sucesso", mensagem: "Configuracao salva com sucesso." };
 }
