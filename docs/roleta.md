@@ -1,50 +1,34 @@
-# Roleta Inteligente Terrazza CRM
+# Roleta operacional do Terrazza CRM
 
 ## Fase atual
 
-A Roleta Inteligente está na fase de distribuição manual assistida.
+A Roleta opera com distribuicao canonica assistida. A interface seleciona o
+Lead, mas a Pessoa-corretora e calculada exclusivamente no servidor e nao e
+enviada pelo navegador.
 
-Nesta etapa, o sistema lista corretores ativos e leads disponíveis com status
-`novo` ou `ia_qualificando`. A decisão de distribuição ainda é feita por uma
-pessoa da equipe, que escolhe o corretor responsável e confirma a ação pelo
-painel da Roleta.
+Sao elegiveis Pessoas ativas com papel `corretor` e nome valido. Leads precisam
+estar ativos, sem responsavel e nas etapas `novo` ou `qualificacao`.
 
-Ao distribuir um lead, o sistema:
+O algoritmo ordena as Pessoas-corretoras por:
 
-- registra a distribuição em `roleta_distribuicoes`;
-- atualiza o responsável do lead;
-- altera o status do lead para `corretor`;
-- incrementa o contador `leads_recebidos` do corretor;
-- registra um evento na Timeline com origem `roleta_inteligente`.
+1. menor numero de distribuicoes canonicas;
+2. quem nunca recebeu Lead;
+3. distribuicao mais antiga;
+4. nome normalizado;
+5. `pessoas.id` como criterio tecnico estavel.
 
-Se o registro na Timeline falhar, a distribuição não é bloqueada.
+Somente registros com `corretor_pessoa_id` e status `distribuido` entram no
+calculo. Dados de `public.corretores` e `corretor_id` legado sao ignorados.
 
-## Fase futura
+A unica mutacao da aplicacao e a RPC `distribuir_lead_para_corretor`, que
+atomicamente atribui o Lead a `pessoas.id`, move o Lead para atendimento e
+registra o historico da Roleta e a Timeline obrigatoria.
 
-Em uma sprint futura, a Roleta poderá evoluir para um algoritmo inteligente de
-distribuição automática ou semiautomática.
+A escolha e deterministica com os dados disponiveis, mas nao garante
+balanceamento global perfeito entre requisicoes simultaneas de Leads diferentes,
+pois a selecao ocorre antes do bloqueio transacional realizado pela RPC.
 
-Critérios futuros previstos:
+## Limites atuais
 
-- disponibilidade do corretor;
-- especialidade;
-- cidade base;
-- performance comercial;
-- carga atual de leads;
-- tempo médio de resposta;
-- taxa de conversão;
-- aderência entre perfil do lead e perfil do corretor.
-
-## O que ainda não existe
-
-Nesta fase, a Roleta ainda não possui:
-
-- algoritmo automático;
-- randomização;
-- IA de decisão;
-- integração com WhatsApp;
-- integração com Vista ERP;
-- notificações automáticas.
-
-O objetivo atual é validar o fluxo operacional, a estrutura de dados e a
-experiência de distribuição dentro do Terrazza CRM.
+Ainda nao existem distribuicao automatica por webhook, reatribuicao, metas,
+disponibilidade por horario, pesos personalizados ou integracao com WhatsApp.
