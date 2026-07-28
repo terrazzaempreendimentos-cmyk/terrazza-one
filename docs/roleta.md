@@ -30,5 +30,43 @@ pois a selecao ocorre antes do bloqueio transacional realizado pela RPC.
 
 ## Limites atuais
 
-Ainda nao existem distribuicao automatica por webhook, reatribuicao, metas,
-disponibilidade por horario, pesos personalizados ou integracao com WhatsApp.
+## Pessoa e configuracao operacional
+
+`public.pessoas` continua sendo a identidade canonica. Participacao, disponibilidade,
+peso, capacidade e filtros pertencem exclusivamente a `corretores_configuracoes`,
+em relacao 1:1 com Pessoa. Nao existe configuracao automatica nem backfill: Pessoa
+sem configuracao fica fora da Roleta automatica em modo fail-closed.
+
+Participar exige simultaneamente configuracao com `participa_roleta` e `disponivel`,
+Pessoa ativa, papel `corretor`, nome valido, capacidade disponivel e filtros
+compativeis.
+
+## Capacidade e filtros
+
+Carga ativa conta Leads canonicos atribuidos, ativos e nas etapas atendimento,
+visita/avaliacao, proposta, negociacao ou documentacao. Capacidade nula significa
+sem limite; capacidade atingida torna a Pessoa inelegivel.
+
+Arrays vazios de cidades, objetivos ou canais aceitam qualquer valor. Array
+preenchido exige correspondencia; campo nulo do Lead somente e aceito quando o
+filtro correspondente estiver vazio. Cidade compara trim e caixa, sem fuzzy
+matching nem correcao de grafia. Objetivos e canais usam IDs canonicos exatos.
+
+## Peso, desempate e concorrencia
+
+O indice ponderado e `distribuicoes canonicas / peso`; menor indice recebe
+primeiro. Peso maior tende a aumentar a participacao, sem prometer proporcao
+perfeita em amostras pequenas. Desempates usam menor carga, quem nunca recebeu,
+distribuicao mais antiga, nome normalizado e `pessoas.id`.
+
+A RPC automatica usa advisory transaction lock constante e exclusivo da Roleta.
+Assim, distribuicoes automaticas concorrentes recalculam sequencialmente a
+fotografia global. A RPC manual permanece disponivel e e reutilizada para manter
+atribuição, historico e Timeline atomicos. O criterio automatico e a constante
+`roleta_automatica`, nunca um valor livre vindo do cliente.
+
+## Limites atuais
+
+A infraestrutura ainda nao esta conectada a pagina. Tambem nao existem interface
+administrativa de configuracoes, horarios, pausas automaticas, reatribuicao,
+metas, integracao com WhatsApp ou distribuicao por webhook.
