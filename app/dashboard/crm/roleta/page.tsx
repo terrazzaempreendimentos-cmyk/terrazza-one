@@ -6,13 +6,12 @@ import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import { getLeadEntryChannelLabel, getLeadFunnelStageLabel, getLeadObjectiveLabel, getLeadTemperatureLabel } from "../../../../lib/crm/leads/catalogs";
 import { REASSIGNMENT_ELIGIBLE_STAGES } from "../../../../lib/crm/roleta/reatribuicao";
 import { createClient } from "../../../../lib/supabase/server";
-import { BrokerConfigurationForm, type BrokerConfigurationFormValue } from "./configuration-form";
 import { DistributionForm } from "./distribution-form";
 import { TransferAssignmentForm } from "./transfer-assignment-form";
 
 type Lead = { id: string; nome: string; etapa_funil: string; temperatura: string | null; canal: string | null; cidade: string | null; objetivo_imobiliario: string | null; created_at: string | null; updated_at: string | null };
 type Person = { id: string; nome: string };
-type Configuration = { id: string; pessoa_id: string; participa_roleta: boolean; disponivel: boolean; peso: number; capacidade_atendimentos: number | null; cidades: unknown; objetivos_imobiliarios: unknown; canais: unknown; observacoes: string | null; updated_at: string };
+type Configuration = { id: string; pessoa_id: string; participa_roleta: boolean; disponivel: boolean };
 type AssignedLead = { id: string; nome: string; etapa_funil: string; status_operacional: string; temperatura: string | null; cidade: string | null; updated_at: string | null; responsavel_id: string; responsavel_pessoa: unknown };
 type Distribution = { id: string; criterio: string | null; motivo: string | null; status: string | null; created_at: string | null; reatribuido_em: string | null; lead: unknown; corretor_anterior: unknown; corretor_atual: unknown };
 
@@ -34,10 +33,6 @@ function summarize(value: string | null, limit = 120) {
   const text = value?.trim();
   if (!text) return "Sem motivo informado.";
   return text.length > limit ? `${text.slice(0, limit)}...` : text;
-}
-
-function stringArray(value: unknown) {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
 }
 
 function historyCriterionLabel(value: string | null) {
@@ -87,7 +82,7 @@ export default async function RoletaPage() {
   if (canManageConfigurations) {
     const [peopleResult, configurationsResult] = await Promise.all([
       supabase.from("pessoas").select("id, nome").eq("ativo", true).contains("papeis", ["corretor"]).order("nome", { ascending: true }),
-      supabase.from("corretores_configuracoes").select("id, pessoa_id, participa_roleta, disponivel, peso, capacidade_atendimentos, cidades, objetivos_imobiliarios, canais, observacoes, updated_at").order("created_at", { ascending: true }),
+      supabase.from("corretores_configuracoes").select("id, pessoa_id, participa_roleta, disponivel").order("created_at", { ascending: true }),
     ]);
     if (peopleResult.error) console.error({ modulo: "crm_roleta", etapa: "configuration_people", codigo: peopleResult.error.code });
     if (configurationsResult.error) console.error({ modulo: "crm_roleta", etapa: "configuration_list", codigo: configurationsResult.error.code });
@@ -96,9 +91,10 @@ export default async function RoletaPage() {
     configurations = configurationsResult.error ? [] : ((configurationsResult.data ?? []) as unknown as Configuration[]);
   }
 
-  const configurationsByPerson = new Map(configurations.map((configuration) => [configuration.pessoa_id, configuration]));
   const participants = configurations.filter((configuration) => configuration.participa_roleta).length;
   const available = configurations.filter((configuration) => configuration.participa_roleta && configuration.disponivel).length;
+  const configuredPersonIds = new Set(configurations.map((configuration) => configuration.pessoa_id));
+  const pendingConfigurations = people.filter((person) => !configuredPersonIds.has(person.id)).length;
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -113,19 +109,10 @@ export default async function RoletaPage() {
           <SummaryCard icon={History} label="Historico recente" value={history.length} />
         </section>
 
-        {canManageConfigurations ? (
-          <section className="mt-8 rounded-[2rem] border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
-            <div className="flex items-start gap-3"><span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#071E36] text-[#E1B866]"><Settings2 size={20} /></span><div><h2 className="text-2xl font-semibold text-[#071E36]">Configuracao da Roleta</h2><p className="mt-1 text-sm text-[#64736D]">Painel exclusivo do administrador. Pessoas sem configuracao permanecem fora da selecao automatica.</p></div></div>
-            <div className="mt-6 grid gap-4 sm:grid-cols-4"><MiniIndicator label="Pessoas-corretoras ativas" value={people.length} /><MiniIndicator label="Configuracoes criadas" value={configurations.length} /><MiniIndicator label="Participantes" value={participants} /><MiniIndicator label="Disponiveis" value={available} /></div>
-            {configurationLoadError ? <p role="alert" className="mt-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">Nao foi possivel carregar as configuracoes da Roleta.</p> : null}
-            {!configurationLoadError && people.length === 0 ? <p className="mt-6 rounded-xl bg-[#F7F3ED] px-4 py-6 text-sm text-[#64736D]">Nenhuma Pessoa ativa com papel corretor foi encontrada.</p> : null}
-            <div className="mt-6 grid gap-5">{people.map((person) => {
-              const configuration = configurationsByPerson.get(person.id);
-              const formValue: BrokerConfigurationFormValue = configuration ? { id: configuration.id, updatedAt: configuration.updated_at, participates: configuration.participa_roleta, available: configuration.disponivel, weight: configuration.peso, capacity: configuration.capacidade_atendimentos, cities: stringArray(configuration.cidades), objectives: stringArray(configuration.objetivos_imobiliarios), channels: stringArray(configuration.canais), notes: configuration.observacoes } : { id: null, updatedAt: null, participates: false, available: false, weight: 1, capacity: null, cities: [], objectives: [], channels: [], notes: null };
-              return <BrokerConfigurationForm key={person.id} personId={person.id} personName={person.nome} configuration={formValue} />;
-            })}</div>
-          </section>
-        ) : null}
+        <section className="mt-8 rounded-[2rem] border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div className="flex items-start gap-3"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-[#071E36] text-[#E1B866]"><Settings2 size={20} /></span><div><h2 className="text-2xl font-semibold text-[#071E36]">Equipe da Roleta</h2><p className="mt-1 text-sm text-[#64736D]">Resumo operacional da equipe configurada para distribuicao.</p></div></div>{canManageConfigurations ? <Link href="/dashboard/corretores?secao=roleta#roleta" className="inline-flex rounded-xl bg-[#071E36] px-4 py-2.5 text-sm font-semibold text-white">Gerenciar corretores</Link> : null}</div>
+          {canManageConfigurations ? <><div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-5"><MiniIndicator label="Pessoas-corretoras ativas" value={people.length} /><MiniIndicator label="Configuracoes criadas" value={configurations.length} /><MiniIndicator label="Participantes" value={participants} /><MiniIndicator label="Disponiveis" value={available} /><MiniIndicator label="Pendentes" value={pendingConfigurations} /></div>{configurationLoadError ? <p role="alert" className="mt-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">Nao foi possivel carregar o resumo da equipe.</p> : null}</> : <p className="mt-5 rounded-xl bg-[#F7F3ED] px-4 py-4 text-sm text-[#64736D]">Configuracao administrada pela gestao.</p>}
+        </section>
 
         {canDistribute ? (
           <section className="mt-8 rounded-[2rem] border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">

@@ -67,15 +67,30 @@ atribuição, historico e Timeline atomicos. O criterio automatico e a constante
 
 ## Limites atuais
 
-A pagina possui painel administrativo para criar e editar configuracoes. Somente
-administrador com `configuracoes.administrar` pode consultar ou modificar pesos,
-capacidade, filtros e observacoes. Gestor pode distribuir pela RPC protegida,
-mas nao consulta detalhes administrativos.
+A pagina da Roleta e uma tela operacional: apresenta indicadores, resumo compacto
+da equipe, fila automatica, atendimentos atribuidos, transferencia e historico.
+A configuracao completa fica em `/dashboard/corretores`, junto da identidade e
+dos dados comerciais da Pessoa-corretora. Somente administrador com
+`configuracoes.administrar` consulta ou modifica pesos, capacidade, filtros e
+observacoes. Gestor pode distribuir e transferir, mas recebe apenas a mensagem
+operacional de que a configuracao e administrada pela gestao.
 
 Cada card preserva os valores em erros esperados, bloqueia duplo envio e usa
 controle otimista de concorrencia por `updated_at`. Retirar da Roleta usa
 `participa_roleta=false`; pausa temporaria usa `disponivel=false`. Nao existe
 DELETE de configuracao.
+
+Pessoa ativa que recebe papel `corretor` nao ganha configuracao automaticamente:
+ela aparece como `Configuracao da Roleta pendente`, com valores visuais iniciais
+fora da Roleta, indisponivel, peso 1, capacidade sem limite e filtros vazios. Esses
+valores somente sao persistidos quando o administrador salva conscientemente.
+
+Os quatro estados visuais sao `Disponivel na Roleta` (participa e disponivel),
+`Pausado` (participa e indisponivel), `Fora da Roleta` (nao participa) e
+`Configuracao da Roleta pendente` (registro inexistente). Retirar o papel corretor
+nao apaga configuracao; a RPC deixa de considerar a Pessoa elegivel e a pagina
+administrativa alerta sobre configuracoes participantes sem Pessoa-corretora ativa.
+Controle de disponibilidade pelo proprio corretor permanece evolucao futura.
 
 Ainda nao existem horarios, pausas programadas, metas, integracao
 com WhatsApp ou distribuicao por webhook.
@@ -148,3 +163,26 @@ policies; a interface nao contorna esse limite e nao usa credencial administrati
 25. Falha da Timeline causa rollback integral.
 26. Pessoa historica indisponivel usa fallback seguro sem ocultar o evento.
 27. Leads, detalhe, Roleta, Kanban e Timeline sao revalidados no sucesso.
+
+## Testes manuais planejados da reorganizacao
+
+1. Administrador abre Roleta e nao ve formularios extensos.
+2. Resumo compacto apresenta totais.
+3. Botao leva para Corretores.
+4. Administrador abre configuracao de uma Pessoa.
+5. Salva configuracao existente.
+6. Cria configuracao ausente.
+7. Apenas um formulario fica expandido.
+8. Pessoa pendente permanece fora da Roleta.
+9. Pessoa disponivel recebe badge correto.
+10. Pessoa pausada recebe badge correto.
+11. Pessoa fora da Roleta recebe badge correto.
+12. Retirada do papel nao apaga configuracao.
+13. Gestor nao ve formulario administrativo.
+14. Corretor nao ve formulario.
+15. Roleta continua distribuindo.
+16. Transferencia continua funcionando.
+17. Historico continua funcionando.
+18. Erro preserva o formulario.
+19. Duplo envio permanece bloqueado.
+20. Layout funciona em tela menor.

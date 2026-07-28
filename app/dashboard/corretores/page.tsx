@@ -3,6 +3,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
+import { BrokerRouletteConfigurations, type BrokerRouletteConfigurationItem } from "../../../components/crm/roleta/broker-roulette-configurations";
+import { hasPermission } from "../../../lib/auth/permissions";
 import { requirePermission } from "../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../lib/auth/page-permission";
 import { CreciValidationForm } from "../crm/corretores/CreciValidationForm";
@@ -16,6 +18,7 @@ import {
 import { createClient } from "../../../lib/supabase/server";
 
 type SearchParams = Record<string, string | string[] | undefined>;
+type RouletteConfiguration = { id: string; pessoa_id: string; participa_roleta: boolean; disponivel: boolean; peso: number; capacidade_atendimentos: number | null; cidades: unknown; objetivos_imobiliarios: unknown; canais: unknown; observacoes: string | null; updated_at: string };
 
 function paramValue(searchParams: SearchParams, key: string) {
   const value = searchParams[key];
@@ -47,12 +50,17 @@ function badgeStatus(status: string | null) {
   return "bg-[#F7F3ED] text-[#071E36]";
 }
 
+function stringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string") : [];
+}
+
 export default async function CorretoresPage({
   searchParams,
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
-  await requirePagePermission("corretores.visualizar");
+  const profile = await requirePagePermission("corretores.visualizar");
+  const canManageRoulette = profile.papel === "administrador" && hasPermission(profile.papel, "configuracoes.administrar");
   const supabase = await createClient();
 
   const resolvedSearchParams = (await searchParams) ?? {};
@@ -168,6 +176,55 @@ export default async function CorretoresPage({
   }
 
   const { data: corretores, error } = await getCorretoresUnificados(supabase);
+  let rouletteConfigurations: RouletteConfiguration[] = [];
+  let rouletteConfigurationError = false;
+
+  if (canManageRoulette) {
+    const configurationResult = await supabase
+      .from("corretores_configuracoes")
+      .select("id, pessoa_id, participa_roleta, disponivel, peso, capacidade_atendimentos, cidades, objetivos_imobiliarios, canais, observacoes, updated_at")
+      .order("created_at", { ascending: true });
+    if (configurationResult.error) {
+      console.error({ modulo: "corretores", etapa: "roulette_configurations", codigo: configurationResult.error.code });
+      rouletteConfigurationError = true;
+    } else {
+      rouletteConfigurations = (configurationResult.data ?? []) as unknown as RouletteConfiguration[];
+    }
+  }
+
+  const rouletteConfigurationsByPerson = new Map(rouletteConfigurations.map((configuration) => [configuration.pessoa_id, configuration]));
+  const rouletteItems: BrokerRouletteConfigurationItem[] = corretores.map((corretor) => {
+    const configuration = rouletteConfigurationsByPerson.get(corretor.sourceId);
+    return {
+      personId: corretor.sourceId,
+      personName: corretor.nome,
+      roles: ["corretor"],
+      configuration: configuration ? {
+        id: configuration.id,
+        updatedAt: configuration.updated_at,
+        participates: configuration.participa_roleta,
+        available: configuration.disponivel,
+        weight: configuration.peso,
+        capacity: configuration.capacidade_atendimentos,
+        cities: stringArray(configuration.cidades),
+        objectives: stringArray(configuration.objetivos_imobiliarios),
+        channels: stringArray(configuration.canais),
+        notes: configuration.observacoes,
+      } : {
+        id: null,
+        updatedAt: null,
+        participates: false,
+        available: false,
+        weight: 1,
+        capacity: null,
+        cities: [],
+        objectives: [],
+        channels: [],
+        notes: null,
+      },
+    };
+  });
+  const participantWithoutActiveBroker = rouletteConfigurations.filter((configuration) => configuration.participa_roleta && !corretores.some((corretor) => corretor.sourceId === configuration.pessoa_id)).length;
   const corretoresFiltrados = corretores.filter((corretor) => {
     const texto = normalizarTexto(
       [
@@ -373,6 +430,17 @@ export default async function CorretoresPage({
             </div>
           )}
         </section>
+
+        {canManageRoulette ? (
+          <section id="roleta" className="mt-6 scroll-mt-6 rounded-2xl border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
+            <h2 className="text-xl font-semibold text-[#071E36]">Configuracao da Roleta</h2>
+            <p className="mt-1 text-sm text-[#64736D]">Administracao da participacao e das regras operacionais de cada Pessoa-corretora.</p>
+            {rouletteConfigurationError ? <p role="alert" className="mt-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">Nao foi possivel carregar as configuracoes da Roleta.</p> : null}
+            {participantWithoutActiveBroker > 0 ? <p role="alert" className="mt-5 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3 text-sm text-amber-800">Ha {participantWithoutActiveBroker} configuracao participante vinculada a Pessoa inativa ou sem papel corretor. A RPC nao considera essa Pessoa elegivel.</p> : null}
+            {!rouletteConfigurationError && rouletteItems.length === 0 ? <p className="mt-5 rounded-xl bg-[#F7F3ED] px-4 py-6 text-sm text-[#64736D]">Nenhuma Pessoa ativa com papel corretor foi encontrada.</p> : null}
+            {!rouletteConfigurationError ? <div className="mt-6"><BrokerRouletteConfigurations items={rouletteItems} /></div> : null}
+          </section>
+        ) : null}
       </div>
     </main>
   );

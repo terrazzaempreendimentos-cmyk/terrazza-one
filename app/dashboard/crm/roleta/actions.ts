@@ -195,5 +195,6 @@ export async function saveBrokerConfiguration(_: ConfigurationState, formData: F
   }
 
   revalidatePath("/dashboard/crm/roleta");
+  revalidatePath("/dashboard/corretores");
   return { status: "sucesso", mensagem: "Configuracao salva com sucesso." };
 }
