@@ -102,23 +102,49 @@ operacao alterar o responsavel enquanto a transferencia aguarda, ela falha sem
 sobrescrever silenciosamente. A etapa atual deve estar entre atendimento,
 visita/avaliacao, proposta, negociacao ou documentacao.
 
-A interface de transferencia ainda nao faz parte desta etapa. Ela devera exibir
-capacidade e disponibilidade apenas como alerta, preservando a decisao manual
-autorizada. O `handoff_status` atual e preservado; eventual saneamento de estado
-incompativel exige uma decisao de dominio separada.
+A interface de transferencia esta disponivel no detalhe real do Lead e no bloco
+`Atendimentos atribuidos` da Roleta. Ela e exibida somente a administrador e
+gestor com `leads.distribuir` e `leads.editar`, exige nova Pessoa-corretora e
+motivo, preserva os campos em erros esperados e usa exclusivamente a RPC
+`reatribuir_lead_corretor`. Corretor e atendimento nao recebem o controle.
+
+O historico distingue distribuicao inicial de reatribuicao e, nesta ultima,
+exibe responsavel anterior e atual por FKs explicitas de `pessoas`. Motivo e
+descricao administrativa de Timeline ficam restritos aos perfis autorizados a
+transferir. Capacidade e disponibilidade da Roleta automatica nao bloqueiam a
+decisao manual autorizada. O `handoff_status` atual continua preservado.
+
+As policies atuais documentadas na migration 019 ainda limitam SELECT de Leads,
+Pessoas, Roleta e Timeline ao administrador. Portanto, o gestor possui permissao
+na aplicacao, mas podera receber bloqueio do RLS ate uma evolucao especifica das
+policies; a interface nao contorna esse limite e nao usa credencial administrativa.
 
 ## Testes manuais planejados
 
-1. Administrador ve todas as Pessoas-corretoras e gestor nao ve o painel.
-2. Corretor e atendimento nao conseguem salvar configuracoes.
-3. Criar, editar, pausar e retirar uma configuracao da Roleta.
-4. Rejeitar peso, capacidade, cidade duplicada, objetivo e canal invalidos.
-5. Rejeitar Pessoa inativa ou sem papel corretor.
-6. Validar ausencia de configuracao, indisponibilidade, capacidade e filtros.
-7. Distribuir com arrays vazios e com filtros compativeis.
-8. Confirmar criterio `roleta_automatica`, Lead em atendimento e Timeline.
-9. Executar duas distribuicoes concorrentes e validar serializacao.
-10. Validar retorno inesperado fail-closed e gestor sem acesso administrativo.
-11. Reatribuir com motivo valido e confirmar etapa/status preservados.
-12. Confirmar historico anterior, nova linha estruturada e Timeline obrigatoria.
-13. Simular duas transferencias e validar responsavel esperado divergente.
+1. Administrador ve o botao.
+2. Gestor ve o botao, sujeito a limitacao RLS conhecida.
+3. Corretor nao ve o botao.
+4. Atendimento nao ve o botao.
+5. Lead sem responsavel nao oferece transferencia.
+6. Lead em etapa inelegivel nao oferece transferencia.
+7. Lead fechado, perdido ou arquivado nao oferece transferencia.
+8. Motivo vazio e rejeitado preservando o formulario.
+9. Motivo curto e rejeitado preservando o formulario.
+10. Motivo excessivo e rejeitado preservando o formulario.
+11. Nova Pessoa inexistente e rejeitada.
+12. Pessoa inativa e rejeitada.
+13. Pessoa sem papel corretor e rejeitada.
+14. Mesmo responsavel e rejeitado.
+15. Reatribuicao valida pelo detalhe do Lead.
+16. Reatribuicao valida pela Roleta.
+17. Etapa permanece inalterada.
+18. Status permanece inalterado.
+19. Responsavel canonico e atualizado.
+20. Historico original e preservado.
+21. Novo historico de reatribuicao e criado.
+22. Evento obrigatorio e criado na Timeline.
+23. Pessoa fora da Roleta automatica pode receber a transferencia.
+24. Duas abas transferindo o mesmo Lead geram divergencia do responsavel esperado.
+25. Falha da Timeline causa rollback integral.
+26. Pessoa historica indisponivel usa fallback seguro sem ocultar o evento.
+27. Leads, detalhe, Roleta, Kanban e Timeline sao revalidados no sucesso.

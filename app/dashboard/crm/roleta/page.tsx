@@ -4,14 +4,17 @@ import { History, Settings2, Sparkles, Target, type LucideIcon } from "lucide-re
 import { hasPermission } from "../../../../lib/auth/permissions";
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import { getLeadEntryChannelLabel, getLeadFunnelStageLabel, getLeadObjectiveLabel, getLeadTemperatureLabel } from "../../../../lib/crm/leads/catalogs";
+import { REASSIGNMENT_ELIGIBLE_STAGES } from "../../../../lib/crm/roleta/reatribuicao";
 import { createClient } from "../../../../lib/supabase/server";
 import { BrokerConfigurationForm, type BrokerConfigurationFormValue } from "./configuration-form";
 import { DistributionForm } from "./distribution-form";
+import { TransferAssignmentForm } from "./transfer-assignment-form";
 
 type Lead = { id: string; nome: string; etapa_funil: string; temperatura: string | null; canal: string | null; cidade: string | null; objetivo_imobiliario: string | null; created_at: string | null; updated_at: string | null };
 type Person = { id: string; nome: string };
 type Configuration = { id: string; pessoa_id: string; participa_roleta: boolean; disponivel: boolean; peso: number; capacidade_atendimentos: number | null; cidades: unknown; objetivos_imobiliarios: unknown; canais: unknown; observacoes: string | null; updated_at: string };
-type Distribution = { id: string; criterio: string | null; motivo: string | null; status: string | null; created_at: string | null; lead: unknown; corretor: unknown };
+type AssignedLead = { id: string; nome: string; etapa_funil: string; status_operacional: string; temperatura: string | null; cidade: string | null; updated_at: string | null; responsavel_id: string; responsavel_pessoa: unknown };
+type Distribution = { id: string; criterio: string | null; motivo: string | null; status: string | null; created_at: string | null; reatribuido_em: string | null; lead: unknown; corretor_anterior: unknown; corretor_atual: unknown };
 
 function relationName(value: unknown, fallback: string) {
   const relation = Array.isArray(value) ? value[0] : value;
@@ -40,6 +43,7 @@ function stringArray(value: unknown) {
 function historyCriterionLabel(value: string | null) {
   if (value === "roleta_automatica") return "Roleta automatica";
   if (value === "manual") return "Distribuicao manual";
+  if (value === "reatribuicao_manual") return "Reatribuicao manual";
   return "Distribuicao registrada";
 }
 
@@ -51,7 +55,7 @@ export default async function RoletaPage() {
 
   const [leadsResult, historyResult] = await Promise.all([
     supabase.from("leads").select("id, nome, etapa_funil, temperatura, canal, cidade, objetivo_imobiliario, created_at, updated_at").eq("status_operacional", "ativo").in("etapa_funil", ["novo", "qualificacao"]).is("responsavel_id", null).order("created_at", { ascending: true }),
-    supabase.from("roleta_distribuicoes").select("id, criterio, motivo, status, created_at, lead:leads!roleta_distribuicoes_lead_id_fkey(nome), corretor:pessoas!roleta_distribuicoes_corretor_pessoa_id_fkey(nome)").not("corretor_pessoa_id", "is", null).order("created_at", { ascending: false }).limit(10),
+    supabase.from("roleta_distribuicoes").select("id, criterio, motivo, status, created_at, reatribuido_em, lead:leads!roleta_distribuicoes_lead_id_fkey(nome), corretor_anterior:pessoas!roleta_distribuicoes_corretor_anterior_pessoa_id_fkey(nome), corretor_atual:pessoas!roleta_distribuicoes_corretor_pessoa_id_fkey(nome)").not("corretor_pessoa_id", "is", null).order("created_at", { ascending: false }).limit(10),
   ]);
 
   if (leadsResult.error) console.error({ modulo: "crm_roleta", etapa: "eligible_leads", codigo: leadsResult.error.code });
@@ -59,6 +63,22 @@ export default async function RoletaPage() {
 
   const leads = leadsResult.error ? [] : ((leadsResult.data ?? []) as Lead[]);
   const history = historyResult.error ? [] : ((historyResult.data ?? []) as unknown as Distribution[]);
+
+  let assignedLeads: AssignedLead[] = [];
+  let transferPeople: Person[] = [];
+  let assignedLoadError = false;
+
+  if (canDistribute) {
+    const [assignedResult, transferPeopleResult] = await Promise.all([
+      supabase.from("leads").select("id, nome, etapa_funil, status_operacional, temperatura, cidade, updated_at, responsavel_id, responsavel_pessoa:pessoas!leads_responsavel_id_fkey(nome)").eq("status_operacional", "ativo").in("etapa_funil", [...REASSIGNMENT_ELIGIBLE_STAGES]).not("responsavel_id", "is", null).order("updated_at", { ascending: false }),
+      supabase.from("pessoas").select("id, nome").eq("ativo", true).contains("papeis", ["corretor"]).order("nome", { ascending: true }),
+    ]);
+    if (assignedResult.error) console.error({ modulo: "crm_roleta", etapa: "assigned_leads", codigo: assignedResult.error.code });
+    if (transferPeopleResult.error) console.error({ modulo: "crm_roleta", etapa: "reassignment_people", codigo: transferPeopleResult.error.code });
+    assignedLoadError = Boolean(assignedResult.error || transferPeopleResult.error);
+    assignedLeads = assignedResult.error ? [] : ((assignedResult.data ?? []) as unknown as AssignedLead[]);
+    transferPeople = transferPeopleResult.error ? [] : ((transferPeopleResult.data ?? []) as Person[]).filter((person) => person.nome.trim());
+  }
 
   let people: Person[] = [];
   let configurations: Configuration[] = [];
@@ -107,6 +127,19 @@ export default async function RoletaPage() {
           </section>
         ) : null}
 
+        {canDistribute ? (
+          <section className="mt-8 rounded-[2rem] border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
+            <h2 className="text-2xl font-semibold text-[#071E36]">Atendimentos atribuidos</h2>
+            <p className="mt-1 text-sm text-[#64736D]">Transferencia administrativa entre Pessoas-corretoras, com motivo e registro atomico.</p>
+            {assignedLoadError ? <p role="alert" className="mt-6 rounded-xl border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">Nao foi possivel carregar os atendimentos atribuidos.</p> : null}
+            {!assignedLoadError && assignedLeads.length === 0 ? <p className="mt-6 rounded-2xl border border-dashed border-[#E8DDCB] bg-[#F7F3ED] px-4 py-8 text-center text-sm text-[#64736D]">Nenhum atendimento elegivel para transferencia.</p> : null}
+            <div className="mt-6 grid gap-4">{assignedLeads.map((lead) => {
+              const responsibleName = relationName(lead.responsavel_pessoa, "Pessoa-corretora nao localizada");
+              return <article key={lead.id} className="grid gap-5 rounded-3xl border border-[#E8DDCB] bg-[#fffdfa] p-5 lg:grid-cols-[1fr_360px] lg:items-start"><div><h3 className="text-xl font-semibold text-[#071E36]">{lead.nome}</h3><div className="mt-3 flex flex-wrap gap-2 text-xs"><Badge label={getLeadFunnelStageLabel(lead.etapa_funil) ?? "Etapa invalida"} /><Badge label={lead.temperatura ? getLeadTemperatureLabel(lead.temperatura) ?? "Temperatura invalida" : "Sem temperatura"} /></div><dl className="mt-4 grid gap-1 text-sm text-[#64736D]"><div><dt className="inline font-semibold text-[#071E36]">Responsavel: </dt><dd className="inline">{responsibleName}</dd></div><div><dt className="inline font-semibold text-[#071E36]">Cidade: </dt><dd className="inline">{lead.cidade || "Nao informada"}</dd></div><div><dt className="inline font-semibold text-[#071E36]">Atualizado: </dt><dd className="inline">{formatDate(lead.updated_at)}</dd></div></dl><Link href={`/dashboard/crm/leads/${lead.id}`} className="mt-3 inline-flex text-sm font-semibold text-[#8B6827] underline">Abrir Lead</Link></div><TransferAssignmentForm leadId={lead.id} currentResponsibleId={lead.responsavel_id} currentResponsibleName={responsibleName} people={transferPeople} /></article>;
+            })}</div>
+          </section>
+        ) : null}
+
         <section className="mt-8 grid gap-6 xl:grid-cols-[1.3fr_0.8fr]">
           <div className="rounded-[2rem] border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
             <h2 className="text-2xl font-semibold text-[#071E36]">Fila aguardando distribuicao</h2><p className="mt-1 text-sm text-[#64736D]">A aplicacao envia apenas o Lead; a Pessoa-corretora e escolhida atomicamente pelo banco.</p>
@@ -120,7 +153,7 @@ export default async function RoletaPage() {
             <h2 className="text-2xl font-semibold text-[#071E36]">Historico canonico recente</h2><p className="mt-1 text-sm text-[#64736D]">Distribuicoes vinculadas a Pessoas-corretoras.</p>
             {historyResult.error ? <p role="alert" className="mt-6 rounded-xl border border-red-100 bg-red-50 px-3 py-2 text-sm text-red-700">Nao foi possivel carregar o historico recente.</p> : null}
             {!historyResult.error && history.length === 0 ? <p className="mt-6 rounded-2xl border border-dashed border-[#E8DDCB] bg-[#F7F3ED] px-4 py-8 text-center text-sm text-[#64736D]">Nenhuma distribuicao canonica registrada.</p> : null}
-            <div className="mt-6 space-y-3">{history.map((item) => <article key={item.id} className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold text-[#071E36]">{relationName(item.lead, "Lead nao localizado")}</p><p className="mt-1 text-sm text-[#64736D]">{relationName(item.corretor, "Pessoa-corretora nao localizada")}</p></div><Badge label={historyCriterionLabel(item.criterio)} /></div><p className="mt-3 text-xs leading-5 text-[#64736D]">{summarize(item.motivo)}</p><p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">{formatDate(item.created_at)} · {item.status ?? "sem status"}</p></article>)}</div>
+            <div className="mt-6 space-y-3">{history.map((item) => <article key={item.id} className="rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-semibold text-[#071E36]">{relationName(item.lead, "Lead nao localizado")}</p>{item.criterio === "reatribuicao_manual" ? <p className="mt-1 text-sm text-[#64736D]">{relationName(item.corretor_anterior, "Pessoa nao disponivel")} → {relationName(item.corretor_atual, "Pessoa nao disponivel")}</p> : <p className="mt-1 text-sm text-[#64736D]">{relationName(item.corretor_atual, "Pessoa nao disponivel")}</p>}</div><Badge label={historyCriterionLabel(item.criterio)} /></div>{canDistribute ? <p className="mt-3 text-xs leading-5 text-[#64736D]">{summarize(item.motivo)}</p> : null}<p className="mt-3 text-xs font-semibold uppercase tracking-[0.12em] text-[#8B6827]">{formatDate(item.reatribuido_em ?? item.created_at)} · {item.status ?? "sem status"}</p></article>)}</div>
           </aside>
         </section>
       </div>

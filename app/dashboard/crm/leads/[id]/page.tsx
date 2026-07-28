@@ -1,7 +1,11 @@
 import Link from "next/link";
 
+import { hasPermission } from "../../../../../lib/auth/permissions";
 import { requirePagePermission } from "../../../../../lib/auth/page-permission";
+import { getLeadFunnelStageLabel, getLeadTemperatureLabel } from "../../../../../lib/crm/leads/catalogs";
+import { REASSIGNMENT_ELIGIBLE_STAGES } from "../../../../../lib/crm/roleta/reatribuicao";
 import { createClient } from "../../../../../lib/supabase/server";
+import { TransferAssignmentForm } from "../../roleta/transfer-assignment-form";
 
 type Lead = {
   id: string;
@@ -13,8 +17,15 @@ type Lead = {
   origem: string | null;
   status: string | null;
   responsavel: string | null;
+  responsavel_id: string | null;
+  etapa_funil: string;
+  status_operacional: string;
+  temperatura: string | null;
+  responsavel_pessoa: unknown;
   created_at: string | null;
 };
+
+type Person = { id: string; nome: string };
 
 type TimelineEvento = {
   id: string;
@@ -29,6 +40,13 @@ function labelTexto(valor: string | null) {
   if (!valor) return "Nao informado";
 
   return valor.replaceAll("_", " ");
+}
+
+function relationName(value: unknown, fallback: string) {
+  const relation = Array.isArray(value) ? value[0] : value;
+  if (!relation || typeof relation !== "object") return fallback;
+  const name = (relation as { nome?: unknown }).nome;
+  return typeof name === "string" && name.trim() ? name.trim() : fallback;
 }
 
 function formatarData(data: string | null) {
@@ -73,7 +91,10 @@ export default async function LeadDetalhePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePagePermission("leads.visualizar");
+  const profile = await requirePagePermission("leads.visualizar");
+  const canTransfer = (profile.papel === "administrador" || profile.papel === "gestor")
+    && hasPermission(profile.papel, "leads.distribuir")
+    && hasPermission(profile.papel, "leads.editar");
   const supabase = await createClient();
 
   const { id } = await params;
@@ -81,7 +102,7 @@ export default async function LeadDetalhePage({
   const [leadResult, timelineResult] = await Promise.all([
     supabase
       .from("leads")
-      .select("id, nome, telefone, tipo_lead, objetivo, cidade, origem, status, responsavel, created_at")
+      .select("id, nome, telefone, tipo_lead, objetivo, cidade, origem, status, responsavel, responsavel_id, etapa_funil, status_operacional, temperatura, created_at, responsavel_pessoa:pessoas!leads_responsavel_id_fkey(nome)")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -95,6 +116,30 @@ export default async function LeadDetalhePage({
   const lead = (leadResult.data ?? null) as Lead | null;
   const eventos = (timelineResult.data ?? []) as TimelineEvento[];
   const erroCarregamento = leadResult.error || timelineResult.error;
+  const currentResponsibleName = relationName(lead?.responsavel_pessoa, lead?.responsavel || "A definir");
+  const isTransferEligible = Boolean(
+    lead?.responsavel_id
+    && lead.status_operacional === "ativo"
+    && REASSIGNMENT_ELIGIBLE_STAGES.some((stage) => stage === lead.etapa_funil),
+  );
+  let transferPeople: Person[] = [];
+  let transferPeopleError = false;
+
+  if (canTransfer && isTransferEligible) {
+    const peopleResult = await supabase
+      .from("pessoas")
+      .select("id, nome")
+      .eq("ativo", true)
+      .contains("papeis", ["corretor"])
+      .order("nome", { ascending: true });
+
+    if (peopleResult.error) {
+      console.error({ modulo: "crm_lead_detail", etapa: "reassignment_people", codigo: peopleResult.error.code });
+      transferPeopleError = true;
+    } else {
+      transferPeople = ((peopleResult.data ?? []) as Person[]).filter((person) => person.nome.trim());
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
@@ -147,8 +192,8 @@ export default async function LeadDetalhePage({
           {[
             ["Status comercial", labelTexto(lead?.status ?? null)],
             ["Origem", lead?.origem || "manual"],
-            ["Responsavel", lead?.responsavel || "A definir"],
-            ["Temperatura", temperaturaLead(lead?.status ?? null)],
+            ["Responsavel", currentResponsibleName],
+            ["Temperatura", lead?.temperatura ? getLeadTemperatureLabel(lead.temperatura) ?? "Nao informada" : temperaturaLead(lead?.status ?? null)],
           ].map(([titulo, valor]) => (
             <article
               key={titulo}
@@ -163,6 +208,27 @@ export default async function LeadDetalhePage({
             </article>
           ))}
         </section>
+
+        {lead ? (
+          <section className="mt-6 rounded-3xl border border-[#E8DDCB] bg-white p-6 shadow-sm">
+            <h2 className="text-xl font-semibold text-[#071E36]">Responsavel pelo atendimento</h2>
+            <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_360px] lg:items-start">
+              <dl className="grid gap-2 text-sm text-[#64736D]">
+                <div><dt className="inline font-semibold text-[#071E36]">Pessoa-corretora: </dt><dd className="inline">{currentResponsibleName}</dd></div>
+                <div><dt className="inline font-semibold text-[#071E36]">Etapa: </dt><dd className="inline">{getLeadFunnelStageLabel(lead.etapa_funil) ?? labelTexto(lead.etapa_funil)}</dd></div>
+              </dl>
+              {canTransfer && isTransferEligible && lead.responsavel_id ? (
+                <TransferAssignmentForm
+                  leadId={lead.id}
+                  currentResponsibleId={lead.responsavel_id}
+                  currentResponsibleName={currentResponsibleName}
+                  people={transferPeople}
+                  disabledMessage={transferPeopleError ? "Nao foi possivel carregar as Pessoas-corretoras." : undefined}
+                />
+              ) : null}
+            </div>
+          </section>
+        ) : null}
 
         <section className="mt-6 grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
           <div className="rounded-3xl border border-[#E8DDCB] bg-white p-6 shadow-sm">
@@ -236,7 +302,9 @@ export default async function LeadDetalhePage({
                     </span>
                   </div>
                   <p className="mt-2 text-sm text-[#64736D]">
-                    {evento.descricao || "Evento registrado sem descricao detalhada."}
+                    {evento.tipo === "lead_reatribuido" && !canTransfer
+                      ? "Responsavel pelo atendimento atualizado."
+                      : evento.descricao || "Evento registrado sem descricao detalhada."}
                   </p>
                 </article>
               ))
