@@ -182,6 +182,25 @@ begin
       message = 'Etapa atual invalida.';
   end if;
 
+  if (v_etapa_anterior = 'fechado' and v_status_anterior <> 'convertido')
+    or (v_etapa_anterior = 'perdido' and v_status_anterior <> 'perdido')
+    or (
+      v_etapa_anterior in (
+        'novo',
+        'qualificacao',
+        'atendimento',
+        'visita_avaliacao',
+        'proposta',
+        'negociacao',
+        'documentacao'
+      )
+      and v_status_anterior <> 'ativo'
+    ) then
+    raise exception using
+      errcode = 'P0001',
+      message = 'Estado atual do Lead inconsistente.';
+  end if;
+
   if v_etapa_anterior = p_etapa_destino then
     raise exception using
       errcode = 'P0001',
@@ -310,6 +329,7 @@ commit;
 -- 12. Arquivado: negar.
 -- 13. Induzir falha de Timeline em ambiente isolado: confirmar rollback do Lead.
 -- 14. Duas sessoes concorrentes: confirmar espera, releitura e revalidacao.
+-- 15. Etapa e status incoerentes: bloquear sem alterar Lead ou Timeline.
 
 -- CONSULTAS MANUAIS INDEPENDENTES DE VERIFICACAO.
 

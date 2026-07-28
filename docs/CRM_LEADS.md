@@ -170,3 +170,11 @@ Desde a Sprint 2E2, criação e edição normalizam telefone e e-mail exclusivam
 Antes da mutação, a aplicação consulta separadamente conflitos ativos por telefone e por e-mail. Na edição, o próprio UUID é excluído dessas consultas. Um conflito retorna mensagem funcional sem revelar o Lead existente e mantém o formulário preenchido.
 
 Os índices parciais continuam sendo a proteção definitiva contra concorrência. Uma violação `23505` é convertida em mensagem segura, específica quando o índice pode ser identificado sem dados pessoais e genérica nos demais casos. Arquivamento e registros históricos não foram alterados.
+
+## Kanban operacional
+
+Desde a Sprint 2G2, o Kanban usa `etapa_funil` como autoridade, renderiza as nove etapas diretamente do catálogo central e exclui registros arquivados. Não existe fallback para `status` legado nesse fluxo.
+
+As movimentações não executam `UPDATE` em Leads nem `INSERT` na Timeline pela aplicação. A Server Action valida permissões, UUID, destino, motivo e retorno, chamando exclusivamente `movimentar_lead_funil`. A RPC permanece responsável por autorização definitiva, bloqueio concorrente, transição, status e Timeline atômica.
+
+Cards operacionais oferecem somente avanço e retorno adjacentes, além de perda. Leads perdidos podem ser reabertos em uma etapa operacional escolhida por perfil autorizado; fechados permanecem somente leitura. Drag-and-drop continua fora do escopo.
