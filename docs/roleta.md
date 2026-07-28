@@ -77,8 +77,35 @@ controle otimista de concorrencia por `updated_at`. Retirar da Roleta usa
 `participa_roleta=false`; pausa temporaria usa `disponivel=false`. Nao existe
 DELETE de configuracao.
 
-Ainda nao existem horarios, pausas programadas, reatribuicao, metas, integracao
+Ainda nao existem horarios, pausas programadas, metas, integracao
 com WhatsApp ou distribuicao por webhook.
+
+## Reatribuicao manual
+
+Distribuicao escolhe o primeiro responsavel para um Lead ainda nao atribuido.
+Reatribuicao transfere deliberadamente um Lead operacional ja atribuido entre
+duas Pessoas-corretoras. Administrador e gestor podem executar a transferencia,
+sempre com motivo entre 3 e 500 caracteres.
+
+A reatribuicao preserva etapa, status operacional, status legado, handoff e todo
+o historico anterior. Uma nova linha em `roleta_distribuicoes` registra
+estruturalmente responsavel anterior, novo responsavel, motivo, timestamp e o
+criterio `reatribuicao_manual`. A Timeline recebe obrigatoriamente um evento
+`lead_reatribuido`; falha em qualquer escrita reverte toda a operacao.
+
+Por ser uma decisao excepcional autorizada, o novo responsavel precisa ser uma
+Pessoa ativa com papel `corretor`, mas nao precisa participar da Roleta automatica,
+estar disponivel nela ou respeitar peso, filtros e capacidade configurada.
+
+A RPC exige o responsavel esperado e bloqueia o Lead com `FOR UPDATE`. Se outra
+operacao alterar o responsavel enquanto a transferencia aguarda, ela falha sem
+sobrescrever silenciosamente. A etapa atual deve estar entre atendimento,
+visita/avaliacao, proposta, negociacao ou documentacao.
+
+A interface de transferencia ainda nao faz parte desta etapa. Ela devera exibir
+capacidade e disponibilidade apenas como alerta, preservando a decisao manual
+autorizada. O `handoff_status` atual e preservado; eventual saneamento de estado
+incompativel exige uma decisao de dominio separada.
 
 ## Testes manuais planejados
 
@@ -92,3 +119,6 @@ com WhatsApp ou distribuicao por webhook.
 8. Confirmar criterio `roleta_automatica`, Lead em atendimento e Timeline.
 9. Executar duas distribuicoes concorrentes e validar serializacao.
 10. Validar retorno inesperado fail-closed e gestor sem acesso administrativo.
+11. Reatribuir com motivo valido e confirmar etapa/status preservados.
+12. Confirmar historico anterior, nova linha estruturada e Timeline obrigatoria.
+13. Simular duas transferencias e validar responsavel esperado divergente.
