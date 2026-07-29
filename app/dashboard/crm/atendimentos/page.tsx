@@ -26,6 +26,7 @@ import {
   AssumeAtendimentoForm,
   ChangeAtendimentoStateForm,
   CreateAtendimentoForm,
+  FinalAtendimentoControls,
   type EligibleLeadOption,
 } from "./operation-forms";
 
@@ -35,6 +36,7 @@ type Atendimento = {
   id: string;
   lead_id: string;
   responsavel_id: string | null;
+  atendimento_anterior_id: string | null;
   status: AtendimentoStatus;
   prioridade: AtendimentoPriority;
   canal: AtendimentoChannel;
@@ -65,10 +67,13 @@ export default async function AtendimentosPage() {
   const canCreate = bankAllowsMutation && hasPermission(profile.papel, "atendimentos.criar");
   const canAssume = bankAllowsMutation && hasPermission(profile.papel, "atendimentos.assumir");
   const canEdit = bankAllowsMutation && hasPermission(profile.papel, "atendimentos.editar");
+  const canConclude = bankAllowsMutation && hasPermission(profile.papel, "atendimentos.concluir");
+  const canCancel = bankAllowsMutation && hasPermission(profile.papel, "atendimentos.cancelar");
+  const canReopen = bankAllowsMutation && hasPermission(profile.papel, "atendimentos.reabrir");
 
   const atendimentosPromise = supabase
     .from("atendimentos")
-    .select("id, lead_id, responsavel_id, status, prioridade, canal, origem, assunto, resumo, proxima_acao_em, assumido_em, created_at, updated_at, resultado, concluido_em, cancelado_em, lead:leads!atendimentos_lead_id_fkey(id, nome), responsavel:pessoas!atendimentos_responsavel_id_fkey(id, nome)")
+    .select("id, lead_id, responsavel_id, atendimento_anterior_id, status, prioridade, canal, origem, assunto, resumo, proxima_acao_em, assumido_em, created_at, updated_at, resultado, concluido_em, cancelado_em, lead:leads!atendimentos_lead_id_fkey(id, nome), responsavel:pessoas!atendimentos_responsavel_id_fkey(id, nome)")
     .order("updated_at", { ascending: false });
   const leadsPromise = canCreate
     ? supabase
@@ -96,6 +101,7 @@ export default async function AtendimentosPage() {
     logQueryError("normalize_list", "invalid_row");
   }
   const openLeadIds = new Set(atendimentos.filter((item) => OPEN_STATUSES.includes(item.status)).map((item) => item.lead_id));
+  const previousAttendanceIds = new Set(atendimentos.map((item) => item.atendimento_anterior_id).filter((id): id is string => Boolean(id)));
   const eligibleLeads = ((leadsResult.data ?? []) as unknown as LeadRaw[])
     .map(normalizeEligibleLead)
     .filter((lead): lead is EligibleLeadOption => lead !== null && !openLeadIds.has(lead.id));
@@ -149,17 +155,17 @@ export default async function AtendimentosPage() {
         ) : null}
 
         <div className="mt-8 grid gap-8">
-          <AtendimentoSection title="Fila aguardando" description="Atendimentos ainda nao assumidos." items={groups.waiting} canAssume={canAssume} canEdit={canEdit} />
-          <AtendimentoSection title="Em andamento" description="Casos conduzidos pela equipe responsavel." items={groups.active} canAssume={canAssume} canEdit={canEdit} />
-          <AtendimentoSection title="Aguardando retorno" description="Dependencias do cliente ou da operacao interna." items={groups.returning} canAssume={canAssume} canEdit={canEdit} />
-          <AtendimentoSection title="Encerrados recentes" description="Leitura dos ultimos Atendimentos concluidos ou cancelados." items={groups.recentClosed} canAssume={false} canEdit={false} />
+          <AtendimentoSection title="Fila aguardando" description="Atendimentos ainda nao assumidos." items={groups.waiting} canAssume={canAssume} canEdit={canEdit} canConclude={canConclude} canCancel={canCancel} canReopen={canReopen} previousAttendanceIds={previousAttendanceIds} />
+          <AtendimentoSection title="Em andamento" description="Casos conduzidos pela equipe responsavel." items={groups.active} canAssume={canAssume} canEdit={canEdit} canConclude={canConclude} canCancel={canCancel} canReopen={canReopen} previousAttendanceIds={previousAttendanceIds} />
+          <AtendimentoSection title="Aguardando retorno" description="Dependencias do cliente ou da operacao interna." items={groups.returning} canAssume={canAssume} canEdit={canEdit} canConclude={canConclude} canCancel={canCancel} canReopen={canReopen} previousAttendanceIds={previousAttendanceIds} />
+          <AtendimentoSection title="Encerrados recentes" description="Leitura dos ultimos Atendimentos concluidos ou cancelados." items={groups.recentClosed} canAssume={false} canEdit={false} canConclude={false} canCancel={false} canReopen={canReopen} previousAttendanceIds={previousAttendanceIds} />
         </div>
       </div>
     </main>
   );
 }
 
-function AtendimentoSection({ title, description, items, canAssume, canEdit }: { title: string; description: string; items: readonly Atendimento[]; canAssume: boolean; canEdit: boolean }) {
+function AtendimentoSection({ title, description, items, canAssume, canEdit, canConclude, canCancel, canReopen, previousAttendanceIds }: { title: string; description: string; items: readonly Atendimento[]; canAssume: boolean; canEdit: boolean; canConclude: boolean; canCancel: boolean; canReopen: boolean; previousAttendanceIds: ReadonlySet<string> }) {
   return (
     <section className="rounded-[2rem] border border-[#E8DDCB] bg-white p-5 shadow-sm sm:p-6">
       <div className="flex items-start justify-between gap-4"><div><h2 className="text-xl font-semibold text-[#071E36]">{title}</h2><p className="mt-1 text-sm text-[#64736D]">{description}</p></div><span className="rounded-full bg-[#C89B3C]/10 px-3 py-1 text-sm font-semibold text-[#8B6827]">{items.length}</span></div>
@@ -167,21 +173,21 @@ function AtendimentoSection({ title, description, items, canAssume, canEdit }: {
         <p className="mt-5 rounded-2xl bg-[#F7F3ED] px-4 py-8 text-center text-sm text-[#64736D]">Nenhum Atendimento nesta fila.</p>
       ) : (
         <div className="mt-5 grid gap-4 xl:grid-cols-2">
-          {items.map((item) => <AtendimentoCard key={item.id} item={item} canAssume={canAssume} canEdit={canEdit} />)}
+          {items.map((item) => <AtendimentoCard key={item.id} item={item} canAssume={canAssume} canEdit={canEdit} canConclude={canConclude} canCancel={canCancel} canReopen={canReopen} hasLaterAttendance={previousAttendanceIds.has(item.id)} />)}
         </div>
       )}
     </section>
   );
 }
 
-function AtendimentoCard({ item, canAssume, canEdit }: { item: Atendimento; canAssume: boolean; canEdit: boolean }) {
+function AtendimentoCard({ item, canAssume, canEdit, canConclude, canCancel, canReopen, hasLaterAttendance }: { item: Atendimento; canAssume: boolean; canEdit: boolean; canConclude: boolean; canCancel: boolean; canReopen: boolean; hasLaterAttendance: boolean }) {
   const lead = relation(item.lead);
   const responsavel = relation(item.responsavel);
   return (
     <article className="rounded-3xl border border-[#E8DDCB] bg-[#fffdfa] p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div><h3 className="text-lg font-semibold text-[#071E36]">{item.assunto?.trim() || "Atendimento sem assunto"}</h3><p className="mt-1 text-sm text-[#64736D]">{lead?.nome?.trim() || "Lead sem nome disponivel"}</p></div>
-        <div className="flex flex-wrap gap-2"><Badge label={getAtendimentoStatusLabel(item.status) ?? "Status invalido"} kind="status" /><Badge label={getAtendimentoPriorityLabel(item.prioridade) ?? "Prioridade invalida"} kind={item.prioridade === "urgente" ? "danger" : "priority"} /></div>
+        <div><h3 className="text-lg font-semibold text-[#071E36]">{item.assunto?.trim() || "Atendimento sem assunto"}</h3><p className="mt-1 text-sm text-[#64736D]">{lead?.nome?.trim() || "Lead sem nome disponivel"}</p>{item.atendimento_anterior_id ? <p className="mt-2 text-xs text-[#8B6827]">Originado de Atendimento anterior.</p> : null}{hasLaterAttendance ? <p className="mt-2 text-xs text-[#8B6827]">Possui Atendimento posterior.</p> : null}</div>
+        <div className="flex flex-wrap gap-2"><Badge label={getAtendimentoStatusLabel(item.status) ?? "Status invalido"} kind="status" /><Badge label={getAtendimentoPriorityLabel(item.prioridade) ?? "Prioridade invalida"} kind={item.prioridade === "urgente" ? "danger" : "priority"} />{item.atendimento_anterior_id ? <Badge label="Reabertura" kind="priority" /> : null}</div>
       </div>
       <dl className="mt-4 grid gap-2 text-sm text-[#64736D] sm:grid-cols-2">
         <Info label="Canal" value={getAtendimentoChannelLabel(item.canal) ?? "Nao informado"} />
@@ -198,6 +204,16 @@ function AtendimentoCard({ item, canAssume, canEdit }: { item: Atendimento; canA
         {item.status === "aguardando" && canAssume && item.responsavel_id ? <AssumeAtendimentoForm atendimentoId={item.id} leadId={item.lead_id} updatedAt={item.updated_at} /> : null}
         {item.status === "aguardando" && !item.responsavel_id ? <p className="rounded-xl bg-[#F7F3ED] px-3 py-2 text-sm text-[#64736D]">Aguardando distribuicao ou atribuicao de responsavel.</p> : null}
         {canEdit && isAtendimentoOpenManagedStatus(item.status) ? <ChangeAtendimentoStateForm atendimentoId={item.id} leadId={item.lead_id} currentStatus={item.status} updatedAt={item.updated_at} /> : null}
+        <FinalAtendimentoControls
+          atendimentoId={item.id}
+          leadId={item.lead_id}
+          responsavelId={item.responsavel_id}
+          currentStatus={item.status}
+          updatedAt={item.updated_at}
+          canConclude={canConclude && isAtendimentoOpenManagedStatus(item.status) && Boolean(item.responsavel_id) && Boolean(item.assumido_em)}
+          canCancel={canCancel && OPEN_STATUSES.includes(item.status)}
+          canReopen={canReopen && isAtendimentoFinalStatus(item.status)}
+        />
       </div>
     </article>
   );
@@ -213,6 +229,7 @@ function normalizeAtendimento(value: unknown): Atendimento | null {
     id: row.id,
     lead_id: row.lead_id,
     responsavel_id: typeof row.responsavel_id === "string" ? row.responsavel_id : null,
+    atendimento_anterior_id: typeof row.atendimento_anterior_id === "string" ? row.atendimento_anterior_id : null,
     status: row.status,
     prioridade: row.prioridade,
     canal: row.canal,

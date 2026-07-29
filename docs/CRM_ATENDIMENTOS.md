@@ -481,3 +481,28 @@ fora desta sprint.
 44. Timeline da reabertura com motivo.
 45. Rollback da reabertura quando a Timeline falha.
 46. Concorrencia na reabertura.
+
+## Interface operacional dos estados finais
+
+A rota `/dashboard/crm/atendimentos` conecta as RPCs finais sem escrita direta nas
+tabelas. Administrador e gestor podem concluir, cancelar e reabrir quando tambem
+possuem a permissao nominal correspondente. Atendimento e corretor permanecem sem
+essas operacoes enquanto nao existir ownership seguro entre Auth e Pessoa e a RLS
+continuar restritiva.
+
+A conclusao esta disponivel apenas para estados conduzidos, com responsavel e
+assuncao reais. O formulario exige resultado do catalogo de conclusao e aceita
+detalhe e atualizacao opcional do resumo. O cancelamento aceita todos os estados
+abertos, inclusive antes da assuncao, preservando responsavel atribuido e sem
+inventar `assumido_em`. Motivo e resultado usam os limites e catalogos da RPC.
+
+A reabertura fica nos cards finalizados e informa que sera criado um novo registro.
+O Atendimento anterior permanece encerrado; o novo recebe outro UUID e se relaciona
+por `atendimento_anterior_id`. A tela mostra apenas indicacoes genericas de origem e
+posterioridade, sem exibir identificadores nem reconstruir uma Timeline paralela.
+
+Todas as operacoes enviam `updated_at` como fotografia, nao repetem automaticamente
+uma RPC concorrente e validam o retorno de forma fechada. Em sucesso, Atendimentos,
+dashboard, lista e detalhe de Leads sao revalidados. O Kanban permanece independente:
+nenhuma etapa ou status do Lead e sincronizado. Tambem nao ha criacao automatica de
+Negocio ou Atividade.
