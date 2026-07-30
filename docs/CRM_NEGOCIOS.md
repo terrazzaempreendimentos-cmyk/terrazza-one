@@ -301,3 +301,61 @@ Pessoas canonicas, separa etapa/status/resultado, preserva arquivamento em `ativ
 adiciona timestamps, checks, FKs, indices, RLS fail-closed e policies exclusivas do
 administrador. Ela nao cria RPC nem automacao com Lead, Atendimento ou Kanban e nao
 foi aplicada nesta sprint.
+
+## Sprint 3B3A: RPCs de Negocios ativos
+
+A migration `033_negocios_rpc_ativos.sql` prepara tres operacoes atomicas:
+
+- `criar_negocio(p_payload jsonb, p_partes jsonb)`;
+- `atualizar_negocio(p_negocio_id uuid, p_updated_at_esperado timestamptz, p_payload jsonb, p_partes jsonb)`;
+- `movimentar_negocio(p_negocio_id uuid, p_etapa_destino text, p_updated_at_esperado timestamptz, p_observacao text default null)`.
+
+As funcoes sao `SECURITY DEFINER`, usam `search_path = pg_catalog`, derivam a
+identidade de `auth.uid()` e exigem perfil ativo administrador ou gestor por
+`usuario_tem_papel`. `PUBLIC` e `anon` nao possuem `EXECUTE`; somente
+`authenticated` recebe o grant, ainda sujeito a autorizacao interna.
+
+O payload fechado aceita somente relacionamentos canonicos, tipo, titulo, textos,
+moeda, valores, comissoes e datas operacionais previstas no schema. Identidade,
+etapa, status, arquivamento, resultado, autoria, encerramento e timestamps
+estruturais permanecem sob controle do banco/RPC. Criacao exige Lead, tipo e titulo;
+moeda omitida usa `BRL`. Venda, locacao e administracao exigem Imovel ativo.
+
+As partes aceitam apenas `pessoa_id`, `papel`, `principal`,
+`participacao_percentual` e `observacoes`. Toda Pessoa enviada deve existir e estar
+ativa. Duplicidade por Pessoa/papel e dois principais para o mesmo papel sao
+bloqueados. Nao se exige soma de participacoes igual a cem. Temporariamente,
+`p_partes = []` e valido porque o Lead ainda nao possui Pessoa interessada canonica.
+
+A criacao bloqueia o Lead, valida os relacionamentos, cria um Negocio, insere as
+partes e registra Timeline obrigatoria. A edicao bloqueia o Negocio, compara
+`updated_at`, preserva campos omitidos e sincroniza partes sem `DELETE`: removidas
+ficam inativas, preservadas sao atualizadas, vinculos historicos podem ser
+reativados e novos sao inseridos. O principal e reorganizado antes da nova
+fotografia para respeitar o indice unico.
+
+Depois da criacao, `lead_id` e estrutural e imutavel. A edicao sempre usa o Lead
+original do Negocio. O mesmo `lead_id` pode ser reenviado por compatibilidade, mas
+valor nulo, UUID invalido ou tentativa de troca falha como relacionamento invalido.
+Atendimento informado continua obrigado a pertencer ao Lead original, e a Timeline
+da edicao sempre referencia esse mesmo Lead.
+
+A movimentacao admite somente avanco ou retorno adjacente entre `estruturacao`,
+`proposta`, `negociacao`, `documentacao`, `contrato` e `assinatura`. Mesmo estado,
+salto, estado final e registro arquivado falham. Datas comerciais nao sao
+preenchidas automaticamente. Edicao e movimentacao usam `FOR UPDATE` e fotografia
+de `updated_at`; divergencia falha sem sobrescrita silenciosa.
+
+Timeline usa os eventos `negocio_criado`, `negocio_atualizado` e
+`negocio_etapa_alterada`, com referencia ao Lead. A observacao de movimentacao e
+opcional, aparada e limitada a 500 caracteres. Quando ausente, a descricao permanece
+generica; quando presente, e persistida na descricao da Timeline como conteudo
+operacional. Ela nao e registrada em logs. Falha da Timeline reverte toda a
+operacao. Os retornos sao minimos e seus validadores fail-closed ficam em
+`lib/crm/negocios/rpc-contracts.ts`.
+
+As RPCs nao alteram Lead, Atendimento, Imovel ou Pessoa; nao criam Atividade; nao
+concluem, perdem, cancelam, reabrem ou arquivam Negocio; e nao implementam ownership
+de corretor. O plano manual cobre autorizacao, allowlists, relacionamentos, partes,
+concorrencia, transicoes, falha de Timeline e rollback. A Sprint 3B3B deve conectar
+somente essas operacoes ativas na aplicacao.
