@@ -359,3 +359,86 @@ concluem, perdem, cancelam, reabrem ou arquivam Negocio; e nao implementam owner
 de corretor. O plano manual cobre autorizacao, allowlists, relacionamentos, partes,
 concorrencia, transicoes, falha de Timeline e rollback. A Sprint 3B3B deve conectar
 somente essas operacoes ativas na aplicacao.
+
+## Sprint 3B3B: encerramento, reabertura e arquivamento
+
+A migration `034_negocios_rpc_finais.sql` acrescenta `concluir_negocio`,
+`perder_negocio`, `cancelar_negocio`, `reabrir_negocio` e `arquivar_negocio`.
+Todas usam identidade de `auth.uid()`, perfil ativo administrador/gestor, `SECURITY
+DEFINER`, `search_path = pg_catalog`, lock pessimista e fotografia de `updated_at`.
+Somente `authenticated` recebe `EXECUTE`; a autorizacao interna continua obrigatoria.
+
+### Status operacional e arquivamento
+
+`status_operacional` descreve o ciclo comercial: `ativo`, `concluido`, `perdido` ou
+`cancelado`. A coluna `ativo` representa exclusivamente arquivamento logico. Um
+Negocio encerrado normalmente continua com `ativo = true` e pode originar uma
+reabertura. `ativo = false` preserva status, etapa, resultado, valores, partes,
+datas e autoria, e bloqueia edicao, movimento, encerramento e reabertura.
+
+### Conclusao
+
+A conclusao valida resultado compativel com o tipo e exige partes ativas minimas:
+
+- venda: proprietario ou vendedor, e comprador;
+- locacao: proprietario ou locador, e locatario;
+- administracao: proprietario ou contratante;
+- outro: ao menos uma parte ativa.
+
+Venda e locacao exigem `valor_fechado` final positivo. O valor informado substitui
+o persistido; valor nulo preserva o atual. Administracao e outro aceitam valor nulo
+ou nao negativo. Comissao efetiva e opcional, nao negativa e preservada quando o
+argumento for nulo. A operacao preenche resultado, autoria e timestamp de conclusao
+sem alterar etapa, relacionamentos ou partes.
+
+### Perda e cancelamento
+
+Perda e cancelamento usam catalogos distintos e exigem motivo aparado entre 3 e
+1.000 caracteres, persistido em `motivo_encerramento`. Observacao opcional de ate
+500 caracteres vai somente para a Timeline. O motivo integral de perda ou
+cancelamento nao e duplicado automaticamente no evento. Valores, partes, Lead,
+Atendimento, Imovel e responsavel permanecem inalterados.
+
+### Reabertura e copia seletiva
+
+Reabrir cria um novo UUID e nunca modifica o Negocio anterior. O anterior deve estar
+encerrado, nao arquivado, corresponder a fotografia e ainda nao possuir sucessor. O
+indice parcial unico `idx_negocios_negocio_anterior_unico` impede definitivamente
+dois sucessores diretos, mas permite cadeias como B -> A e C -> B.
+
+`reabrir_negocio` e o caminho exclusivo para criar um registro com
+`negocio_anterior_id`. Depois da migration 034, `criar_negocio` cria somente ciclos
+originais: o campo omitido ou enviado como JSON `null` resulta sempre em
+`negocio_anterior_id = null`; qualquer outro valor e bloqueado. Assim, nenhuma
+criacao generica contorna motivo, fotografia, copia seletiva ou evento de reabertura.
+
+O novo ciclo copia Lead, tipo, Imovel, responsavel, titulo (salvo substituicao),
+descricao, observacoes internas, moeda, valor anunciado, comissao percentual e
+prevista, condicoes comerciais e observacao financeira. Nao copia Atendimento,
+valores de proposta/negociacao/fechamento, comissao efetiva, sinal, financiamento,
+datas comerciais, previsao anterior, vigencia, resultado, motivo, encerramento ou
+autoria anterior. Inicio e fim de vigencia devem ser informados novamente.
+
+Somente partes ativas sao copiadas, com novos UUIDs e timestamps, preservando Pessoa,
+papel, principal, participacao e observacoes. Nenhuma parte do anterior e alterada.
+O motivo da reabertura fica somente na Timeline e respeita o limite de 500 caracteres.
+Antes da copia, todas as Pessoas dessas partes precisam existir e permanecer ativas.
+Uma unica Pessoa ausente ou inativa bloqueia atomicamente a reabertura; nenhuma parte
+e descartada, corrigida ou copiada parcialmente.
+
+### Arquivamento, concorrencia e Timeline
+
+Arquivamento exige estado final e motivo entre 3 e 500 caracteres, executa apenas
+`ativo = false` e nao desativa partes. Todas as cinco RPCs usam `FOR UPDATE`,
+comparam `updated_at`, nao fazem retry e falham sem sobrescrita silenciosa. A
+reabertura tambem bloqueia o Lead e converte violacao do indice em mensagem
+sanitizada.
+
+Cada operacao registra exatamente um evento obrigatorio: `negocio_concluido`,
+`negocio_perdido`, `negocio_cancelado`, `negocio_reaberto` ou
+`negocio_arquivado`. Falha da Timeline reverte a mutacao correspondente. Motivos e
+observacoes destinados ao evento nao sao registrados em logs.
+
+As RPCs nao alteram Lead ou Atendimento, nao movimentam outros Kanbans, nao criam
+Atividade e nao implementam ownership. A Sprint 3B4 futura deve criar a interface
+operacional consumindo os contratos fail-closed de `rpc-contracts.ts`.
