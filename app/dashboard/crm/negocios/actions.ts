@@ -56,6 +56,16 @@ function errorState(mensagem: string): NegocioActionState {
   return { status: "erro", mensagem };
 }
 
+function isPayloadActionState(value: NegocioPayload | NegocioActionState): value is NegocioActionState {
+  return "status" in value;
+}
+
+function isPartesActionState(
+  value: readonly NegocioPartePayload[] | NegocioActionState,
+): value is NegocioActionState {
+  return !Array.isArray(value);
+}
+
 function logError(operacao: Operation, etapa: string, codigo: unknown) {
   console.error({ modulo: "crm_negocios", operacao, etapa, codigo: typeof codigo === "string" ? codigo : "unexpected_error" });
 }
@@ -157,6 +167,8 @@ function parsePartes(formData: FormData): readonly NegocioPartePayload[] | Negoc
 
 async function validateRelationships(payload: NegocioPayload, partes: readonly NegocioPartePayload[], operation: Operation) {
   const supabase = await createClient();
+  const { data: lead, error: leadError } = await supabase.from("leads").select("id").eq("id", payload.lead_id!).maybeSingle();
+  if (leadError || !lead) { logError(operation, "lead_validation", leadError?.code ?? "not_found"); return errorState("O Lead selecionado nao foi encontrado."); }
   if (payload.atendimento_id) {
     const { data, error } = await supabase.from("atendimentos").select("id, lead_id").eq("id", payload.atendimento_id).eq("lead_id", payload.lead_id!).maybeSingle();
     if (error || !data) { logError(operation, "attendance_validation", error?.code ?? "not_found"); return errorState("O Atendimento nao pertence ao Lead selecionado."); }
@@ -164,6 +176,10 @@ async function validateRelationships(payload: NegocioPayload, partes: readonly N
   if (payload.imovel_id) {
     const { data, error } = await supabase.from("imoveis").select("id, ativo").eq("id", payload.imovel_id).eq("ativo", true).maybeSingle();
     if (error || !data) { logError(operation, "property_validation", error?.code ?? "not_found"); return errorState("O Imovel selecionado nao esta ativo."); }
+  }
+  if (payload.responsavel_id) {
+    const { data, error } = await supabase.from("pessoas").select("id, ativo, papeis").eq("id", payload.responsavel_id).eq("ativo", true).contains("papeis", ["corretor"]).maybeSingle();
+    if (error || !data) { logError(operation, "responsible_validation", error?.code ?? "invalid_person"); return errorState("O responsavel selecionado nao e uma Pessoa-corretora ativa."); }
   }
   const ids = [...new Set(partes.map((parte) => parte.pessoa_id))];
   if (ids.length) {
@@ -188,8 +204,8 @@ function revalidateNegocioPaths(leadId?: string) {
 
 export async function createNegocio(_: NegocioActionState, formData: FormData): Promise<NegocioActionState> {
   if (!(await authorize("negocios.criar", "create"))) return errorState("Operacao nao autorizada.");
-  const payload = parsePayload(formData); if ("status" in payload) return payload;
-  const partes = parsePartes(formData); if (!Array.isArray(partes)) return partes;
+  const payload = parsePayload(formData); if (isPayloadActionState(payload)) return payload;
+  const partes = parsePartes(formData); if (isPartesActionState(partes)) return partes;
   const relationshipError = await validateRelationships(payload, partes, "create"); if (relationshipError) return relationshipError;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("criar_negocio", { p_payload: payload, p_partes: partes });
@@ -204,9 +220,9 @@ export async function updateNegocio(_: NegocioActionState, formData: FormData): 
   if (!(await authorize("negocios.editar", "update"))) return errorState("Operacao nao autorizada.");
   const negocioId = field(formData, "negocio_id"); const updatedAt = field(formData, "updated_at_esperado"); const originalLeadId = field(formData, "lead_id_original");
   if (!isRpcUuid(negocioId) || !isRpcTimestamp(updatedAt) || !isRpcUuid(originalLeadId)) return errorState("A fotografia do Negocio e invalida. Recarregue a pagina.");
-  const payload = parsePayload(formData); if ("status" in payload) return payload;
+  const payload = parsePayload(formData); if (isPayloadActionState(payload)) return payload;
   if (payload.lead_id !== originalLeadId) return errorState("O Lead do Negocio nao pode ser alterado.");
-  const partes = parsePartes(formData); if (!Array.isArray(partes)) return partes;
+  const partes = parsePartes(formData); if (isPartesActionState(partes)) return partes;
   const relationshipError = await validateRelationships(payload, partes, "update"); if (relationshipError) return relationshipError;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("atualizar_negocio", { p_negocio_id: negocioId, p_updated_at_esperado: updatedAt, p_payload: payload, p_partes: partes });

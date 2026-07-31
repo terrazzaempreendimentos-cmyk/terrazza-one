@@ -360,6 +360,49 @@ de corretor. O plano manual cobre autorizacao, allowlists, relacionamentos, part
 concorrencia, transicoes, falha de Timeline e rollback. A Sprint 3B3B deve conectar
 somente essas operacoes ativas na aplicacao.
 
+## Sprint 3B4A: interface operacional ativa
+
+A rota `/dashboard/crm/negocios` deixou de usar mocks e consulta por SSR as tabelas
+canonicas `negocios` e `negocios_partes`, com projecoes explicitas e aliases definidos
+pelas FKs. A tela organiza todos os estados ativos nas seis etapas canonicas, exibe
+indicadores derivados dos valores persistidos, filtros reais e uma secao compacta de
+encerrados recentes somente para leitura.
+
+Criacao, edicao e movimentacao usam exclusivamente `criar_negocio`,
+`atualizar_negocio` e `movimentar_negocio`. Cada Server Action autoriza antes de ler
+`FormData`, valida uma allowlist, cria cliente SSR na execucao, chama exatamente uma
+RPC e valida o retorno fail-closed. Nao existe escrita direta em Negocio, partes,
+Timeline ou Lead.
+
+O formulario aceita zero ou mais partes formadas apenas por Pessoas ativas. Pessoa,
+papel, principal, participacao e observacao sao validados no navegador, novamente na
+Action e finalmente na RPC. Atendimento opcional e revalidado contra o Lead, Imovel
+obrigatorio por tipo precisa estar ativo e o responsavel usa somente Pessoa com papel
+corretor. Nenhuma tabela pessoal legada participa do fluxo.
+
+Na edicao, o registro e consultado especificamente pelo UUID, `ativo = true` e status
+operacional ativo. O formulario recebe chave pelo UUID, Lead somente leitura e a
+fotografia de `updated_at`. A movimentacao oferece apenas vizinhos definidos no
+catalogo central e persiste observacao opcional pela RPC. Concorrencia nao gera retry
+nem sobrescrita silenciosa.
+
+Os formularios usam `useActionState`, preservam valores e partes em erro, exibem
+mensagem com `role="alert"`, desabilitam o `fieldset` durante o envio e revalidam
+somente os caminhos de Negocios, dashboard e detalhe do Lead apos sucesso. Nao ha
+sincronizacao automatica com Lead, Atendimento, Kanban, Agenda ou Atividades.
+
+Limitacao de seguranca existente: as RPCs autorizam administrador e gestor, mas as
+policies diretas criadas na migration 032 continuam exclusivas do administrador.
+Sem ampliar RLS nesta sprint, o gestor pode receber erro nas leituras SSR diretas.
+Essa diferenca precisa ser resolvida por migration futura revisada, nunca por bypass
+no frontend ou cliente administrativo.
+
+Roteiro manual: validar pagina vazia; criar com e sem partes; validar Atendimento do
+mesmo Lead; bloquear Imovel ausente; editar preservando o Lead; trocar principal;
+mover para etapa adjacente nos dois sentidos; tentar salto; simular fotografia
+desatualizada; verificar Timeline e testar filtros. Encerramento, perda, cancelamento,
+reabertura e arquivamento permanecem desconectados ate a Sprint 3B4B.
+
 ## Sprint 3B3B: encerramento, reabertura e arquivamento
 
 A migration `034_negocios_rpc_finais.sql` acrescenta `concluir_negocio`,

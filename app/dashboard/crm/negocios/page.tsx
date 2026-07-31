@@ -1,299 +1,117 @@
 import Link from "next/link";
-import {
-  BriefcaseBusiness,
-  CalendarClock,
-  Flame,
-  LineChart,
-  Search,
-  ShieldCheck,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { BriefcaseBusiness, CalendarClock, FileSignature, Handshake, Landmark, LineChart } from "lucide-react";
 
+import { hasPermission } from "../../../../lib/auth/permissions";
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
+import {
+  NEGOCIO_STAGES,
+  NEGOCIO_TYPES,
+  getNegocioStageLabel,
+  getNegocioStatusLabel,
+  getNegocioTypeLabel,
+  isNegocioStage,
+  isNegocioStatus,
+  isNegocioType,
+  isNegocioPartRole,
+  type NegocioStage,
+  type NegocioStatus,
+  type NegocioType,
+} from "../../../../lib/crm/negocios/catalogs";
+import { createClient } from "../../../../lib/supabase/server";
+import { MoveNegocioForm, NegocioForm, type AtendimentoOption, type NegocioFormValues, type Option, type ParteDraft } from "./operation-forms";
 
+type Relation = { id: string; nome?: string | null; assunto?: string | null; codigo?: string | null; titulo?: string | null; complemento?: string | null };
 type Negocio = {
-  id: string;
-  titulo: string;
-  pessoa: string;
-  imovel: string;
-  tipo: "venda" | "locacao" | "administracao" | "captacao";
-  etapa: string;
-  valorEstimado: string;
-  probabilidade: number;
-  responsavel: string;
-  origem: string;
-  temperatura: "frio" | "morno" | "quente";
-  proximaAcao: string;
-  dataPrevista: string;
-  status: string;
+  id:string; negocio_anterior_id:string|null; lead_id:string; atendimento_id:string|null; imovel_id:string|null; responsavel_id:string|null;
+  tipo:NegocioType; etapa:NegocioStage; status_operacional:NegocioStatus; ativo:boolean; titulo:string; descricao:string|null;
+  observacoes_internas:string|null; moeda:string; valor_anunciado:number|null; valor_proposto:number|null; valor_negociado:number|null;
+  valor_fechado:number|null; comissao_percentual:number|null; comissao_prevista:number|null; comissao_efetiva:number|null;
+  sinal:number|null; valor_financiado:number|null; condicoes_comerciais:string|null; observacao_financeira:string|null;
+  proposta_em:string|null; previsao_fechamento:string|null; contrato_enviado_em:string|null; contrato_assinado_em:string|null;
+  inicio_vigencia:string|null; fim_vigencia:string|null; created_at:string; updated_at:string;
+  lead:unknown; atendimento:unknown; imovel:unknown; responsavel:unknown;
 };
+type Parte = ParteDraft & { id:string; negocio_id:string; ativo:boolean; pessoa:unknown };
+type Raw = Record<string,unknown>;
 
-const pipelines = {
-  venda: ["Novo lead", "Qualificacao", "Visita", "Proposta", "Negociacao", "Documentacao", "Contrato", "Fechado", "Perdido"],
-  locacao: ["Novo lead", "Qualificacao", "Visita", "Ficha cadastral", "Analise", "Contrato", "Entrega de chaves", "Fechado", "Perdido"],
-  administracao: ["Novo proprietario", "Qualificacao", "Avaliacao do imovel", "Documentacao", "Fotos", "Publicacao", "Propostas", "Contrato de administracao", "Administracao ativa"],
-  captacao: ["Novo contato", "Qualificacao", "Avaliacao", "Proposta comercial", "Autorizacao", "Publicacao", "Ativo"],
-};
+const NEGOCIO_SELECT = "id, negocio_anterior_id, lead_id, atendimento_id, imovel_id, responsavel_id, tipo, etapa, status_operacional, ativo, titulo, descricao, observacoes_internas, moeda, valor_anunciado, valor_proposto, valor_negociado, valor_fechado, comissao_percentual, comissao_prevista, comissao_efetiva, sinal, valor_financiado, condicoes_comerciais, observacao_financeira, proposta_em, previsao_fechamento, contrato_enviado_em, contrato_assinado_em, inicio_vigencia, fim_vigencia, created_at, updated_at, lead:leads!negocios_lead_id_fkey(id, nome), atendimento:atendimentos!negocios_atendimento_id_fkey(id, assunto), imovel:imoveis!negocios_imovel_id_fkey(id, codigo, titulo, complemento), responsavel:pessoas!negocios_responsavel_id_fkey(id, nome)";
+const PARTES_SELECT = "id, negocio_id, pessoa_id, papel, principal, participacao_percentual, observacoes, ativo, pessoa:pessoas!negocios_partes_pessoa_id_fkey(id, nome)";
 
-const negocios: Negocio[] = [
-  {
-    id: "neg-001",
-    titulo: "Locacao Ponta Verde ate R$ 3.500",
-    pessoa: "Mariana Alves",
-    imovel: "Apartamento Ponta Verde",
-    tipo: "locacao",
-    etapa: "Visita",
-    valorEstimado: "R$ 3.500",
-    probabilidade: 72,
-    responsavel: "Equipe Locacao",
-    origem: "Instagram",
-    temperatura: "quente",
-    proximaAcao: "Confirmar disponibilidade para visita",
-    dataPrevista: "Hoje",
-    status: "em_negociacao",
-  },
-  {
-    id: "neg-002",
-    titulo: "Venda casa no Poco",
-    pessoa: "Roberto Lima",
-    imovel: "Casa no Poco",
-    tipo: "venda",
-    etapa: "Avaliacao",
-    valorEstimado: "R$ 780.000",
-    probabilidade: 58,
-    responsavel: "Vendas",
-    origem: "Site",
-    temperatura: "morno",
-    proximaAcao: "Agendar avaliacao comercial",
-    dataPrevista: "Esta semana",
-    status: "qualificando",
-  },
-  {
-    id: "neg-003",
-    titulo: "Administracao de apto no Farol",
-    pessoa: "Ana Paula",
-    imovel: "Apartamento Farol",
-    tipo: "administracao",
-    etapa: "Documentacao",
-    valorEstimado: "R$ 2.800 locacao",
-    probabilidade: 81,
-    responsavel: "Patrimonial",
-    origem: "Manual",
-    temperatura: "quente",
-    proximaAcao: "Validar matricula e autorizacao",
-    dataPrevista: "Amanha",
-    status: "em_andamento",
-  },
-  {
-    id: "neg-004",
-    titulo: "Captacao Jatiuca",
-    pessoa: "Carlos Henrique",
-    imovel: "Imovel a captar",
-    tipo: "captacao",
-    etapa: "Proposta comercial",
-    valorEstimado: "A definir",
-    probabilidade: 45,
-    responsavel: "Captacao",
-    origem: "Indicacao",
-    temperatura: "morno",
-    proximaAcao: "Enviar proposta de administracao",
-    dataPrevista: "3 dias",
-    status: "proposta",
-  },
-];
+export default async function NegociosPage({ searchParams }: { searchParams: Promise<Record<string,string|string[]|undefined>> }) {
+  const profile=await requirePagePermission("negocios.visualizar");
+  const params=await searchParams;
+  const canMutate=(profile.papel==="administrador"||profile.papel==="gestor");
+  const canCreate=canMutate&&hasPermission(profile.papel,"negocios.criar");
+  const canEdit=canMutate&&hasPermission(profile.papel,"negocios.editar");
+  const editId=single(params.editar); const validEditId=isUuid(editId)?editId:null;
+  const supabase=await createClient();
+  const negociosPromise=supabase.from("negocios").select(NEGOCIO_SELECT).order("updated_at",{ascending:false});
+  const partesPromise=supabase.from("negocios_partes").select(PARTES_SELECT).eq("ativo",true);
+  const optionPromises=canCreate||canEdit?[
+    supabase.from("leads").select("id, nome").order("nome"),
+    supabase.from("atendimentos").select("id, lead_id, assunto").order("created_at",{ascending:false}),
+    supabase.from("imoveis").select("id, codigo, titulo, complemento, ativo").eq("ativo",true).order("codigo"),
+    supabase.from("pessoas").select("id, nome, papeis, ativo").eq("ativo",true).order("nome"),
+  ] as const:[];
+  const editPromise=validEditId&&canEdit?supabase.from("negocios").select(NEGOCIO_SELECT).eq("id",validEditId).eq("ativo",true).eq("status_operacional","ativo").maybeSingle():Promise.resolve({data:null,error:null});
+  const [negociosResult,partesResult,options,editResult]=await Promise.all([negociosPromise,partesPromise,Promise.all(optionPromises),editPromise]);
+  if(negociosResult.error)logQueryError("list",negociosResult.error.code);
+  if(partesResult.error)logQueryError("parts",partesResult.error.code);
+  if(editResult.error)logQueryError("edit",editResult.error.code);
+  options.forEach((result,index)=>{if(result.error)logQueryError(`options_${index}`,result.error.code);});
 
-function temperaturaClassName(temperatura: Negocio["temperatura"]) {
-  const classes = {
-    frio: "bg-slate-100 text-slate-700",
-    morno: "bg-amber-50 text-amber-700",
-    quente: "bg-red-50 text-red-700",
-  };
+  const rawNegocios=(negociosResult.data??[]) as unknown[];
+  const negocios=rawNegocios.map(normalizeNegocio).filter((value):value is Negocio=>Boolean(value));
+  if(negocios.length!==rawNegocios.length)logQueryError("normalize_list","invalid_row");
+  const partes=((partesResult.data??[]) as unknown[]).map(normalizeParte).filter((value):value is Parte=>Boolean(value));
+  const partesByNegocio=new Map<string,Parte[]>(); for(const parte of partes)partesByNegocio.set(parte.negocio_id,[...(partesByNegocio.get(parte.negocio_id)??[]),parte]);
+  const leads=toOptions(options[0]?.data,"nome");
+  const atendimentos=toAtendimentoOptions(options[1]?.data);
+  const imoveis=toPropertyOptions(options[2]?.data);
+  const pessoas=toOptions(options[3]?.data,"nome");
+  const responsaveis=toResponsibleOptions(options[3]?.data);
+  const editing=normalizeNegocio(editResult.data);
 
-  return `rounded-full px-3 py-1 text-xs font-semibold ${classes[temperatura]}`;
+  const filtered=filterNegocios(negocios,params);
+  const active=filtered.filter((item)=>item.ativo&&item.status_operacional==="ativo");
+  const closed=filtered.filter((item)=>item.ativo&&item.status_operacional!=="ativo").slice(0,12);
+  const forecastValues=active.map(commercialValue).filter((value):value is number=>value!==null);
+  const indicators=[
+    ["Negocios ativos",active.length,BriefcaseBusiness],
+    ["Estruturacao",active.filter((item)=>item.etapa==="estruturacao").length,Landmark],
+    ["Proposta",active.filter((item)=>item.etapa==="proposta").length,FileSignature],
+    ["Negociacao",active.filter((item)=>item.etapa==="negociacao").length,Handshake],
+    ["Documentos e contrato",active.filter((item)=>["documentacao","contrato","assinatura"].includes(item.etapa)).length,CalendarClock],
+    ["Previsao comercial",forecastValues.length?formatMoney(forecastValues.reduce((total,value)=>total+value,0),"BRL"):"Nao informada",LineChart],
+  ] as const;
+
+  return <main className="min-h-screen bg-[#F7F3ED] px-4 py-8 sm:px-8"><div className="mx-auto max-w-[1600px]">
+    <header className="rounded-[2rem] border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8"><Link href="/dashboard/crm" className="text-sm font-semibold text-[#8B6827]">Voltar ao CRM</Link><h1 className="mt-5 text-4xl font-bold text-[#071E36]">Negocios</h1><p className="mt-2 text-[#64736D]">Operacoes comerciais reais organizadas pelas etapas canonicas.</p></header>
+    {negociosResult.error?<p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">Nao foi possivel carregar os Negocios.</p>:null}
+    {partesResult.error?<p role="alert" className="mt-4 rounded-xl bg-red-50 p-3 text-sm text-red-700">Os Negocios foram carregados, mas nao foi possivel carregar suas partes.</p>:null}
+    <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-6">{indicators.map(([label,value,Icon])=><article key={label} className="rounded-3xl border border-[#E8DDCB] bg-white p-5 shadow-sm"><Icon size={20} className="text-[#C89B3C]"/><strong className="mt-3 block text-2xl text-[#071E36]">{value}</strong><h2 className="mt-1 text-xs font-semibold uppercase tracking-[.1em] text-[#64736D]">{label}</h2></article>)}</section>
+    <FilterForm params={params} responsaveis={responsaveis} imoveis={imoveis}/>
+    {canCreate?<details className="mt-6 rounded-[2rem] border border-[#E8DDCB] bg-white p-5 shadow-sm"><summary className="cursor-pointer text-xl font-semibold text-[#071E36]">Criar Negocio</summary><NegocioForm mode="create" leads={leads} atendimentos={atendimentos} imoveis={imoveis} pessoas={pessoas} responsaveis={responsaveis}/></details>:null}
+    {validEditId&&canEdit?<section className="mt-6 rounded-[2rem] border border-[#C89B3C]/40 bg-white p-5 shadow-sm"><div className="flex justify-between"><h2 className="text-xl font-semibold text-[#071E36]">Editar Negocio</h2><Link href="/dashboard/crm/negocios" className="text-sm text-[#8B6827]">Fechar</Link></div>{editing?<NegocioForm key={editing.id} mode="edit" values={formValues(editing)} initialPartes={(partesByNegocio.get(editing.id)??[]).map(toDraft)} leads={leads} atendimentos={atendimentos} imoveis={imoveis} pessoas={pessoas} responsaveis={responsaveis}/>:<p role="alert" className="mt-4 text-sm text-red-700">Negocio ativo nao encontrado para edicao.</p>}</section>:null}
+    <div className="mt-8 grid gap-6 xl:grid-cols-2 2xl:grid-cols-3">{NEGOCIO_STAGES.map((stage)=>{const items=active.filter((item)=>item.etapa===stage.id);return <section key={stage.id} className="rounded-[2rem] border border-[#E8DDCB] bg-white p-5 shadow-sm"><div className="flex justify-between"><div><h2 className="text-xl font-semibold text-[#071E36]">{stage.label}</h2><p className="mt-1 text-xs text-[#64736D]">{stage.description}</p></div><span className="h-fit rounded-full bg-[#C89B3C]/10 px-3 py-1 text-sm font-semibold text-[#8B6827]">{items.length}</span></div><div className="mt-4 grid gap-4">{items.length?items.map((item)=><NegocioCard key={item.id} item={item} partes={partesByNegocio.get(item.id)??[]} canEdit={canEdit}/>):<p className="rounded-2xl bg-[#F7F3ED] p-6 text-center text-sm text-[#64736D]">Nenhum Negocio nesta etapa.</p>}</div></section>})}</div>
+    <section className="mt-8 rounded-[2rem] border border-[#E8DDCB] bg-white p-5 shadow-sm"><h2 className="text-xl font-semibold text-[#071E36]">Encerrados recentes</h2><div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{closed.length?closed.map((item)=><NegocioCard key={item.id} item={item} partes={partesByNegocio.get(item.id)??[]} canEdit={false}/>):<p className="text-sm text-[#64736D]">Nenhum Negocio encerrado.</p>}</div></section>
+  </div></main>;
 }
 
-export default async function NegociosPage() {
-  await requirePagePermission("negocios.visualizar");
+function FilterForm({params,responsaveis,imoveis}:{params:Record<string,string|string[]|undefined>;responsaveis:readonly Option[];imoveis:readonly Option[]}){return <form className="mt-6 grid gap-3 rounded-[2rem] border border-[#E8DDCB] bg-white p-5 shadow-sm md:grid-cols-3 xl:grid-cols-7"><input name="busca" defaultValue={single(params.busca)} placeholder="Titulo, Lead, Imovel..." className={input()}/><select name="tipo" defaultValue={single(params.tipo)} className={input()}><option value="">Todos os tipos</option>{NEGOCIO_TYPES.map((item)=><option key={item.id} value={item.id}>{item.label}</option>)}</select><select name="etapa" defaultValue={single(params.etapa)} className={input()}><option value="">Todas as etapas</option>{NEGOCIO_STAGES.map((item)=><option key={item.id} value={item.id}>{item.label}</option>)}</select><select name="responsavel" defaultValue={single(params.responsavel)} className={input()}><option value="">Todos os responsaveis</option>{responsaveis.map((item)=><option key={item.id} value={item.id}>{item.label}</option>)}</select><select name="imovel" defaultValue={single(params.imovel)} className={input()}><option value="">Todos os Imoveis</option>{imoveis.map((item)=><option key={item.id} value={item.id}>{item.label}</option>)}</select><input type="date" name="previsao" defaultValue={single(params.previsao)} className={input()}/><button className="rounded-xl bg-[#071E36] px-4 py-2 text-sm font-semibold text-white">Filtrar</button></form>}
+function NegocioCard({item,partes,canEdit}:{item:Negocio;partes:readonly Parte[];canEdit:boolean}){const lead=relation(item.lead),imovel=relation(item.imovel),responsavel=relation(item.responsavel);const value=commercialValue(item);return <article className="rounded-3xl border border-[#E8DDCB] bg-[#fffdfa] p-5"><div className="flex justify-between gap-3"><div><p className="text-xs font-semibold uppercase text-[#8B6827]">{getNegocioTypeLabel(item.tipo)}</p><h3 className="mt-1 text-lg font-semibold text-[#071E36]">{item.titulo}</h3>{item.negocio_anterior_id?<p className="mt-1 text-xs text-[#8B6827]">Negocio reaberto</p>:null}</div><span className="h-fit rounded-full bg-[#071E36] px-3 py-1 text-xs font-semibold text-[#E1B866]">{getNegocioStageLabel(item.etapa)}</span></div><dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2"><Info label="Lead" value={lead?.nome||"Nao disponivel"}/><Info label="Imovel" value={propertyLabel(imovel)}/><Info label="Responsavel" value={responsavel?.nome||"Nao atribuido"}/><Info label="Valor" value={value===null?"Nao informado":formatMoney(value,item.moeda)}/><Info label="Previsao" value={formatDate(item.previsao_fechamento)}/><Info label="Partes ativas" value={String(partes.length)}/><Info label="Atualizado" value={formatDateTime(item.updated_at)}/><Info label="Status" value={getNegocioStatusLabel(item.status_operacional)||item.status_operacional}/></dl><div className="mt-4 flex gap-2">{canEdit&&item.ativo&&item.status_operacional==="ativo"?<Link href={`/dashboard/crm/negocios?editar=${item.id}`} className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36]">Editar</Link>:null}<Link href={`/dashboard/crm/leads/${item.lead_id}`} className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36]">Ver Lead</Link></div>{canEdit&&item.ativo&&item.status_operacional==="ativo"?<MoveNegocioForm negocioId={item.id} leadId={item.lead_id} currentStage={item.etapa} updatedAt={item.updated_at}/>:null}</article>}
 
-  const cards: Array<{ titulo: string; valor: number; icon: LucideIcon }> = [
-    { titulo: "Negocios ativos", valor: negocios.length, icon: BriefcaseBusiness },
-    {
-      titulo: "Em negociacao",
-      valor: negocios.filter((item) => item.status.includes("negociacao")).length,
-      icon: LineChart,
-    },
-    {
-      titulo: "Quentes",
-      valor: negocios.filter((item) => item.temperatura === "quente").length,
-      icon: Flame,
-    },
-    { titulo: "Proximas acoes", valor: negocios.length, icon: CalendarClock },
-  ];
-
-  return (
-    <main className="min-h-screen bg-[#F7F3ED] px-6 py-10 sm:px-8">
-      <div className="mx-auto max-w-7xl">
-        <Link
-          href="/dashboard/crm"
-          className="inline-flex rounded-xl border border-[#E8DDCB] bg-white px-4 py-2 text-sm font-medium text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10"
-        >
-          Voltar ao CRM
-        </Link>
-
-        <header className="mt-8 rounded-[2rem] border border-[#E8DDCB] bg-white p-6 shadow-sm sm:p-8">
-          <span className="rounded-full border border-[#C89B3C]/35 bg-[#C89B3C]/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-[#8B6827]">
-            CRM Comercial
-          </span>
-          <div className="mt-5 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <h1 className="text-4xl font-bold tracking-tight text-[#071E36]">
-                Negocios
-              </h1>
-              <p className="mt-2 max-w-3xl leading-6 text-[#64736D]">
-                Oportunidades comerciais em andamento, organizadas por tipo,
-                etapa, responsavel e proxima acao.
-              </p>
-            </div>
-            <button
-              type="button"
-              disabled
-              className="inline-flex w-fit rounded-xl border border-[#E8DDCB] bg-[#F7F3ED] px-5 py-3 text-sm font-semibold text-[#8B6827]"
-            >
-              Novo negocio em breve
-            </button>
-          </div>
-        </header>
-
-        <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          {cards.map((card) => {
-            const Icon = card.icon;
-
-            return (
-            <article key={card.titulo} className="rounded-3xl border border-[#E8DDCB] bg-white p-5 shadow-sm">
-              <div className="flex items-center justify-between gap-4">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#071E36] text-[#E1B866]">
-                  <Icon size={20} strokeWidth={2.2} />
-                </span>
-                <strong className="text-3xl font-bold text-[#071E36]">{card.valor}</strong>
-              </div>
-              <h2 className="mt-4 text-sm font-semibold uppercase tracking-[0.14em] text-[#071E36]">
-                {card.titulo}
-              </h2>
-            </article>
-            );
-          })}
-        </section>
-
-        <section className="mt-6 rounded-[2rem] border border-[#E8DDCB] bg-white p-5 shadow-sm">
-          <form className="grid gap-3 lg:grid-cols-[1.4fr_repeat(4,1fr)_auto]">
-            <label className="relative">
-              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[#9a9d98]" />
-              <input
-                placeholder="Buscar por pessoa, imovel, responsavel..."
-                className="h-full w-full rounded-xl border border-[#E8DDCB] bg-white py-3 pl-9 pr-3 text-sm text-[#071E36] outline-none focus:border-[#C89B3C]"
-              />
-            </label>
-            {["Tipo", "Etapa", "Responsavel", "Status"].map((label) => (
-              <select key={label} className="rounded-xl border border-[#E8DDCB] bg-white px-3 py-3 text-sm text-[#071E36]">
-                <option>{label}</option>
-              </select>
-            ))}
-            <button type="button" className="rounded-xl bg-[#071E36] px-5 py-3 text-sm font-semibold text-white">
-              Filtrar
-            </button>
-          </form>
-        </section>
-
-        <section className="mt-6 grid gap-5 xl:grid-cols-2">
-          {negocios.map((negocio) => (
-            <article key={negocio.id} className="rounded-3xl border border-[#E8DDCB] bg-white p-5 shadow-sm">
-              <div className="flex flex-wrap items-start justify-between gap-4">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[#8B6827]">
-                    {negocio.tipo}
-                  </p>
-                  <h2 className="mt-2 text-xl font-bold text-[#071E36]">{negocio.titulo}</h2>
-                  <p className="mt-1 text-sm text-[#64736D]">
-                    {negocio.pessoa} · {negocio.imovel}
-                  </p>
-                </div>
-                <span className={temperaturaClassName(negocio.temperatura)}>
-                  {negocio.temperatura}
-                </span>
-              </div>
-
-              <div className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
-                {[
-                  ["Etapa", negocio.etapa],
-                  ["Valor estimado", negocio.valorEstimado],
-                  ["Responsavel", negocio.responsavel],
-                  ["Origem", negocio.origem],
-                  ["Data prevista", negocio.dataPrevista],
-                  ["Status", negocio.status.replaceAll("_", " ")],
-                ].map(([label, value]) => (
-                  <span key={label} className="rounded-2xl bg-[#F7F3ED] px-3 py-2 text-[#64736D]">
-                    <strong className="text-[#071E36]">{label}:</strong> {value}
-                  </span>
-                ))}
-              </div>
-
-              <div className="mt-5">
-                <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6827]">
-                  <span>Probabilidade</span>
-                  <span>{negocio.probabilidade}%</span>
-                </div>
-                <div className="mt-2 h-2 rounded-full bg-[#F7F3ED]">
-                  <div className="h-2 rounded-full bg-[#C89B3C]" style={{ width: `${negocio.probabilidade}%` }} />
-                </div>
-              </div>
-
-              <div className="mt-5 rounded-2xl border border-[#E8DDCB] bg-[#fffdfa] p-4">
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[#8B6827]">
-                  Proxima acao
-                </p>
-                <p className="mt-2 text-sm font-semibold text-[#071E36]">{negocio.proximaAcao}</p>
-              </div>
-
-              <div className="mt-5 flex flex-wrap gap-2">
-                {["Visualizar", "Editar", "Mover etapa", "Excluir logico"].map((acao) => (
-                  <button
-                    key={acao}
-                    type="button"
-                    disabled
-                    className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] opacity-80"
-                  >
-                    {acao}
-                  </button>
-                ))}
-              </div>
-            </article>
-          ))}
-        </section>
-
-        <section className="mt-6 rounded-[2rem] border border-[#E8DDCB] bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <ShieldCheck className="text-[#C89B3C]" size={20} />
-            <h2 className="text-xl font-semibold text-[#071E36]">Pipelines por tipo</h2>
-          </div>
-          <div className="mt-5 grid gap-4 xl:grid-cols-4">
-            {Object.entries(pipelines).map(([tipo, etapas]) => (
-              <div key={tipo} className="rounded-2xl border border-[#E8DDCB] bg-[#F7F3ED] p-4">
-                <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#071E36]">{tipo}</p>
-                <div className="mt-4 grid gap-2">
-                  {etapas.map((etapa, index) => (
-                    <span key={etapa} className="flex items-center gap-2 text-xs text-[#64736D]">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[10px] font-bold text-[#8B6827]">
-                        {index + 1}
-                      </span>
-                      {etapa}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-    </main>
-  );
-}
+function normalizeNegocio(value:unknown):Negocio|null{if(!value||typeof value!=="object")return null;const r=value as Raw;if(typeof r.id!=="string"||typeof r.lead_id!=="string"||typeof r.titulo!=="string"||typeof r.created_at!=="string"||typeof r.updated_at!=="string"||!isNegocioType(r.tipo)||!isNegocioStage(r.etapa)||!isNegocioStatus(r.status_operacional)||typeof r.ativo!=="boolean")return null;return {id:r.id,negocio_anterior_id:str(r.negocio_anterior_id),lead_id:r.lead_id,atendimento_id:str(r.atendimento_id),imovel_id:str(r.imovel_id),responsavel_id:str(r.responsavel_id),tipo:r.tipo,etapa:r.etapa,status_operacional:r.status_operacional,ativo:r.ativo,titulo:r.titulo,descricao:str(r.descricao),observacoes_internas:str(r.observacoes_internas),moeda:str(r.moeda)||"BRL",valor_anunciado:num(r.valor_anunciado),valor_proposto:num(r.valor_proposto),valor_negociado:num(r.valor_negociado),valor_fechado:num(r.valor_fechado),comissao_percentual:num(r.comissao_percentual),comissao_prevista:num(r.comissao_prevista),comissao_efetiva:num(r.comissao_efetiva),sinal:num(r.sinal),valor_financiado:num(r.valor_financiado),condicoes_comerciais:str(r.condicoes_comerciais),observacao_financeira:str(r.observacao_financeira),proposta_em:str(r.proposta_em),previsao_fechamento:str(r.previsao_fechamento),contrato_enviado_em:str(r.contrato_enviado_em),contrato_assinado_em:str(r.contrato_assinado_em),inicio_vigencia:str(r.inicio_vigencia),fim_vigencia:str(r.fim_vigencia),created_at:r.created_at,updated_at:r.updated_at,lead:r.lead,atendimento:r.atendimento,imovel:r.imovel,responsavel:r.responsavel};}
+function normalizeParte(value:unknown):Parte|null{if(!value||typeof value!=="object")return null;const r=value as Raw;if(typeof r.id!=="string"||typeof r.negocio_id!=="string"||typeof r.pessoa_id!=="string"||!isNegocioPartRole(r.papel)||typeof r.principal!=="boolean"||typeof r.ativo!=="boolean")return null;return{id:r.id,negocio_id:r.negocio_id,pessoa_id:r.pessoa_id,papel:r.papel,principal:r.principal,participacao_percentual:num(r.participacao_percentual),observacoes:str(r.observacoes),ativo:r.ativo,pessoa:r.pessoa};}
+function filterNegocios(items:readonly Negocio[],p:Record<string,string|string[]|undefined>){const q=single(p.busca).toLocaleLowerCase("pt-BR"),tipo=single(p.tipo),etapa=single(p.etapa),resp=single(p.responsavel),imovel=single(p.imovel),previsao=single(p.previsao);return items.filter((item)=>{const text=[item.titulo,relation(item.lead)?.nome,propertyLabel(relation(item.imovel)),relation(item.responsavel)?.nome].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");return(!q||text.includes(q))&&(!tipo||item.tipo===tipo)&&(!etapa||item.etapa===etapa)&&(!resp||item.responsavel_id===resp)&&(!imovel||item.imovel_id===imovel)&&(!previsao||item.previsao_fechamento===previsao);});}
+function formValues(item:Negocio):NegocioFormValues{return{...item,valor_anunciado:textNum(item.valor_anunciado),valor_proposto:textNum(item.valor_proposto),valor_negociado:textNum(item.valor_negociado),valor_fechado:textNum(item.valor_fechado),comissao_percentual:textNum(item.comissao_percentual),comissao_prevista:textNum(item.comissao_prevista),comissao_efetiva:textNum(item.comissao_efetiva),sinal:textNum(item.sinal),valor_financiado:textNum(item.valor_financiado)} as unknown as NegocioFormValues;}
+function toDraft(p:Parte):ParteDraft{return{pessoa_id:p.pessoa_id,papel:p.papel,principal:p.principal,participacao_percentual:p.participacao_percentual,observacoes:p.observacoes};}
+function relation(value:unknown):Relation|null{const v=Array.isArray(value)?value[0]:value;if(!v||typeof v!=="object")return null;const r=v as Raw;return typeof r.id==="string"?{id:r.id,nome:str(r.nome),assunto:str(r.assunto),codigo:str(r.codigo),titulo:str(r.titulo),complemento:str(r.complemento)}:null;}
+function toOptions(data:unknown,key:string):Option[]{return(Array.isArray(data)?data:[]).flatMap((value)=>{if(!value||typeof value!=="object")return[];const r=value as Raw;return typeof r.id==="string"&&typeof r[key]==="string"?[{id:r.id,label:String(r[key]).trim()}]:[];});}
+function toAtendimentoOptions(data:unknown):AtendimentoOption[]{return(Array.isArray(data)?data:[]).flatMap((value)=>{if(!value||typeof value!=="object")return[];const r=value as Raw;return typeof r.id==="string"&&typeof r.lead_id==="string"?[{id:r.id,leadId:r.lead_id,label:str(r.assunto)||"Atendimento sem assunto"}]:[];});}
+function toPropertyOptions(data:unknown):Option[]{return(Array.isArray(data)?data:[]).flatMap((value)=>{if(!value||typeof value!=="object")return[];const r=value as Raw;return typeof r.id==="string"?[{id:r.id,label:[str(r.codigo),str(r.titulo),str(r.complemento)].filter(Boolean).join(" - ")||"Imovel sem identificacao"}]:[];});}
+function toResponsibleOptions(data:unknown):Option[]{return(Array.isArray(data)?data:[]).flatMap((value)=>{if(!value||typeof value!=="object")return[];const r=value as Raw;return typeof r.id==="string"&&typeof r.nome==="string"&&Array.isArray(r.papeis)&&r.papeis.includes("corretor")?[{id:r.id,label:r.nome.trim()}]:[];});}
+function commercialValue(n:Negocio){return n.valor_negociado??n.valor_proposto??n.valor_anunciado;}
+function propertyLabel(r:Relation|null){return r?[r.codigo,r.titulo,r.complemento].filter(Boolean).join(" - ")||"Imovel sem identificacao":"Nao informado";}
+function str(v:unknown){return typeof v==="string"?v:null;} function num(v:unknown){if(typeof v==="number"&&Number.isFinite(v))return v;if(typeof v==="string"&&v.trim()&&Number.isFinite(Number(v)))return Number(v);return null;} function textNum(v:number|null){return v===null?null:String(v);} function single(v:string|string[]|undefined){return typeof v==="string"?v:"";} function isUuid(v:string){return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(v);} function input(){return"rounded-xl border border-[#E8DDCB] bg-white px-3 py-2 text-sm text-[#071E36]";} function formatMoney(v:number,c:string){try{return new Intl.NumberFormat("pt-BR",{style:"currency",currency:/^[A-Z]{3}$/.test(c)?c:"BRL"}).format(v);}catch{return String(v);}} function formatDate(v:string|null){if(!v)return"Nao informada";return new Intl.DateTimeFormat("pt-BR",{dateStyle:"short",timeZone:"UTC"}).format(new Date(`${v.slice(0,10)}T00:00:00Z`));} function formatDateTime(v:string){return Number.isNaN(Date.parse(v))?"Nao informada":new Intl.DateTimeFormat("pt-BR",{dateStyle:"short",timeStyle:"short",timeZone:"America/Sao_Paulo"}).format(new Date(v));}
+function Info({label,value}:{label:string;value:string}){return<div className="rounded-xl bg-white px-3 py-2"><dt className="text-xs font-semibold uppercase text-[#8B6827]">{label}</dt><dd className="mt-1 text-[#071E36]">{value}</dd></div>;} function logQueryError(etapa:string,codigo:unknown){console.error({modulo:"crm_negocios",etapa,codigo:typeof codigo==="string"?codigo:"query_error"});}
