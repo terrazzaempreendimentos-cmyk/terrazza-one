@@ -44,6 +44,10 @@ Legenda:
 | negocios.visualizar | Permitido | Permitido | Futuro/condicionado | Permitido | Próprio para corretor |
 | negocios.criar | Permitido | Permitido | Negado | Negado | — |
 | negocios.editar | Permitido | Permitido | Negado | Negado | — |
+| negocios.concluir | Permitido | Permitido | Negado | Negado | — |
+| negocios.perder | Permitido | Permitido | Negado | Negado | — |
+| negocios.cancelar | Permitido | Permitido | Negado | Negado | — |
+| negocios.reabrir | Permitido | Permitido | Negado | Negado | — |
 | negocios.arquivar | Permitido | Permitido | Negado | Negado | — |
 | atividades.visualizar | Permitido | Permitido | Futuro/condicionado | Permitido | Própria para corretor |
 | atividades.criar | Permitido | Permitido | Negado | Permitido | — |

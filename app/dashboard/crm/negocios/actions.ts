@@ -10,6 +10,9 @@ import {
   requireRole,
 } from "../../../../lib/auth/access-profile";
 import {
+  isNegocioCancellationResult,
+  isNegocioConclusionResult,
+  isNegocioLossResult,
   isNegocioPartRole,
   isNegocioStage,
   isNegocioType,
@@ -18,9 +21,16 @@ import {
 import {
   NEGOCIO_RPC_LIMITS,
   NEGOCIO_RPC_MESSAGES,
+  hasMinimumClosingParts,
   isAtualizarNegocioResult,
+  isArquivarNegocioResult,
+  isCancelarNegocioResult,
+  isConcluirNegocioResult,
   isCriarNegocioResult,
   isMovimentarNegocioResult,
+  isPerderNegocioResult,
+  isReabrirNegocioResult,
+  isRpcDate,
   isRpcTimestamp,
   isRpcUuid,
   type NegocioPartePayload,
@@ -34,8 +44,8 @@ export type NegocioActionState =
   | { status: "erro"; mensagem: string }
   | { status: "sucesso"; mensagem: string };
 
-type Operation = "create" | "update" | "move";
-type Permission = "negocios.criar" | "negocios.editar";
+type Operation = "create" | "update" | "move" | "conclude" | "lose" | "cancel" | "reopen" | "archive";
+type Permission = "negocios.criar" | "negocios.editar" | "negocios.concluir" | "negocios.perder" | "negocios.cancelar" | "negocios.reabrir" | "negocios.arquivar";
 
 const SAFE_MESSAGES = new Set<string>(NEGOCIO_RPC_MESSAGES);
 const CREATE_RPC_FAILURES = Object.freeze([
@@ -94,6 +104,28 @@ function logError(operacao: Operation, etapa: string, codigo: unknown) {
 function getCreateRpcFailure(message: string) {
   return CREATE_RPC_FAILURES.find(([safeMessage]) => safeMessage === message);
 }
+
+const FINAL_RPC_REASONS: Readonly<Record<string, string>> = Object.freeze({
+  "Negocio nao encontrado.": "negocio_nao_encontrado",
+  "Negocio atualizado por outra operacao.": "concorrencia",
+  "Negocio arquivado.": "negocio_arquivado",
+  "Negocio encerrado.": "negocio_encerrado",
+  "Resultado invalido.": "resultado_invalido",
+  "Resultado incompativel com o tipo.": "resultado_incompativel",
+  "Partes insuficientes para conclusao.": "partes_insuficientes",
+  "Valor final obrigatorio.": "valor_final_obrigatorio",
+  "Valor final invalido.": "valor_final_invalido",
+  "Comissao invalida.": "comissao_invalida",
+  "Motivo invalido.": "motivo_invalido",
+  "Titulo invalido.": "titulo_invalido",
+  "Reabertura bloqueada.": "reabertura_bloqueada",
+  "Este Negocio ja possui uma reabertura.": "sucessor_existente",
+  "Pessoa participante invalida.": "pessoa_participante_invalida",
+  "Arquivamento bloqueado.": "arquivamento_bloqueado",
+  "Observacao excede o limite permitido.": "observacao_invalida",
+  "Falha ao registrar Timeline do Negocio.": "timeline_invalida",
+  "Retorno inesperado do Negocio.": "retorno_inesperado",
+});
 
 function logCreateRpcValidation(reason: string) {
   console.error({ modulo: "crm_negocios", operacao: "create", etapa: "rpc_validacao", codigo: "P0001", motivo: reason });
@@ -194,6 +226,20 @@ function parsePartes(formData: FormData): readonly NegocioPartePayload[] | Negoc
   return result;
 }
 
+function parseClosingRoles(formData: FormData): readonly NegocioPartRole[] | null {
+  let values: unknown;
+  try { values = JSON.parse(field(formData, "partes_papeis_json") || "[]"); } catch { return null; }
+  if (!Array.isArray(values) || values.some((value) => !isNegocioPartRole(value))) return null;
+  return [...new Set(values)];
+}
+
+function conclusionResultMatchesType(result: string, tipo: string) {
+  if (result === "outro" || result === "parceria_concluida") return true;
+  if (result === "venda_fechada") return tipo === "venda";
+  if (result === "locacao_fechada") return tipo === "locacao";
+  return result === "administracao_contratada" && tipo === "administracao";
+}
+
 async function validateRelationships(payload: NegocioPayload, partes: readonly NegocioPartePayload[], operation: Operation) {
   const supabase = await createClient();
   const { data: lead, error: leadError } = await supabase.from("leads").select("id").eq("id", payload.lead_id!).maybeSingle();
@@ -225,9 +271,18 @@ function safeRpcError(message: string, fallback: string) {
   return SAFE_MESSAGES.has(message) ? message : fallback;
 }
 
+function finalRpcError(operation: Operation, error: { code?: string; message: string }, fallback: string, leadId?: string) {
+  const safeMessage = safeRpcError(error.message, fallback);
+  const reason = SAFE_MESSAGES.has(error.message) ? FINAL_RPC_REASONS[error.message] ?? "validacao_dominio" : "erro_nao_catalogado";
+  console.error({ modulo: "crm_negocios", operacao: operation, etapa: "rpc", codigo: typeof error.code === "string" ? error.code : "rpc_error", motivo: reason });
+  if (safeMessage === CONCURRENCY_MESSAGE) revalidateNegocioPaths(leadId);
+  return errorState(safeMessage);
+}
+
 function revalidateNegocioPaths(leadId?: string) {
   revalidatePath("/dashboard/crm/negocios");
   revalidatePath("/dashboard");
+  revalidatePath("/dashboard/crm/leads");
   if (leadId && isRpcUuid(leadId)) revalidatePath(`/dashboard/crm/leads/${leadId}`);
 }
 
@@ -281,4 +336,71 @@ export async function moveNegocio(_: NegocioActionState, formData: FormData): Pr
   if(error){logError("move","rpc",error.code);const message=safeRpcError(error.message,"Nao foi possivel movimentar o Negocio.");if(message===CONCURRENCY_MESSAGE)revalidateNegocioPaths(leadId);return errorState(message);}
   const row=rpcRow(data); if(!isMovimentarNegocioResult(row)||row.negocio_id!==negocioId||row.etapa_anterior!==current||row.etapa_atual!==destination){logError("move","return","invalid_return");return errorState("Nao foi possivel confirmar a movimentacao do Negocio.");}
   revalidateNegocioPaths(leadId); return {status:"sucesso",mensagem:"Negocio movimentado com sucesso."};
+}
+
+export async function concluirNegocio(_: NegocioActionState, formData: FormData): Promise<NegocioActionState> {
+  if (!(await authorize("negocios.concluir", "conclude"))) return errorState("Operacao nao autorizada.");
+  const negocioId=field(formData,"negocio_id"),updatedAt=field(formData,"updated_at_esperado"),leadId=field(formData,"lead_id"),tipo=field(formData,"tipo"),resultado=field(formData,"resultado"),observacao=field(formData,"observacao");
+  if(!isRpcUuid(negocioId)||!isRpcTimestamp(updatedAt)||!isRpcUuid(leadId))return errorState("A fotografia do Negocio e invalida. Recarregue a pagina.");
+  if(!isNegocioConclusionResult(resultado))return errorState("Selecione um resultado de conclusao valido.");
+  if(!isNegocioType(tipo)||!conclusionResultMatchesType(resultado,tipo))return errorState("O resultado nao e compativel com o tipo do Negocio.");
+  const closingRoles=parseClosingRoles(formData);if(!closingRoles||!hasMinimumClosingParts(tipo,closingRoles))return errorState("Revise as partes obrigatorias antes de concluir este Negocio.");
+  const valorFechado=optionalNumber(field(formData,"valor_fechado")),comissaoEfetiva=optionalNumber(field(formData,"comissao_efetiva"));
+  if(valorFechado===undefined||valorFechado!==null&&valorFechado<0)return errorState("Informe um valor final valido.");
+  if(comissaoEfetiva===undefined||comissaoEfetiva!==null&&comissaoEfetiva<0)return errorState("Informe uma comissao valida.");
+  if(observacao.length>NEGOCIO_RPC_LIMITS.observacaoMovimentacao)return errorState("A observacao excede o limite permitido.");
+  const supabase=await createClient();const{data,error}=await supabase.rpc("concluir_negocio",{p_negocio_id:negocioId,p_updated_at_esperado:updatedAt,p_resultado:resultado,p_valor_fechado:valorFechado,p_comissao_efetiva:comissaoEfetiva,p_observacao:observacao||null});
+  if(error)return finalRpcError("conclude",error,"Nao foi possivel concluir o Negocio.",leadId);
+  const row=rpcRow(data);if(!isConcluirNegocioResult(row)||row.negocio_id!==negocioId||row.resultado!==resultado){logError("conclude","return","invalid_return");return errorState("Nao foi possivel confirmar a conclusao do Negocio.");}
+  revalidateNegocioPaths(row.lead_id);return{status:"sucesso",mensagem:"Negocio concluido com sucesso."};
+}
+
+export async function perderNegocio(_: NegocioActionState, formData: FormData): Promise<NegocioActionState> {
+  if (!(await authorize("negocios.perder", "lose"))) return errorState("Operacao nao autorizada.");
+  const negocioId=field(formData,"negocio_id"),updatedAt=field(formData,"updated_at_esperado"),leadId=field(formData,"lead_id"),resultado=field(formData,"resultado"),motivo=field(formData,"motivo"),observacao=field(formData,"observacao");
+  if(!isRpcUuid(negocioId)||!isRpcTimestamp(updatedAt)||!isRpcUuid(leadId))return errorState("A fotografia do Negocio e invalida. Recarregue a pagina.");
+  if(!isNegocioLossResult(resultado))return errorState("Selecione um resultado de perda valido.");
+  if(motivo.length<3||motivo.length>NEGOCIO_RPC_LIMITS.motivoEncerramento)return errorState("Informe um motivo entre 3 e 1.000 caracteres.");
+  if(observacao.length>NEGOCIO_RPC_LIMITS.observacaoMovimentacao)return errorState("A observacao excede o limite permitido.");
+  const supabase=await createClient();const{data,error}=await supabase.rpc("perder_negocio",{p_negocio_id:negocioId,p_updated_at_esperado:updatedAt,p_resultado:resultado,p_motivo:motivo,p_observacao:observacao||null});
+  if(error)return finalRpcError("lose",error,"Nao foi possivel registrar a perda do Negocio.",leadId);
+  const row=rpcRow(data);if(!isPerderNegocioResult(row)||row.negocio_id!==negocioId||row.resultado!==resultado){logError("lose","return","invalid_return");return errorState("Nao foi possivel confirmar a perda do Negocio.");}
+  revalidateNegocioPaths(row.lead_id);return{status:"sucesso",mensagem:"Perda registrada com sucesso."};
+}
+
+export async function cancelarNegocio(_: NegocioActionState, formData: FormData): Promise<NegocioActionState> {
+  if (!(await authorize("negocios.cancelar", "cancel"))) return errorState("Operacao nao autorizada.");
+  const negocioId=field(formData,"negocio_id"),updatedAt=field(formData,"updated_at_esperado"),leadId=field(formData,"lead_id"),resultado=field(formData,"resultado"),motivo=field(formData,"motivo"),observacao=field(formData,"observacao");
+  if(!isRpcUuid(negocioId)||!isRpcTimestamp(updatedAt)||!isRpcUuid(leadId))return errorState("A fotografia do Negocio e invalida. Recarregue a pagina.");
+  if(!isNegocioCancellationResult(resultado))return errorState("Selecione um resultado de cancelamento valido.");
+  if(motivo.length<3||motivo.length>NEGOCIO_RPC_LIMITS.motivoEncerramento)return errorState("Informe um motivo entre 3 e 1.000 caracteres.");
+  if(observacao.length>NEGOCIO_RPC_LIMITS.observacaoMovimentacao)return errorState("A observacao excede o limite permitido.");
+  const supabase=await createClient();const{data,error}=await supabase.rpc("cancelar_negocio",{p_negocio_id:negocioId,p_updated_at_esperado:updatedAt,p_resultado:resultado,p_motivo:motivo,p_observacao:observacao||null});
+  if(error)return finalRpcError("cancel",error,"Nao foi possivel cancelar o Negocio.",leadId);
+  const row=rpcRow(data);if(!isCancelarNegocioResult(row)||row.negocio_id!==negocioId||row.resultado!==resultado){logError("cancel","return","invalid_return");return errorState("Nao foi possivel confirmar o cancelamento do Negocio.");}
+  revalidateNegocioPaths(row.lead_id);return{status:"sucesso",mensagem:"Negocio cancelado com sucesso."};
+}
+
+export async function reabrirNegocio(_: NegocioActionState, formData: FormData): Promise<NegocioActionState> {
+  if (!(await authorize("negocios.reabrir", "reopen"))) return errorState("Operacao nao autorizada.");
+  const negocioId=field(formData,"negocio_id"),updatedAt=field(formData,"updated_at_esperado"),leadId=field(formData,"lead_id"),motivo=field(formData,"motivo"),titulo=field(formData,"titulo"),previsao=field(formData,"previsao_fechamento");
+  if(!isRpcUuid(negocioId)||!isRpcTimestamp(updatedAt)||!isRpcUuid(leadId))return errorState("A fotografia do Negocio e invalida. Recarregue a pagina.");
+  if(motivo.length<3||motivo.length>NEGOCIO_RPC_LIMITS.motivoReabertura)return errorState("Informe um motivo entre 3 e 500 caracteres.");
+  if(titulo.length>NEGOCIO_RPC_LIMITS.titulo)return errorState("O novo titulo excede o limite permitido.");
+  if(previsao&&!isRpcDate(previsao))return errorState("A previsao de fechamento e invalida.");
+  const supabase=await createClient();const{data,error}=await supabase.rpc("reabrir_negocio",{p_negocio_id_anterior:negocioId,p_updated_at_esperado:updatedAt,p_motivo:motivo,p_titulo:titulo||null,p_previsao_fechamento:previsao||null});
+  if(error)return finalRpcError("reopen",error,"Nao foi possivel reabrir o Negocio.",leadId);
+  const row=rpcRow(data);if(!isReabrirNegocioResult(row)||row.negocio_anterior_id!==negocioId){logError("reopen","return","invalid_return");return errorState("Nao foi possivel confirmar a reabertura do Negocio.");}
+  revalidateNegocioPaths(row.lead_id);return{status:"sucesso",mensagem:"Novo ciclo do Negocio criado com sucesso."};
+}
+
+export async function arquivarNegocio(_: NegocioActionState, formData: FormData): Promise<NegocioActionState> {
+  if (!(await authorize("negocios.arquivar", "archive"))) return errorState("Operacao nao autorizada.");
+  const negocioId=field(formData,"negocio_id"),updatedAt=field(formData,"updated_at_esperado"),leadId=field(formData,"lead_id"),status=field(formData,"status_operacional"),motivo=field(formData,"motivo");
+  if(!isRpcUuid(negocioId)||!isRpcTimestamp(updatedAt)||!isRpcUuid(leadId)||!(["concluido","perdido","cancelado"] as const).includes(status as "concluido"|"perdido"|"cancelado"))return errorState("A fotografia do Negocio e invalida. Recarregue a pagina.");
+  if(motivo.length<3||motivo.length>NEGOCIO_RPC_LIMITS.motivoArquivamento)return errorState("Informe um motivo entre 3 e 500 caracteres.");
+  const supabase=await createClient();const{data,error}=await supabase.rpc("arquivar_negocio",{p_negocio_id:negocioId,p_updated_at_esperado:updatedAt,p_motivo:motivo});
+  if(error)return finalRpcError("archive",error,"Nao foi possivel arquivar o Negocio.",leadId);
+  const row=rpcRow(data);if(!isArquivarNegocioResult(row)||row.negocio_id!==negocioId||row.status_operacional!==status){logError("archive","return","invalid_return");return errorState("Nao foi possivel confirmar o arquivamento do Negocio.");}
+  revalidateNegocioPaths(row.lead_id);return{status:"sucesso",mensagem:"Negocio arquivado com sucesso."};
 }

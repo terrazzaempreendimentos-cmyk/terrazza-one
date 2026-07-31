@@ -263,12 +263,12 @@ deve conter somente campos minimos.
 
 ## Permissoes
 
-Existem hoje: `negocios.visualizar`, `negocios.criar`, `negocios.editar` e
-`negocios.arquivar`. Administrador e gestor possuem as quatro; corretor e atendimento
-possuem apenas visualizacao. Nao ha actions de Negocio usando essas permissoes.
+Existem hoje: `negocios.visualizar`, `negocios.criar`, `negocios.editar`,
+`negocios.concluir`, `negocios.perder`, `negocios.cancelar`, `negocios.reabrir` e
+`negocios.arquivar`. Administrador e gestor possuem todas; corretor e atendimento
+possuem apenas visualizacao. As actions exigem a permissao especifica e perfil ativo
+administrador ou gestor antes de ler o formulario.
 
-Proposta futura: acrescentar `negocios.concluir`, `negocios.perder`,
-`negocios.cancelar` e `negocios.reabrir`. Administrador e gestor operariam todas.
 Corretor poderia operar somente atribuidos depois de ownership seguro. Atendimento
 teria apenas leitura relacionada, sem encerramento administrativo.
 
@@ -485,3 +485,44 @@ observacoes destinados ao evento nao sao registrados em logs.
 As RPCs nao alteram Lead ou Atendimento, nao movimentam outros Kanbans, nao criam
 Atividade e nao implementam ownership. A Sprint 3B4 futura deve criar a interface
 operacional consumindo os contratos fail-closed de `rpc-contracts.ts`.
+
+## Sprint 3B4B: interface de encerramento e preservacao historica
+
+A interface conecta exclusivamente `concluir_negocio`, `perder_negocio`,
+`cancelar_negocio`, `reabrir_negocio` e `arquivar_negocio`. Cada Server Action exige
+a permissao especifica, confirma perfil administrador ou gestor, valida UUID,
+fotografia de `updated_at`, catalogos e limites, executa uma unica RPC e valida o
+retorno com o contrato fail-closed. Nao existem INSERT, UPDATE, DELETE, retry ou
+escrita direta na Timeline.
+
+Negocios ativos oferecem conclusao, perda e cancelamento. A conclusao orienta sobre
+as partes minimas: venda exige proprietario ou vendedor e comprador; locacao exige
+proprietario ou locador e locatario; administracao exige proprietario ou contratante;
+outro exige ao menos uma parte. A RPC permanece a autoridade definitiva e nenhuma
+Pessoa ou parte e criada ou alterada durante o encerramento.
+
+Perda e cancelamento usam catalogos distintos, motivo entre 3 e 1.000 caracteres e
+observacao opcional de ate 500. Conclusao usa resultado canonico, valor fechado e
+comissao conforme o contrato. Todos os formularios usam `useActionState`, permanecem
+montados em erro, bloqueiam duplo envio e exibem somente mensagens catalogadas.
+
+Negocios finais ativos podem ser reabertos quando nao possuem sucessor direto. A
+reabertura cria um novo registro exclusivamente pela RPC, preserva o ciclo anterior
+e nunca chama `criar_negocio`. A listagem identifica registros originados de ciclo
+anterior e registros com ciclo posterior somente por `negocio_anterior_id`, sem
+exibir UUIDs. Arquivamento exige motivo entre 3 e 500 caracteres, usa exclusivamente
+`arquivar_negocio` e remove logicamente o registro das visoes operacionais sem apagar
+status, resultado, valores, partes, datas ou autoria.
+
+Concorrencia nunca gera retry: a divergencia de `updated_at` mostra mensagem segura
+e revalida a fotografia atual. Sucesso revalida Negocios, dashboard, lista de Leads e
+o detalhe do Lead relacionado. Nenhuma operacao converte ou arquiva Lead, altera
+Atendimento, Kanban, Agenda, Atividade, Imovel ou Pessoa. Timeline permanece sob
+responsabilidade exclusiva das RPCs.
+
+Roteiro manual: concluir venda/locacao com e sem partes minimas; concluir com valor
+obrigatorio; registrar perda; cancelar separadamente; simular `updated_at` obsoleto;
+reabrir um encerrado e confirmar novo UUID sem alterar o anterior; bloquear segunda
+reabertura; bloquear Pessoa participante inativa; arquivar um encerrado; confirmar
+que o arquivado sai das visoes; verificar os cinco eventos correspondentes na
+Timeline e confirmar ausencia de mudancas em Lead, Atendimento e Kanban.
