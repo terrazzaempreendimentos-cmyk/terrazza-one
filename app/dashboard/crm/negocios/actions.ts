@@ -38,6 +38,27 @@ type Operation = "create" | "update" | "move";
 type Permission = "negocios.criar" | "negocios.editar";
 
 const SAFE_MESSAGES = new Set<string>(NEGOCIO_RPC_MESSAGES);
+const CREATE_RPC_FAILURES = Object.freeze([
+  ["Operacao nao autorizada.", "operacao_nao_autorizada"],
+  ["Payload invalido.", "payload_invalido"],
+  ["Campo desconhecido no payload.", "campo_desconhecido"],
+  ["Reabertura bloqueada.", "reabertura_bloqueada"],
+  ["Payload de partes invalido.", "payload_partes_invalido"],
+  ["Relacionamento invalido.", "relacionamento_invalido"],
+  ["Imovel invalido.", "imovel_invalido"],
+  ["Lead nao encontrado.", "lead_nao_encontrado"],
+  ["Atendimento incompativel.", "atendimento_incompativel"],
+  ["Responsavel invalido.", "responsavel_invalido"],
+  ["Parte invalida.", "parte_invalida"],
+  ["Participacao invalida.", "participacao_invalida"],
+  ["Pessoa invalida.", "pessoa_invalida"],
+  ["Parte duplicada.", "parte_duplicada"],
+  ["Parte principal duplicada.", "parte_principal_duplicada"],
+  ["Falha ao registrar Timeline do Negocio.", "timeline_invalida"],
+  ["Retorno inesperado do Negocio.", "retorno_inesperado"],
+  ["Relacionamento duplicado.", "relacionamento_duplicado"],
+  ["Nao foi possivel salvar o Negocio.", "falha_interna_rpc"],
+] as const);
 const CONCURRENCY_MESSAGE = "Este Negocio foi atualizado por outra operacao. Revise os dados atuais.";
 const PAYLOAD_FIELDS = [
   "lead_id", "atendimento_id", "imovel_id", "responsavel_id", "tipo", "titulo",
@@ -68,6 +89,14 @@ function isPartesActionState(
 
 function logError(operacao: Operation, etapa: string, codigo: unknown) {
   console.error({ modulo: "crm_negocios", operacao, etapa, codigo: typeof codigo === "string" ? codigo : "unexpected_error" });
+}
+
+function getCreateRpcFailure(message: string) {
+  return CREATE_RPC_FAILURES.find(([safeMessage]) => safeMessage === message);
+}
+
+function logCreateRpcValidation(reason: string) {
+  console.error({ modulo: "crm_negocios", operacao: "create", etapa: "rpc_validacao", codigo: "P0001", motivo: reason });
 }
 
 async function authorize(permission: Permission, operation: Operation) {
@@ -192,8 +221,8 @@ async function validateRelationships(payload: NegocioPayload, partes: readonly N
 function rpcRow(data: unknown) { return Array.isArray(data) ? data[0] : data; }
 
 function safeRpcError(message: string, fallback: string) {
-  if (message.includes("Negocio atualizado por outra operacao.")) return CONCURRENCY_MESSAGE;
-  return [...SAFE_MESSAGES].find((allowed) => message.includes(allowed)) ?? fallback;
+  if (message === "Negocio atualizado por outra operacao.") return CONCURRENCY_MESSAGE;
+  return SAFE_MESSAGES.has(message) ? message : fallback;
 }
 
 function revalidateNegocioPaths(leadId?: string) {
@@ -209,7 +238,17 @@ export async function createNegocio(_: NegocioActionState, formData: FormData): 
   const relationshipError = await validateRelationships(payload, partes, "create"); if (relationshipError) return relationshipError;
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("criar_negocio", { p_payload: payload, p_partes: partes });
-  if (error) { logError("create", "rpc", error.code); return errorState(safeRpcError(error.message, "Nao foi possivel criar o Negocio.")); }
+  if (error) {
+    if (error.code === "P0001") {
+      const failure = getCreateRpcFailure(error.message);
+      if (failure) {
+        logCreateRpcValidation(failure[1]);
+        return errorState(failure[0]);
+      }
+    }
+    logError("create", "rpc", error.code);
+    return errorState("Nao foi possivel criar o Negocio.");
+  }
   const row = rpcRow(data);
   if (!isCriarNegocioResult(row) || row.lead_id !== payload.lead_id || row.tipo !== payload.tipo) { logError("create", "return", "invalid_return"); return errorState("Nao foi possivel confirmar a criacao do Negocio."); }
   revalidateNegocioPaths(row.lead_id);
