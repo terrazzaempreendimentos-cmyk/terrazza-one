@@ -253,12 +253,47 @@ export const NEGOCIO_RPC_ERROR_PRIORITY = Object.freeze([
   "Falha ao registrar Timeline do Negocio.",
 ] as const satisfies readonly NegocioRpcMessage[]);
 
-export function hasMinimumClosingParts(tipo: NegocioType, papeis: readonly NegocioPartRole[]): boolean {
+export type ClosingPartsAssessment = Readonly<{
+  complete: boolean;
+  requirement: string;
+  missingAction: string | null;
+  message: string | null;
+}>;
+
+export function getClosingPartsAssessment(tipo: NegocioType, papeis: readonly NegocioPartRole[]): ClosingPartsAssessment {
   const roles = new Set(papeis);
-  if (tipo === "venda") return (roles.has("proprietario") || roles.has("vendedor")) && roles.has("comprador");
-  if (tipo === "locacao") return (roles.has("proprietario") || roles.has("locador")) && roles.has("locatario");
-  if (tipo === "administracao") return roles.has("proprietario") || roles.has("contratante");
-  return roles.size > 0;
+  let requirement: string;
+  let missing: string | null = null;
+  if (tipo === "venda") {
+    requirement = "Partes necessárias para venda: proprietário ou vendedor + comprador.";
+    const sellerMissing = !roles.has("proprietario") && !roles.has("vendedor");
+    const buyerMissing = !roles.has("comprador");
+    if (sellerMissing && buyerMissing) missing = "um proprietário ou vendedor e um comprador";
+    else if (sellerMissing) missing = "um proprietário ou vendedor";
+    else if (buyerMissing) missing = "um comprador";
+  } else if (tipo === "locacao") {
+    requirement = "Partes necessárias para locação: proprietário ou locador + locatário.";
+    const landlordMissing = !roles.has("proprietario") && !roles.has("locador");
+    const tenantMissing = !roles.has("locatario");
+    if (landlordMissing && tenantMissing) missing = "um proprietário ou locador e um locatário";
+    else if (landlordMissing) missing = "um proprietário ou locador";
+    else if (tenantMissing) missing = "um locatário";
+  } else if (tipo === "administracao") {
+    requirement = "Partes necessárias para administração: proprietário ou contratante.";
+    if (!roles.has("proprietario") && !roles.has("contratante")) missing = "um proprietário ou contratante";
+  } else {
+    requirement = "Partes necessárias para outro tipo: pelo menos uma Pessoa.";
+    if (roles.size === 0) {
+      return { complete: false, requirement, missingAction: "adicione pelo menos uma Pessoa ao Negócio antes de concluí-lo", message: "Adicione pelo menos uma Pessoa ao Negócio antes de concluí-lo." };
+    }
+  }
+  if (!missing) return { complete: true, requirement, missingAction: null, message: null };
+  const missingAction = `adicione ${missing} antes de concluir este Negócio`;
+  return { complete: false, requirement, missingAction, message: `Adicione ${missing} antes de concluir este Negócio.` };
+}
+
+export function hasMinimumClosingParts(tipo: NegocioType, papeis: readonly NegocioPartRole[]): boolean {
+  return getClosingPartsAssessment(tipo, papeis).complete;
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

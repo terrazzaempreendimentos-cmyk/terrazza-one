@@ -22,7 +22,7 @@ import {
 import {
   NEGOCIO_RPC_LIMITS,
   NEGOCIO_RPC_MESSAGES,
-  hasMinimumClosingParts,
+  getClosingPartsAssessment,
   isAtualizarNegocioResult,
   isArquivarNegocioResult,
   isCancelarNegocioResult,
@@ -227,13 +227,6 @@ function parsePartes(formData: FormData): readonly NegocioPartePayload[] | Negoc
   return result;
 }
 
-function parseClosingRoles(formData: FormData): readonly NegocioPartRole[] | null {
-  let values: unknown;
-  try { values = JSON.parse(field(formData, "partes_papeis_json") || "[]"); } catch { return null; }
-  if (!Array.isArray(values) || values.some((value) => !isNegocioPartRole(value))) return null;
-  return [...new Set(values)];
-}
-
 function conclusionResultMatchesType(result: string, tipo: string) {
   if (result === "outro" || result === "parceria_concluida") return true;
   if (result === "venda_fechada") return tipo === "venda";
@@ -341,16 +334,28 @@ export async function moveNegocio(_: NegocioActionState, formData: FormData): Pr
 
 export async function concluirNegocio(_: NegocioActionState, formData: FormData): Promise<NegocioActionState> {
   if (!(await authorize("negocios.concluir", "conclude"))) return errorState("Operacao nao autorizada.");
-  const negocioId=field(formData,"negocio_id"),updatedAt=field(formData,"updated_at_esperado"),leadId=field(formData,"lead_id"),tipo=field(formData,"tipo"),resultado=field(formData,"resultado"),observacao=field(formData,"observacao");
+  const negocioId=field(formData,"negocio_id"),updatedAt=field(formData,"updated_at_esperado"),leadId=field(formData,"lead_id"),resultado=field(formData,"resultado"),observacao=field(formData,"observacao");
   if(!isRpcUuid(negocioId)||!isRpcTimestamp(updatedAt)||!isRpcUuid(leadId))return errorState("A fotografia do Negocio e invalida. Recarregue a pagina.");
-  if(!isNegocioConclusionResult(resultado))return errorState("Selecione um resultado de conclusao valido.");
-  if(!isNegocioType(tipo)||!conclusionResultMatchesType(resultado,tipo))return errorState("O resultado nao e compativel com o tipo do Negocio.");
-  const closingRoles=parseClosingRoles(formData);if(!closingRoles||!hasMinimumClosingParts(tipo,closingRoles))return errorState("Revise as partes obrigatorias antes de concluir este Negocio.");
   const valorFechado=optionalNumber(field(formData,"valor_fechado")),comissaoEfetiva=optionalNumber(field(formData,"comissao_efetiva"));
   if(valorFechado===undefined||valorFechado!==null&&valorFechado<0)return errorState("Informe um valor final valido.");
   if(comissaoEfetiva===undefined||comissaoEfetiva!==null&&comissaoEfetiva<0)return errorState("Informe uma comissao valida.");
   if(observacao.length>NEGOCIO_RPC_LIMITS.observacaoMovimentacao)return errorState("A observacao excede o limite permitido.");
-  const supabase=await createClient();const{data,error}=await supabase.rpc("concluir_negocio",{p_negocio_id:negocioId,p_updated_at_esperado:updatedAt,p_resultado:resultado,p_valor_fechado:valorFechado,p_comissao_efetiva:comissaoEfetiva,p_observacao:observacao||null});
+  const supabase=await createClient();
+  const[currentResult,partsResult]=await Promise.all([
+    supabase.from("negocios").select("id, tipo, ativo, status_operacional").eq("id",negocioId).maybeSingle(),
+    supabase.from("negocios_partes").select("papel").eq("negocio_id",negocioId).eq("ativo",true),
+  ]);
+  if(currentResult.error||!currentResult.data||!isNegocioType(currentResult.data.tipo)||currentResult.data.ativo!==true||currentResult.data.status_operacional!=="ativo"){logError("conclude","current_snapshot",currentResult.error?.code??"invalid_snapshot");return errorState("Nao foi possivel confirmar o estado atual do Negocio.");}
+  if(partsResult.error){logError("conclude","parts_snapshot",partsResult.error.code);return errorState("Nao foi possivel conferir as partes atuais do Negocio.");}
+  const closingRoles:NegocioPartRole[]=[];
+  for(const part of partsResult.data??[]){if(!isNegocioPartRole(part.papel)){logError("conclude","parts_snapshot","invalid_role");return errorState("Nao foi possivel conferir as partes atuais do Negocio.");}closingRoles.push(part.papel);}
+  const assessment=getClosingPartsAssessment(currentResult.data.tipo,closingRoles);
+  if(!resultado&&assessment.missingAction)return errorState(`Selecione o resultado e ${assessment.missingAction}.`);
+  if(!resultado)return errorState("Selecione o resultado da conclusão.");
+  if(!isNegocioConclusionResult(resultado))return errorState("Selecione um resultado de conclusão válido.");
+  if(!conclusionResultMatchesType(resultado,currentResult.data.tipo))return errorState("O resultado não é compatível com o tipo do Negócio.");
+  if(!assessment.complete)return errorState(assessment.message??"Revise as partes obrigatórias antes de concluir este Negócio.");
+  const{data,error}=await supabase.rpc("concluir_negocio",{p_negocio_id:negocioId,p_updated_at_esperado:updatedAt,p_resultado:resultado,p_valor_fechado:valorFechado,p_comissao_efetiva:comissaoEfetiva,p_observacao:observacao||null});
   if(error)return finalRpcError("conclude",error,"Nao foi possivel concluir o Negocio.",leadId);
   const row=rpcRow(data);if(!isConcluirNegocioResult(row)||row.negocio_id!==negocioId||row.resultado!==resultado){logError("conclude","return","invalid_return");return errorState("Nao foi possivel confirmar a conclusao do Negocio.");}
   revalidateNegocioPaths(row.lead_id);return{status:"sucesso",mensagem:"Negocio concluido com sucesso."};

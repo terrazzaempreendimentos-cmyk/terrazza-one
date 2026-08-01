@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
 
 import {
@@ -10,7 +11,7 @@ import {
   type NegocioStatus,
   type NegocioType,
 } from "../../../../lib/crm/negocios/catalogs";
-import { hasMinimumClosingParts, NEGOCIO_RPC_LIMITS } from "../../../../lib/crm/negocios/rpc-contracts";
+import { getClosingPartsAssessment, NEGOCIO_RPC_LIMITS } from "../../../../lib/crm/negocios/rpc-contracts";
 import {
   arquivarNegocio,
   cancelarNegocio,
@@ -62,12 +63,13 @@ export function FinalOperationControls(props: Props) {
 function ConclusionForm(props: Props) {
   const [state, action, pending] = useActionState(concluirNegocio, INITIAL_STATE);
   const results = NEGOCIO_CONCLUSION_RESULTS.filter((item) => resultMatchesType(item.id, props.tipo));
-  const hasParts = hasMinimumClosingParts(props.tipo, props.partes);
+  const assessment = getClosingPartsAssessment(props.tipo, props.partes);
   const requiresValue = props.tipo === "venda" || props.tipo === "locacao";
+  const resultValidation = assessment.missingAction ? `Selecione o resultado e ${assessment.missingAction}.` : "Selecione o resultado da conclusão.";
   return <OperationForm action={action} pending={pending} submitLabel="Concluir Negocio" pendingLabel="Concluindo..." state={state} tone="emerald">
     <HiddenFields {...props} />
-    {!hasParts ? <p role="alert" className="rounded-xl bg-amber-50 p-3 text-sm text-amber-900">Revise as partes obrigatorias antes de concluir este Negocio.</p> : null}
-    <Field label="Resultado"><select name="resultado" required defaultValue="" className={INPUT}><option value="" disabled>Selecione</option>{results.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></Field>
+    <div className="rounded-xl bg-[#F7F3ED] p-3 text-sm text-[#64736D]"><p>{assessment.requirement}</p>{assessment.complete?<p className="mt-1 font-semibold text-emerald-700">Partes obrigatórias conferidas.</p>:<><p role="alert" className="mt-1 font-semibold text-amber-900">{assessment.message}</p><Link href={`/dashboard/crm/negocios?editar=${props.negocioId}`} className="mt-2 inline-block font-semibold text-[#8B6827] underline">Editar partes deste Negócio</Link></>}</div>
+    <Field label="Resultado"><select name="resultado" required defaultValue="" onInvalid={(event)=>event.currentTarget.setCustomValidity(resultValidation)} onChange={(event)=>event.currentTarget.setCustomValidity("")} className={INPUT}><option value="" disabled>Selecione</option>{results.map((item) => <option key={item.id} value={item.id}>{item.label}</option>)}</select></Field>
     <div className="grid gap-3 sm:grid-cols-2"><Field label="Valor fechado"><input type="number" name="valor_fechado" min="0" step="0.01" required={requiresValue} defaultValue={props.valorFechado ?? ""} className={INPUT} /></Field><Field label="Comissao efetiva"><input type="number" name="comissao_efetiva" min="0" step="0.01" defaultValue={props.comissaoEfetiva ?? ""} className={INPUT} /></Field></div>
     <Field label="Observacao opcional"><textarea name="observacao" maxLength={NEGOCIO_RPC_LIMITS.observacaoMovimentacao} rows={2} className={INPUT} /></Field>
   </OperationForm>;
@@ -93,7 +95,7 @@ function ArchiveForm(props: Props) {
   return <OperationForm action={action} pending={pending} submitLabel="Arquivar Negocio" pendingLabel="Arquivando..." state={state} tone="red"><HiddenFields {...props} /><input type="hidden" name="status_operacional" value={props.status} /><p className="text-sm text-[#64736D]">O registro sera ocultado das visoes operacionais, sem excluir seu historico.</p><Field label="Motivo"><textarea name="motivo" required minLength={3} maxLength={NEGOCIO_RPC_LIMITS.motivoArquivamento} rows={3} className={INPUT} /></Field></OperationForm>;
 }
 
-function HiddenFields(props: Props) { return <><input type="hidden" name="negocio_id" value={props.negocioId} /><input type="hidden" name="lead_id" value={props.leadId} /><input type="hidden" name="updated_at_esperado" value={props.updatedAt} /><input type="hidden" name="tipo" value={props.tipo} /><input type="hidden" name="partes_papeis_json" value={JSON.stringify(props.partes)} /></>; }
+function HiddenFields(props: Props) { return <><input type="hidden" name="negocio_id" value={props.negocioId} /><input type="hidden" name="lead_id" value={props.leadId} /><input type="hidden" name="updated_at_esperado" value={props.updatedAt} /></>; }
 function ReasonFields({ max }: { max: number }) { return <><Field label="Motivo"><textarea name="motivo" required minLength={3} maxLength={max} rows={3} className={INPUT} /></Field><Field label="Observacao opcional"><textarea name="observacao" maxLength={NEGOCIO_RPC_LIMITS.observacaoMovimentacao} rows={2} className={INPUT} /></Field></>; }
 function OperationForm({ action, pending, submitLabel, pendingLabel, state, tone, children }: { action: (payload: FormData) => void; pending: boolean; submitLabel: string; pendingLabel: string; state: NegocioActionState; tone: "emerald" | "amber" | "red" | "navy"; children: React.ReactNode }) { const colors={emerald:"bg-emerald-700 text-white",amber:"bg-amber-600 text-white",red:"bg-red-700 text-white",navy:"bg-[#071E36] text-white"};return <form action={action} className="mt-3 rounded-2xl border border-[#E8DDCB] bg-white p-4"><fieldset disabled={pending} className="grid gap-3 disabled:opacity-65">{children}<ActionMessage state={state}/><button type="submit" disabled={pending} className={`w-fit rounded-xl px-4 py-2 text-sm font-semibold disabled:cursor-not-allowed ${colors[tone]}`}>{pending?pendingLabel:submitLabel}</button></fieldset></form>; }
 function ActionMessage({ state }: { state: NegocioActionState }) { return state.mensagem ? <p role="alert" className={`rounded-xl px-3 py-2 text-sm ${state.status === "erro" ? "bg-red-50 text-red-700" : "bg-emerald-50 text-emerald-700"}`}>{state.mensagem}</p> : null; }
