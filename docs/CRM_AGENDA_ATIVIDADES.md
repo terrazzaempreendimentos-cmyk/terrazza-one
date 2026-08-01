@@ -172,4 +172,35 @@ Listagens e logs nao devem expor documentos, contatos normalizados, payloads, cr
 
 Cancelamento exige motivo aparado de 3 a 1000 caracteres, autor e timestamp. Atraso continua calculado, recorrencia e lembretes nao foram adicionados e nao existe sincronizacao automatica com Lead, Atendimento, Negocio ou Timeline. RLS, policies e grants permanecem administrativos e inalterados. A migration foi apenas preparada, nao executada.
 
-A proxima sprint recomendada deve criar RPCs atomicas `SECURITY DEFINER` para criacao e transicoes, com autorizacao interna, concorrencia, validacao entre relacionamentos e eventos transacionais de Timeline. A aplicacao nao deve receber UPDATE direto.
+Essa direcao foi materializada na migration 039, com RPCs atomicas `SECURITY DEFINER`, autorizacao interna, concorrencia, validacao entre relacionamentos e eventos transacionais de Timeline. A aplicacao nao recebe UPDATE direto.
+
+## RPCs de Atividades abertas — migration 039 preparada
+
+A migration `039_atividades_rpc_abertas.sql` cria quatro funcoes nominais:
+
+- `criar_atividade(jsonb)`;
+- `atualizar_atividade(uuid, timestamptz, jsonb)`;
+- `iniciar_atividade(uuid, timestamptz)`;
+- `alterar_estado_atividade(uuid, text, timestamptz, text)`.
+
+Todas sao `SECURITY DEFINER`, usam `search_path = pg_catalog`, obtem autoria por `auth.uid()` e autorizam exclusivamente perfil ativo administrador ou gestor por `usuario_tem_papel(text[])`. Corretor e atendimento permanecem bloqueados enquanto Auth para Pessoa nao existir. PUBLIC e `anon` nao recebem EXECUTE; somente `authenticated` pode invocar, sem substituir a autorizacao interna.
+
+### Allowlist e criacao
+
+Criacao e edicao aceitam somente titulo, descricao, tipo, prioridade, origem, os cinco relacionamentos canonicos opcionais, responsavel, inicio/fim planejados, dia inteiro, local, link de reuniao e observacoes internas. ID, estado, autoria, execucao, encerramento, atividade anterior, ativo, datas de auditoria e todas as colunas legadas sao rejeitados.
+
+Criacao sempre produz Atividade pendente e ativa, com autoria da sessao. UUIDs, catalogos, limites, datas e existencia/estado dos relacionamentos sao validados. Atendimento e Negocio precisam pertencer ao Lead informado quando ambos estiverem presentes. Responsavel precisa ser Pessoa ativa com nome valido; nenhum papel comercial e inferido.
+
+### Edicao, inicio e estados abertos
+
+Edicao bloqueia a linha com `FOR UPDATE`, exige Atividade ativa em estado aberto e compara exatamente `updated_at`. Campos omitidos sao preservados e `null` remove somente valor opcional. Estado, autoria e timestamps operacionais permanecem protegidos; o trigger da migration 038 continua sendo a unica autoridade de `updated_at`.
+
+Inicio e o caminho exclusivo de `pendente` para `em_andamento`; preenche `iniciado_em` apenas se ainda estiver nulo. A movimentacao comum permite somente `pendente` para `aguardando`, `em_andamento` para `aguardando` e `aguardando` para `em_andamento`. Estados finais, mesma situacao, saltos, inativos e fotografia divergente sao bloqueados. A observacao opcional, limitada a 500 caracteres, vai somente para a Timeline.
+
+### Timeline, atomicidade e privacidade
+
+Cada RPC executa uma unica mutacao em `tarefas` e exige exatamente um evento na Timeline: `atividade_criada`, `atividade_atualizada`, `atividade_iniciada` ou `atividade_estado_alterado`. A Timeline recebe apenas o Lead quando existente, porque e o unico vinculo canonico suportado por seu schema atual. Descricoes sao genericas, sem UUIDs, nomes, contatos, documentos, valores ou payload. Falha do evento reverte a operacao integralmente.
+
+Edicao e transicoes usam concorrencia otimista sem retry ou ultima gravacao vencedora. Nenhuma RPC altera Lead, Atendimento, Negocio, Imovel, Pessoa, Kanban ou Agenda. As RPCs nao concluem, cancelam, reabrem ou arquivam Atividades.
+
+O contrato `lib/crm/atividades/rpc-contracts.ts` centraliza payloads, retornos, mensagens sanitizadas, UUID/timestamp, limite de observacao e transicoes abertas. A Sprint 3C3B deve tratar conclusao, cancelamento e eventual reabertura administrativa com autoria, timestamps, concorrencia e Timeline atomica.
