@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 
 import {
   AccessPermissionRequiredError,
@@ -324,7 +325,7 @@ export async function updateNegocio(_: NegocioActionState, formData: FormData): 
   const row = rpcRow(data);
   if (!isAtualizarNegocioResult(row) || row.negocio_id !== negocioId || row.lead_id !== originalLeadId) { logError("update", "return", "invalid_return"); return errorState("Nao foi possivel confirmar a atualizacao do Negocio."); }
   revalidateNegocioPaths(originalLeadId);
-  return { status: "sucesso", mensagem: "Negocio atualizado com sucesso." };
+  redirect("/dashboard/crm/negocios");
 }
 
 export async function moveNegocio(_: NegocioActionState, formData: FormData): Promise<NegocioActionState> {
