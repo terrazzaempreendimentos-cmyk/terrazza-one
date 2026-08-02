@@ -218,3 +218,15 @@ O indice unico parcial `idx_tarefas_atividade_anterior_unica` permite somente um
 Cada RPC registra exatamente um evento atomico: `atividade_concluida`, `atividade_cancelada` ou `atividade_reaberta`. O motivo integral de cancelamento permanece exclusivamente em `tarefas`; o motivo controlado da reabertura pode aparecer na Timeline. Nenhuma operacao sincroniza Lead, Atendimento, Negocio, Kanban ou Agenda.
 
 Finalizar preserva o registro operacional e seu estado final. Arquivar sera uma evolucao separada para retirar uma Atividade das visoes operacionais sem exclusao fisica. A futura interface deve consumir somente as RPCs, preservar a fotografia de concorrencia e apresentar mensagens do catalogo local sem dados internos.
+
+## Interface operacional da Sprint 3C4A
+
+`public.tarefas` e a unica fonte das duas interfaces. Atividades e a central operacional para consultar, filtrar, criar, editar, iniciar e movimentar estados abertos. Agenda e somente a visao temporal dos mesmos registros por `inicio_planejado_em`, `fim_planejado_em` e `dia_inteiro`, apresentada em `America/Recife`; ela nao armazena registros paralelos.
+
+As consultas SSR usam projecao explicita, `ativo = true` e aliases das FKs canonicas para Lead, Atendimento, Negocio, Imovel, Pessoa relacionada e Pessoa responsavel. Nao consultam colunas ou identidades legadas de proprietarios, inquilinos e corretores. Filtros por query string abrangem texto, catalogos, responsavel, modulo, periodo, atraso calculado e ausencia de planejamento.
+
+Criacao e edicao usam formulario Client com `useActionState`, bloqueio de duplo envio e preservacao dos campos em erro. Edicao exige UUID, Atividade ativa e aberta e fotografia `updated_at`; no sucesso, remove `edit` da URL. Inicio chama somente `iniciar_atividade`; as demais transicoes abertas chamam somente `alterar_estado_atividade`. Nao ha escrita direta em `tarefas` ou `timeline`, retry ou fallback.
+
+As paginas mantem suas permissoes de visualizacao. Controles operacionais aparecem apenas para administrador ou gestor. Cada Server Action autoriza antes de ler `FormData`, exige `atividades.criar` ou `atividades.editar` e confirma o papel. Corretor e atendimento permanecem em leitura quando a matriz lhes permite acessar a pagina; escopo proprio depende de futuro vinculo canonico Auth para Pessoa.
+
+Erros de RPC atravessam somente a allowlist estatica. Logs contem modulo, operacao, etapa e codigo tecnico, sem payload, UUID ou conteudo da Atividade. Concorrencia pede revisao dos dados e nao repete a operacao. RLS, policies e grants permanecem inalterados. Nao existe sincronizacao automatica com Lead, Atendimento, Negocio, Kanban ou Agenda. A Sprint 3C4B podera conectar conclusao, cancelamento e reabertura.
