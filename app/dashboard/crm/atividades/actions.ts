@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { AccessPermissionRequiredError, AccessProfileRequiredError, AccessRoleRequiredError, requirePermission, requireRole } from "../../../../lib/auth/access-profile";
 import { ACTIVITY_LIMITS, isActivityOrigin, isActivityPriority, isActivityStatus, isActivityType } from "../../../../lib/crm/atividades/catalogs";
-import { ACTIVITY_RPC_LIMITS, isActivityRpcMessage, isChangeActivityStateResult, isSaveActivityResult } from "../../../../lib/crm/atividades/rpc-contracts";
+import { ACTIVITY_RPC_LIMITS, isActivityRpcMessage, isCancelActivityResult, isConcludeActivityResult, isReopenActivityResult, isValidActivityCancellationReason, isValidActivityReopeningReason, isValidOptionalActivityResult, isChangeActivityStateResult, isSaveActivityResult } from "../../../../lib/crm/atividades/rpc-contracts";
 import { createClient } from "../../../../lib/supabase/server";
 
 export type ActivityActionState = { status: "idle" | "erro" | "sucesso"; mensagem: string | null };
@@ -17,13 +17,15 @@ function logError(operation: string, stage: string, code: unknown) {
   console.error({ modulo: "crm_atividades", operacao: operation, etapa: stage, codigo: typeof code === "string" ? code : "unexpected_error" });
 }
 
-async function authorize(permission: "atividades.criar" | "atividades.editar") {
+async function authorize(permission: "atividades.criar" | "atividades.editar" | "atividades.concluir" | "atividades.cancelar" | "atividades.reabrir") {
   try { await requirePermission(permission); await requireRole("administrador", "gestor"); return true; }
   catch (error) {
     logError("authorize", "authorization", error instanceof AccessPermissionRequiredError || error instanceof AccessProfileRequiredError || error instanceof AccessRoleRequiredError ? error.name : "authorization_error");
     return false;
   }
 }
+
+const expectedOpenStatus = (value: string): value is "pendente" | "em_andamento" | "aguardando" => value === "pendente" || value === "em_andamento" || value === "aguardando";
 
 async function authorizeOperator() {
   try { await requireRole("administrador", "gestor"); return true; }
@@ -99,4 +101,40 @@ export async function changeActivityState(_: ActivityActionState, data: FormData
   if (!isChangeActivityStateResult(row) || row.atividade_id !== id || row.status_anterior !== current || row.status_atual !== destination) return errorState("Nao foi possivel confirmar a operacao.");
   revalidate(field(data, "lead_id"), field(data, "atendimento_id"), field(data, "negocio_id"));
   return { status: "sucesso", mensagem: "Estado da Atividade atualizado." };
+}
+
+export async function concludeActivity(_: ActivityActionState, data: FormData): Promise<ActivityActionState> {
+  if (!(await authorize("atividades.concluir"))) return errorState("Operacao nao autorizada.");
+  const id = field(data, "atividade_id"), status = field(data, "status_esperado"), updated = field(data, "updated_at_esperado");
+  const resultado = optional(data, "resultado"), observacao = optional(data, "observacao");
+  if (!UUID.test(id) || !expectedOpenStatus(status) || Number.isNaN(Date.parse(updated)) || !isValidOptionalActivityResult(resultado) || (observacao?.length ?? 0) > ACTIVITY_RPC_LIMITS.movementObservation) return errorState("Dados da Atividade invalidos.");
+  const result = await (await createClient()).rpc("concluir_atividade", { p_atividade_id: id, p_status_esperado: status, p_updated_at_esperado: updated, p_resultado: resultado, p_observacao: observacao });
+  if (result.error) { logError("conclude", "rpc", result.error.code); return errorState(rpcMessage(result.error, "Nao foi possivel concluir a Atividade.")); }
+  const row = Array.isArray(result.data) ? result.data[0] : result.data;
+  if (!isConcludeActivityResult(row) || row.atividade_id !== id || row.status_anterior !== status) return errorState("Nao foi possivel confirmar a operacao.");
+  revalidate(); return { status: "sucesso", mensagem: "Atividade concluida." };
+}
+
+export async function cancelActivity(_: ActivityActionState, data: FormData): Promise<ActivityActionState> {
+  if (!(await authorize("atividades.cancelar"))) return errorState("Operacao nao autorizada.");
+  const id = field(data, "atividade_id"), status = field(data, "status_esperado"), updated = field(data, "updated_at_esperado"), motivo = field(data, "motivo");
+  const resultado = optional(data, "resultado"), observacao = optional(data, "observacao");
+  if (!UUID.test(id) || !expectedOpenStatus(status) || Number.isNaN(Date.parse(updated)) || !isValidActivityCancellationReason(motivo) || !isValidOptionalActivityResult(resultado) || (observacao?.length ?? 0) > ACTIVITY_RPC_LIMITS.movementObservation) return errorState("Revise o motivo e os dados da Atividade.");
+  const result = await (await createClient()).rpc("cancelar_atividade", { p_atividade_id: id, p_status_esperado: status, p_updated_at_esperado: updated, p_motivo: motivo, p_resultado: resultado, p_observacao: observacao });
+  if (result.error) { logError("cancel", "rpc", result.error.code); return errorState(rpcMessage(result.error, "Nao foi possivel cancelar a Atividade.")); }
+  const row = Array.isArray(result.data) ? result.data[0] : result.data;
+  if (!isCancelActivityResult(row) || row.atividade_id !== id || row.status_anterior !== status) return errorState("Nao foi possivel confirmar a operacao.");
+  revalidate(); return { status: "sucesso", mensagem: "Atividade cancelada." };
+}
+
+export async function reopenActivity(_: ActivityActionState, data: FormData): Promise<ActivityActionState> {
+  if (!(await authorize("atividades.reabrir"))) return errorState("Operacao nao autorizada.");
+  const id = field(data, "atividade_id"), updated = field(data, "updated_at_esperado"), motivo = field(data, "motivo");
+  const titulo = optional(data, "titulo"), inicio = parseRecifeTimestamp(field(data, "inicio_planejado_em")), fim = parseRecifeTimestamp(field(data, "fim_planejado_em"));
+  if (!UUID.test(id) || Number.isNaN(Date.parse(updated)) || !isValidActivityReopeningReason(motivo) || (titulo !== null && titulo.length > ACTIVITY_LIMITS.title) || inicio === undefined || fim === undefined || (inicio && fim && Date.parse(fim) < Date.parse(inicio))) return errorState("Revise o motivo e o planejamento da Atividade.");
+  const result = await (await createClient()).rpc("reabrir_atividade", { p_atividade_id: id, p_updated_at_esperado: updated, p_motivo: motivo, p_titulo: titulo, p_inicio_planejado_em: inicio, p_fim_planejado_em: fim });
+  if (result.error) { logError("reopen", "rpc", result.error.code); return errorState(rpcMessage(result.error, "Nao foi possivel reabrir a Atividade.")); }
+  const row = Array.isArray(result.data) ? result.data[0] : result.data;
+  if (!isReopenActivityResult(row) || row.atividade_anterior_id !== id) return errorState("Nao foi possivel confirmar a operacao.");
+  revalidate(); return { status: "sucesso", mensagem: "Nova Atividade criada com sucesso." };
 }

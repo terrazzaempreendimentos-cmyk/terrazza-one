@@ -229,4 +229,8 @@ Criacao e edicao usam formulario Client com `useActionState`, bloqueio de duplo 
 
 As paginas mantem suas permissoes de visualizacao. Controles operacionais aparecem apenas para administrador ou gestor. Cada Server Action autoriza antes de ler `FormData`, exige `atividades.criar` ou `atividades.editar` e confirma o papel. Corretor e atendimento permanecem em leitura quando a matriz lhes permite acessar a pagina; escopo proprio depende de futuro vinculo canonico Auth para Pessoa.
 
-Erros de RPC atravessam somente a allowlist estatica. Logs contem modulo, operacao, etapa e codigo tecnico, sem payload, UUID ou conteudo da Atividade. Concorrencia pede revisao dos dados e nao repete a operacao. RLS, policies e grants permanecem inalterados. Nao existe sincronizacao automatica com Lead, Atendimento, Negocio, Kanban ou Agenda. A Sprint 3C4B podera conectar conclusao, cancelamento e reabertura.
+Erros de RPC atravessam somente a allowlist estatica. Logs contem modulo, operacao, etapa e codigo tecnico, sem payload, UUID ou conteudo da Atividade. Concorrencia pede revisao dos dados e nao repete a operacao. RLS, policies e grants permanecem inalterados. Nao existe sincronizacao automatica com Lead, Atendimento, Negocio, Kanban ou Agenda.
+
+## Sprint 3C4B — estados finais
+
+Administrador e gestor podem concluir, cancelar e reabrir Atividades por Server Actions específicas. Conclusão exige estado aberto; resultado e observação são opcionais. Cancelamento exige motivo entre 3 e 1.000 caracteres. Reabertura exige motivo entre 3 e 500 caracteres e cria novo ciclo pendente sem copiar responsável. As operações usam exclusivamente as RPCs finais da migration 040, com `updated_at` e status esperado quando aplicável. A Agenda mantém Atividades concluídas e canceladas somente no histórico. Não há arquivamento nem sincronização automática nesta etapa; a Sprint 3D reorganizará a Timeline.

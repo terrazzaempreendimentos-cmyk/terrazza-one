@@ -4,7 +4,7 @@ import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import { getActivityPriority, getActivityStatus } from "../../../../lib/crm/atividades/catalogs";
 import { ACTIVITY_SELECT, formatRecife, normalizeActivity, type ActivityView } from "../../../../lib/crm/atividades/view-model";
 import { createClient } from "../../../../lib/supabase/server";
-import { ActivityStateForm } from "../atividades/activity-forms";
+import { ActivityFinalActions, ActivityStateForm } from "../atividades/activity-forms";
 
 type Search = { periodo?: string; status?: string; responsavel?: string };
 const OPEN = new Set(["pendente", "em_andamento", "aguardando"]);
@@ -45,6 +45,7 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     {!result.error && filtered.length === 0 ? <p className="mt-6 rounded-3xl border border-[#E8DDCB] bg-white p-8 text-center text-[#64736D]">Nenhuma Atividade neste periodo.</p> : null}
     {planned.length ? <AgendaGroup title="Atividades planejadas" activities={planned} canOperate={canOperate} /> : null}
     {unplanned.length ? <AgendaGroup title="Sem planejamento" activities={unplanned} canOperate={canOperate} /> : null}
+    {canOperate && filtered.some((activity) => activity.status === "concluida" || activity.status === "cancelada") ? <section className="mt-8 grid gap-3"><h2 className="text-xl font-bold text-[#071E36]">Histórico recente</h2>{filtered.filter((activity) => activity.status === "concluida" || activity.status === "cancelada").map((activity) => <div key={`history-${activity.id}`} className="rounded-2xl border border-[#E8DDCB] bg-white p-4"><p className="font-semibold text-[#071E36]">{activity.titulo}</p><ActivityFinalActions activity={activity} /></div>)}</section> : null}
   </div></main>;
 }
 function AgendaGroup({ title, activities, canOperate }: { title: string; activities: readonly ActivityView[]; canOperate: boolean }) { return <section className="mt-6 grid gap-4"><h2 className="text-xl font-bold text-[#071E36]">{title}</h2>{activities.map((activity) => <article key={activity.id} className="grid gap-4 rounded-3xl border border-[#E8DDCB] bg-white p-5 md:grid-cols-[180px_1fr_240px]"><div><p className="font-bold text-[#071E36]">{formatRecife(due(activity))}</p><p className="text-xs text-[#64736D]">{activity.dia_inteiro ? "Dia inteiro" : "Horario local"}</p></div><div><h3 className="text-lg font-bold text-[#071E36]">{activity.titulo}</h3><p className="mt-1 text-sm text-[#64736D]">{activity.responsavel?.label ?? "Sem responsavel"} · {activity.local ?? "Sem local"}</p><p className="mt-2 text-xs font-semibold text-[#8B6827]">{getActivityStatus(activity.status)?.label} · {getActivityPriority(activity.prioridade)?.label}</p></div><div>{canOperate && OPEN.has(activity.status) ? <ActivityStateForm activity={activity} /> : <p className="text-xs text-[#64736D]">{OPEN.has(activity.status) ? "Acesso somente para leitura." : "Estado final: somente leitura."}</p>}</div></article>)}</section>; }
