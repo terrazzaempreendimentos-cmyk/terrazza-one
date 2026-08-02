@@ -67,6 +67,8 @@ Legenda:
 
 ## Escopos futuros
 
+Na governança administrativa da Sprint 3D2, `timeline.visualizar` é permitido somente a administrador e gestor na Timeline global. Corretor e atendimento permanecem sem acesso global; históricos contextuais continuam sujeitos às permissões dos módulos. `atividades.concluir`, `atividades.cancelar` e `atividades.reabrir` são permissões exclusivas de administrador e gestor.
+
 Os metadados em `FUTURE_PERMISSION_SCOPES` registram os escopos previstos — `proprio`, `atribuido`, `relacionado` e `todos` — sem aplicá-los. A primeira etapa de implementação deverá criar relacionamentos confiáveis e regras de banco para:
 
 - leads atribuídos ao corretor;
