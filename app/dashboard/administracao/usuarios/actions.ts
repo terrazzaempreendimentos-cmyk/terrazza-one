@@ -20,10 +20,12 @@ export async function salvarUsuarioAcesso(_prev: UserAccessActionState, formData
   await requireRole("administrador");
   const userId = String(formData.get("user_id") ?? "");
   const papel = String(formData.get("papel") ?? "");
-  const ativoRaw = String(formData.get("ativo") ?? "");
+  const ativoValues = formData.getAll("ativo");
+  if (ativoValues.length > 1) return { status: "error", message: "Selecione um estado de acesso valido." };
+  const ativoRaw = ativoValues.length === 0 ? "false" : String(ativoValues[0]);
   const pessoaRaw = String(formData.get("pessoa_id") ?? "").trim();
   const updatedRaw = String(formData.get("updated_at_esperado") ?? "").trim();
-  if (!isAccessUuid(userId) || !isAccessRole(papel) || !["true", "false"].includes(ativoRaw) || (pessoaRaw && !isAccessUuid(pessoaRaw)) || (updatedRaw && !isAccessTimestamp(updatedRaw))) return { status: "error", message: "Revise os dados informados." };
+  if (!isAccessUuid(userId) || !isAccessRole(papel) || !["true", "false"].includes(ativoRaw) || (pessoaRaw && !isAccessUuid(pessoaRaw)) || (updatedRaw && !isAccessTimestamp(updatedRaw))) return { status: "error", message: "Selecione um papel de acesso valido." };
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("salvar_usuario_acesso", {
     p_user_id: userId, p_papel: papel as AccessRole, p_ativo: ativoRaw === "true", p_pessoa_id: pessoaRaw || null, p_updated_at_esperado: updatedRaw || null,
@@ -33,7 +35,7 @@ export async function salvarUsuarioAcesso(_prev: UserAccessActionState, formData
     return { status: "error", message };
   }
   const result = Array.isArray(data) ? data[0] : data;
-  if (!isSaveUserAccessResult(result)) return { status: "error", message: "Retorno inesperado." };
+  if (!isSaveUserAccessResult(result) || result.user_id !== userId || result.papel !== papel || result.ativo !== (ativoRaw === "true") || result.pessoa_id !== (pessoaRaw || null)) return { status: "error", message: "O acesso retornado nao corresponde aos valores solicitados." };
   void actor;
   revalidatePath("/dashboard/administracao"); revalidatePath("/dashboard/administracao/usuarios"); revalidatePath("/dashboard");
   return { status: "success", message: result.operacao === "perfil_criado" ? "Acesso configurado com sucesso." : "Acesso atualizado com sucesso." };
