@@ -1,0 +1,3 @@
+import Link from "next/link";
+import { requirePagePermission } from "../../../../lib/auth/page-permission";
+export default async function ConfiguracoesPage() { await requirePagePermission("configuracoes.administrar"); return <main className="min-h-screen bg-[#F7F3ED] p-8"><h1 className="text-3xl font-bold text-[#071E36]">Configurações administrativas</h1><p className="mt-2 text-[#64736D]">Hub para configurações futuras e áreas especializadas.</p><div className="mt-6 grid gap-3 sm:grid-cols-2"><Link href="/dashboard/crm/roleta" className="rounded-2xl border bg-white p-5">Configuração da Roleta</Link><Link href="/dashboard/administracao/usuarios" className="rounded-2xl border bg-white p-5">Usuários e acessos</Link></div></main>; }

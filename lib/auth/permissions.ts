@@ -141,7 +141,6 @@ const CORRETOR_PERMISSIONS = Object.freeze([
   "kanban.usar",
   "agenda.visualizar",
   "agenda.editar",
-  "timeline.visualizar",
   "roleta.visualizar",
   "atendimentos.visualizar",
   "negocios.visualizar",
@@ -164,7 +163,6 @@ const ATENDIMENTO_PERMISSIONS = Object.freeze([
   "agenda.visualizar",
   "agenda.criar",
   "agenda.editar",
-  "timeline.visualizar",
   "timeline.criar",
   "roleta.visualizar",
   "atendimentos.visualizar",
@@ -210,7 +208,6 @@ export const FUTURE_PERMISSION_SCOPES = Object.freeze([
   { papel: "corretor", permissao: "negocios.visualizar", escopoFuturo: "proprio" },
   { papel: "corretor", permissao: "atividades.visualizar", escopoFuturo: "proprio" },
   { papel: "corretor", permissao: "atividades.editar", escopoFuturo: "proprio" },
-  { papel: "corretor", permissao: "timeline.visualizar", escopoFuturo: "relacionado" },
   { papel: "corretor", permissao: "manutencoes.visualizar", escopoFuturo: "atribuido" },
 ] as const satisfies readonly FuturePermissionScope[]);
 
