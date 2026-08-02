@@ -24,6 +24,7 @@ export default async function LoginPage({
 
   const params = (await searchParams) ?? {};
   const redirectTo = safeDashboardRedirect(firstParam(params.redirectTo));
+  const initialMessage = firstParam(params.error) === "invite" ? "Link de convite invalido ou expirado." : "";
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#F7F3ED] px-5 py-10">
@@ -69,7 +70,7 @@ export default async function LoginPage({
               Use o e-mail e a senha fornecidos pela administracao.
             </p>
 
-            <LoginForm redirectTo={redirectTo} />
+            <LoginForm redirectTo={redirectTo} initialMessage={initialMessage} />
           </div>
         </div>
       </section>

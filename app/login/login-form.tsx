@@ -4,10 +4,8 @@ import { useActionState } from "react";
 
 import { login, type LoginState } from "./actions";
 
-const initialState: LoginState = { message: "" };
-
-export function LoginForm({ redirectTo }: { redirectTo: string }) {
-  const [state, formAction, pending] = useActionState(login, initialState);
+export function LoginForm({ redirectTo, initialMessage = "" }: { redirectTo: string; initialMessage?: string }) {
+  const [state, formAction, pending] = useActionState(login, { message: initialMessage });
 
   return (
     <form action={formAction} className="mt-8 grid gap-5">

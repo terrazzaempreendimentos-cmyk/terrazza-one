@@ -14,7 +14,7 @@ export async function convidarNovoUsuario(_: InviteState, formData: FormData): P
   if (pessoa && !isAccessUuid(pessoa)) return { status: "error", message: "Pessoa inexistente." };
   let admin; try { admin = createAdminClient(); } catch { return { status: "error", message: "O servico de convites ainda nao esta configurado." }; }
   const site = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, ""); if (!site || !/^https?:\/\/[^/]+$/i.test(site)) return { status: "error", message: "O servico de convites ainda nao esta configurado." };
-  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${site}/auth/confirm?next=%2Fdefinir-senha` });
+  const { data, error } = await admin.auth.admin.inviteUserByEmail(email, { redirectTo: `${site}/auth/confirm` });
   if (error) { const existing = /already|exists|registered|duplicate/i.test(error.message); return { status: "error", message: existing ? "Este e-mail ja pertence a um usuario. Configure o acesso na listagem existente." : "Nao foi possivel enviar o convite." }; }
   const userId = data.user?.id; if (!userId) return { status: "error", message: "Nao foi possivel enviar o convite." };
   const result = await (await createClient()).rpc("salvar_usuario_acesso", { p_user_id: userId, p_papel: papel as AccessRole, p_ativo: ativo, p_pessoa_id: pessoa, p_updated_at_esperado: null });

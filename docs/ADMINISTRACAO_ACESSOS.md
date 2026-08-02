@@ -16,8 +16,24 @@ Não há convite, redefinição administrativa de senha, sincronização automá
 
 ## Convites e ativação
 
-O convite usa cliente Supabase administrativo exclusivamente server-only e `SUPABASE_SERVICE_ROLE_KEY`, nunca uma variável `NEXT_PUBLIC_` e nunca um componente Client. `NEXT_PUBLIC_SITE_URL` define a origem canônica do link `/auth/confirm?next=/definir-senha`. O administrador escolhe papel, estado e Pessoa opcional; não define senha.
+O convite usa cliente Supabase administrativo exclusivamente server-only e `SUPABASE_SERVICE_ROLE_KEY`, nunca uma variável `NEXT_PUBLIC_` e nunca um componente Client. `NEXT_PUBLIC_SITE_URL` define a origem canônica sem query string para `/auth/confirm`. O administrador escolhe papel, estado e Pessoa opcional; não define senha.
 
 Após a confirmação, o convidado estabelece a própria senha em `/definir-senha`. O perfil ativo é exigido para entrar no CRM; sem perfil ou com perfil inativo, o usuário permanece em `/acesso-pendente`. Se o convite for enviado e a criação do perfil falhar, o usuário Auth não é apagado nem o convite repetido: o acesso permanece pendente para configuração manual.
 
 Convites exigem que as URLs de produção estejam autorizadas no Supabase Auth, incluindo `/auth/confirm` e `/definir-senha`. Reenvio automático e criação de novos usuários fora deste fluxo permanecem pendentes.
+
+### Configuração exata do template Invite user
+
+O `redirectTo` enviado pelo servidor é exatamente:
+
+`https://www.terrazzacrm.com.br/auth/confirm`
+
+No painel Supabase, o template **Invite user** deve usar o link:
+
+```html
+<a href="{{ .RedirectTo }}?token_hash={{ .TokenHash }}&type=invite&next=/definir-senha">
+  Aceitar convite
+</a>
+```
+
+A rota aceita somente `type=invite`, valida `next` contra open redirect e, após `verifyOtp`, redireciona para `/definir-senha` sem expor o token.
