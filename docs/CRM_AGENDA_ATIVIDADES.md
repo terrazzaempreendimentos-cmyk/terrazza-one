@@ -105,7 +105,7 @@ O helper puro `transitions.ts` permite:
 - em andamento para aguardando, concluida ou cancelada;
 - aguardando para em andamento, concluida ou cancelada.
 
-Valor desconhecido, mesmo estado, transicao de estado final e reabertura comum falham fechados. Conclusao e cancelamento exigem autor e timestamp. O contrato provisoriamente exige motivo no cancelamento; essa regra precisa de aprovacao antes da migration. Reabertura deve ser uma operacao administrativa futura, explicita e auditavel.
+Valor desconhecido, mesmo estado e transicao comum de estado final falham fechados. Conclusao e cancelamento exigem autor e timestamp. Cancelamento exige motivo controlado. Reabertura e uma operacao administrativa explicita e auditavel que cria novo ciclo, sem reativar o registro final.
 
 Conclusao pode exigir resumo ou resultado, mas isso permanece decisao comercial. Nao deve sincronizar automaticamente Lead, Atendimento ou Negocio. Cancelamento nao apaga a Atividade e deve encerrar lembretes futuros; catalogo de motivos e politica de preservacao ainda estao pendentes.
 
@@ -166,15 +166,15 @@ Listagens e logs nao devem expor documentos, contatos normalizados, payloads, cr
 15. Sincronizacoes futuras explicitas.
 16. Retencao historica.
 
-## Migration 038 preparada
+## Migration 038 aplicada
 
 `038_atividades_core_canonico.sql` evolui `public.tarefas`, que esta vazia, sem criar tabela paralela. Reutiliza titulo, descricao, tipo, status, prioridade, origem, Lead, Imovel e criacao; adiciona planejamento, execucao, autoria e relacoes canonicas. Preserva integralmente as colunas e FKs legadas, sem backfill ou conversao de identidade.
 
-Cancelamento exige motivo aparado de 3 a 1000 caracteres, autor e timestamp. Atraso continua calculado, recorrencia e lembretes nao foram adicionados e nao existe sincronizacao automatica com Lead, Atendimento, Negocio ou Timeline. RLS, policies e grants permanecem administrativos e inalterados. A migration foi apenas preparada, nao executada.
+Cancelamento exige motivo aparado de 3 a 1000 caracteres, autor e timestamp. Atraso continua calculado, recorrencia e lembretes nao foram adicionados e nao existe sincronizacao automatica com Lead, Atendimento, Negocio ou Timeline. RLS, policies e grants permanecem administrativos e inalterados.
 
 Essa direcao foi materializada na migration 039, com RPCs atomicas `SECURITY DEFINER`, autorizacao interna, concorrencia, validacao entre relacionamentos e eventos transacionais de Timeline. A aplicacao nao recebe UPDATE direto.
 
-## RPCs de Atividades abertas — migration 039 preparada
+## RPCs de Atividades abertas — migration 039 aplicada
 
 A migration `039_atividades_rpc_abertas.sql` cria quatro funcoes nominais:
 
@@ -203,4 +203,18 @@ Cada RPC executa uma unica mutacao em `tarefas` e exige exatamente um evento na 
 
 Edicao e transicoes usam concorrencia otimista sem retry ou ultima gravacao vencedora. Nenhuma RPC altera Lead, Atendimento, Negocio, Imovel, Pessoa, Kanban ou Agenda. As RPCs nao concluem, cancelam, reabrem ou arquivam Atividades.
 
-O contrato `lib/crm/atividades/rpc-contracts.ts` centraliza payloads, retornos, mensagens sanitizadas, UUID/timestamp, limite de observacao e transicoes abertas. A Sprint 3C3B deve tratar conclusao, cancelamento e eventual reabertura administrativa com autoria, timestamps, concorrencia e Timeline atomica.
+O contrato `lib/crm/atividades/rpc-contracts.ts` centraliza payloads, retornos, mensagens sanitizadas, UUID/timestamp, limite de observacao e transicoes abertas.
+
+## RPCs finais — migration 040 preparada
+
+A migration `040_atividades_rpc_finais.sql` cria `concluir_atividade`, `cancelar_atividade` e `reabrir_atividade`. Todas usam `SECURITY DEFINER`, `search_path = pg_catalog`, sessao por `auth.uid()`, perfil ativo administrador ou gestor, `FOR UPDATE`, fotografia de `updated_at` e Timeline obrigatoria. Corretor e atendimento permanecem bloqueados.
+
+Conclusao altera uma Atividade aberta para `concluida`, registra autor e timestamp e aceita resultado opcional de ate 1.000 caracteres. Cancelamento altera uma Atividade aberta para `cancelada`, exige motivo aparado entre 3 e 1.000 caracteres e aceita resultado opcional. A observacao de ambas tem ate 500 caracteres e aparece somente na Timeline.
+
+Reabertura nao modifica nem reativa a predecessora. Cria uma nova Atividade pendente, ativa e sem responsavel, vinculada por `atividade_anterior_id`. Copia somente descricao, tipo, prioridade, origem, relacionamentos canonicos, dia inteiro, local, link e observacoes internas. Titulo pode ser substituido; datas planejadas pertencem exclusivamente ao novo ciclo. Execucao, encerramento, resultado, motivo e autores anteriores nao sao copiados.
+
+O indice unico parcial `idx_tarefas_atividade_anterior_unica` permite somente uma sucessora direta por predecessora, sem impedir cadeias A para B para C. `unique_violation` e convertida em mensagem sanitizada. A predecessora fica bloqueada durante a operacao e nunca recebe UPDATE.
+
+Cada RPC registra exatamente um evento atomico: `atividade_concluida`, `atividade_cancelada` ou `atividade_reaberta`. O motivo integral de cancelamento permanece exclusivamente em `tarefas`; o motivo controlado da reabertura pode aparecer na Timeline. Nenhuma operacao sincroniza Lead, Atendimento, Negocio, Kanban ou Agenda.
+
+Finalizar preserva o registro operacional e seu estado final. Arquivar sera uma evolucao separada para retirar uma Atividade das visoes operacionais sem exclusao fisica. A futura interface deve consumir somente as RPCs, preservar a fotografia de concorrencia e apresentar mensagens do catalogo local sem dados internos.

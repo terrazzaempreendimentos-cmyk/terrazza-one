@@ -42,8 +42,70 @@ export type ChangeActivityStateResult = Readonly<{
   updated_at: string;
 }>;
 
+export type ConcludeActivityInput = Readonly<{
+  atividade_id: string;
+  status_esperado: "pendente" | "em_andamento" | "aguardando";
+  updated_at_esperado: string;
+  resultado?: string | null;
+  observacao?: string | null;
+}>;
+
+export type CancelActivityInput = Readonly<{
+  atividade_id: string;
+  status_esperado: "pendente" | "em_andamento" | "aguardando";
+  updated_at_esperado: string;
+  motivo: string;
+  resultado?: string | null;
+  observacao?: string | null;
+}>;
+
+export type ReopenActivityInput = Readonly<{
+  atividade_id: string;
+  updated_at_esperado: string;
+  motivo: string;
+  titulo?: string | null;
+  inicio_planejado_em?: string | null;
+  fim_planejado_em?: string | null;
+}>;
+
+export type ConcludeActivityResult = Readonly<{
+  atividade_id: string;
+  status_anterior: ActivityStatus;
+  status_atual: "concluida";
+  concluida_em: string;
+  updated_at: string;
+}>;
+
+export type CancelActivityResult = Readonly<{
+  atividade_id: string;
+  status_anterior: ActivityStatus;
+  status_atual: "cancelada";
+  cancelada_em: string;
+  updated_at: string;
+}>;
+
+export type ReopenActivityResult = Readonly<{
+  atividade_anterior_id: string;
+  atividade_nova_id: string;
+  status_atual: "pendente";
+  created_at: string;
+  updated_at: string;
+}>;
+
 export const ACTIVITY_RPC_LIMITS = Object.freeze({
   movementObservation: 500,
+  optionalResult: 1_000,
+  cancellationReasonMin: 3,
+  cancellationReasonMax: 1_000,
+  reopeningReasonMin: 3,
+  reopeningReasonMax: 500,
+} as const);
+
+export const ACTIVITY_REOPENING_RULES = Object.freeze({
+  createsNewRecord: true,
+  preservesPreviousRecord: true,
+  newStatus: "pendente",
+  newResponsibleId: null,
 } as const);
 
 export const OPEN_ACTIVITY_TRANSITIONS = Object.freeze({
@@ -74,12 +136,22 @@ export const ACTIVITY_RPC_MESSAGES = Object.freeze([
   "Responsavel invalido.",
   "Datas da Atividade incoerentes.",
   "Observacao excede o limite permitido.",
+  "Argumento obrigatorio ausente.",
+  "Estado atual da Atividade divergente.",
+  "Resultado excede o limite permitido.",
+  "Motivo obrigatorio.",
+  "Motivo excede o limite permitido.",
+  "Titulo invalido.",
+  "Esta Atividade ja possui uma reabertura.",
   "Falha ao registrar Timeline da Atividade.",
   "Retorno inesperado.",
   "Nao foi possivel criar a Atividade.",
   "Nao foi possivel atualizar a Atividade.",
   "Nao foi possivel iniciar a Atividade.",
   "Nao foi possivel alterar o estado da Atividade.",
+  "Nao foi possivel concluir a Atividade.",
+  "Nao foi possivel cancelar a Atividade.",
+  "Nao foi possivel reabrir a Atividade.",
 ] as const);
 
 export type ActivityRpcMessage = (typeof ACTIVITY_RPC_MESSAGES)[number];
@@ -133,4 +205,41 @@ export function isChangeActivityStateResult(value: unknown): value is ChangeActi
 export function canUseOpenActivityTransition(currentStatus: unknown, nextStatus: unknown): boolean {
   if (!isActivityStatusValue(currentStatus) || !isActivityStatusValue(nextStatus) || currentStatus === nextStatus) return false;
   return (OPEN_ACTIVITY_TRANSITIONS[currentStatus] as readonly ActivityStatus[]).includes(nextStatus);
+}
+
+export function isValidOptionalActivityResult(value: unknown): value is string | null | undefined {
+  return value === null || value === undefined || (typeof value === "string" && value.trim().length <= ACTIVITY_RPC_LIMITS.optionalResult);
+}
+
+export function isValidActivityCancellationReason(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const length = value.trim().length;
+  return length >= ACTIVITY_RPC_LIMITS.cancellationReasonMin && length <= ACTIVITY_RPC_LIMITS.cancellationReasonMax;
+}
+
+export function isValidActivityReopeningReason(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const length = value.trim().length;
+  return length >= ACTIVITY_RPC_LIMITS.reopeningReasonMin && length <= ACTIVITY_RPC_LIMITS.reopeningReasonMax;
+}
+
+export function isConcludeActivityResult(value: unknown): value is ConcludeActivityResult {
+  if (!isRecord(value) || !hasExactKeys(value, ["atividade_id", "status_anterior", "status_atual", "concluida_em", "updated_at"])) return false;
+  return isActivityRpcUuid(value.atividade_id) && isActivityStatusValue(value.status_anterior)
+    && value.status_atual === "concluida" && isActivityRpcTimestamp(value.concluida_em)
+    && isActivityRpcTimestamp(value.updated_at);
+}
+
+export function isCancelActivityResult(value: unknown): value is CancelActivityResult {
+  if (!isRecord(value) || !hasExactKeys(value, ["atividade_id", "status_anterior", "status_atual", "cancelada_em", "updated_at"])) return false;
+  return isActivityRpcUuid(value.atividade_id) && isActivityStatusValue(value.status_anterior)
+    && value.status_atual === "cancelada" && isActivityRpcTimestamp(value.cancelada_em)
+    && isActivityRpcTimestamp(value.updated_at);
+}
+
+export function isReopenActivityResult(value: unknown): value is ReopenActivityResult {
+  if (!isRecord(value) || !hasExactKeys(value, ["atividade_anterior_id", "atividade_nova_id", "status_atual", "created_at", "updated_at"])) return false;
+  return isActivityRpcUuid(value.atividade_anterior_id) && isActivityRpcUuid(value.atividade_nova_id)
+    && value.atividade_anterior_id !== value.atividade_nova_id && value.status_atual === "pendente"
+    && isActivityRpcTimestamp(value.created_at) && isActivityRpcTimestamp(value.updated_at);
 }
