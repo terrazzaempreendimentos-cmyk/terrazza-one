@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { AccessPermissionRequiredError, AccessProfileRequiredError, AccessRoleRequiredError, requirePermission, requireRole } from "../../../../lib/auth/access-profile";
 import { ACTIVITY_LIMITS, isActivityOrigin, isActivityPriority, isActivityStatus, isActivityType } from "../../../../lib/crm/atividades/catalogs";
-import { ACTIVITY_RPC_LIMITS, isActivityRpcMessage, isCancelActivityResult, isConcludeActivityResult, isReopenActivityResult, isValidActivityCancellationReason, isValidActivityReopeningReason, isValidOptionalActivityResult, isChangeActivityStateResult, isSaveActivityResult } from "../../../../lib/crm/atividades/rpc-contracts";
+import { ACTIVITY_RPC_LIMITS, isActivityRpcMessage, isCancelActivityResult, isConcludeActivityResult, isReopenActivityResult, isValidActivityCancellationReason, isValidActivityReopeningReason, isValidOptionalActivityResult, isChangeActivityStateResult, isSaveActivityResult, type ActivityOperationalPayload } from "../../../../lib/crm/atividades/rpc-contracts";
 import { createClient } from "../../../../lib/supabase/server";
 
 export type ActivityActionState = { status: "idle" | "erro" | "sucesso"; mensagem: string | null };
@@ -41,7 +41,7 @@ function parseRecifeTimestamp(value: string) {
   return Number.isNaN(Date.parse(normalized)) ? undefined : new Date(normalized).toISOString();
 }
 
-function payload(data: FormData) {
+function payload(data: FormData): ActivityOperationalPayload | ActivityActionState {
   const titulo = field(data, "titulo"); const descricao = optional(data, "descricao");
   const tipo = field(data, "tipo"); const prioridade = field(data, "prioridade"); const origem = field(data, "origem");
   if (!titulo) return errorState("Informe o titulo da Atividade.");
