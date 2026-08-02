@@ -13,3 +13,11 @@ Cada alteração válida grava um registro em `usuarios_acessos_auditoria` e um 
 As RPCs `listar_usuarios_acessos()` e `salvar_usuario_acesso(...)` são `SECURITY DEFINER`, server-side, com `search_path` fixo e execução somente para `authenticated`; a autorização interna continua obrigatória. Não há INSERT/UPDATE/DELETE direto do cliente.
 
 Não há convite, redefinição administrativa de senha, sincronização automática com papéis comerciais ou interface nesta sprint. A Sprint 3D3 poderá criar a área administrativa e seus formulários.
+
+## Convites e ativação
+
+O convite usa cliente Supabase administrativo exclusivamente server-only e `SUPABASE_SERVICE_ROLE_KEY`, nunca uma variável `NEXT_PUBLIC_` e nunca um componente Client. `NEXT_PUBLIC_SITE_URL` define a origem canônica do link `/auth/confirm?next=/definir-senha`. O administrador escolhe papel, estado e Pessoa opcional; não define senha.
+
+Após a confirmação, o convidado estabelece a própria senha em `/definir-senha`. O perfil ativo é exigido para entrar no CRM; sem perfil ou com perfil inativo, o usuário permanece em `/acesso-pendente`. Se o convite for enviado e a criação do perfil falhar, o usuário Auth não é apagado nem o convite repetido: o acesso permanece pendente para configuração manual.
+
+Convites exigem que as URLs de produção estejam autorizadas no Supabase Auth, incluindo `/auth/confirm` e `/definir-senha`. Reenvio automático e criação de novos usuários fora deste fluxo permanecem pendentes.
