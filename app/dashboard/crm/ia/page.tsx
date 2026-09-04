@@ -11,7 +11,7 @@ import {
   WandSparkles,
 } from "lucide-react";
 
-import { requireActiveProfile } from "../../../../lib/auth/access-profile";
+import { requirePermission } from "../../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import { createClient } from "../../../../lib/supabase/server";
 
@@ -156,7 +156,7 @@ export default async function IaComercialPage() {
 
   async function enviarMensagem(formData: FormData) {
     "use server";
-    await requireActiveProfile();
+    await requirePermission("ia.usar");
     const supabase = await createClient();
 
     const pergunta = String(formData.get("mensagem") ?? "").trim();

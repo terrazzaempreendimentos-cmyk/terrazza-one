@@ -14,10 +14,7 @@ import {
 import { createClient } from "../../../../lib/supabase/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
-import {
-  requireActiveProfile,
-  requirePermission,
-} from "../../../../lib/auth/access-profile";
+import { requirePermission } from "../../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import {
   createOperationalMemoryFromMaintenance,
@@ -292,10 +289,10 @@ export default async function ManutencoesPage({
 
   async function salvarCaso(formData: FormData) {
     "use server";
-    await requireActiveProfile();
+    const id = valorTexto(formData, "id");
+    await requirePermission(id ? "manutencoes.editar" : "manutencoes.criar");
     const supabase = await createClient();
 
-    const id = valorTexto(formData, "id");
     const tipo = valorTexto(formData, "tipo");
     const titulo = valorTexto(formData, "titulo");
 
