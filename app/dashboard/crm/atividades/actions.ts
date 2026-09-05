@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { AccessPermissionRequiredError, AccessProfileRequiredError, AccessRoleRequiredError, requirePermission, requireRole } from "../../../../lib/auth/access-profile";
+import { AccessPermissionRequiredError, AccessProfileRequiredError, AccessRoleRequiredError, requireCorretorPessoaId, requirePermission, requireRole, type AccessProfile } from "../../../../lib/auth/access-profile";
 import { ACTIVITY_LIMITS, isActivityOrigin, isActivityPriority, isActivityStatus, isActivityType } from "../../../../lib/crm/atividades/catalogs";
 import { ACTIVITY_RPC_LIMITS, isActivityRpcMessage, isCancelActivityResult, isConcludeActivityResult, isReopenActivityResult, isValidActivityCancellationReason, isValidActivityReopeningReason, isValidOptionalActivityResult, isChangeActivityStateResult, isSaveActivityResult, type ActivityOperationalPayload } from "../../../../lib/crm/atividades/rpc-contracts";
 import { createClient } from "../../../../lib/supabase/server";
@@ -18,7 +18,12 @@ function logError(operation: string, stage: string, code: unknown) {
 }
 
 async function authorize(permission: "atividades.criar" | "atividades.editar" | "atividades.concluir" | "atividades.cancelar" | "atividades.reabrir") {
-  try { await requirePermission(permission); await requireRole("administrador", "gestor"); return true; }
+  try {
+    const profile = await requirePermission(permission);
+    if (profile.papel !== "corretor") await requireRole("administrador", "gestor");
+    requireCorretorPessoaId(profile);
+    return profile;
+  }
   catch (error) {
     logError("authorize", "authorization", error instanceof AccessPermissionRequiredError || error instanceof AccessProfileRequiredError || error instanceof AccessRoleRequiredError ? error.name : "authorization_error");
     return false;
@@ -27,12 +32,11 @@ async function authorize(permission: "atividades.criar" | "atividades.editar" | 
 
 const expectedOpenStatus = (value: string): value is "pendente" | "em_andamento" | "aguardando" => value === "pendente" || value === "em_andamento" || value === "aguardando";
 
-async function authorizeOperator() {
-  try { await requireRole("administrador", "gestor"); return true; }
-  catch (error) {
-    logError("authorize", "authorization", error instanceof AccessProfileRequiredError || error instanceof AccessRoleRequiredError ? error.name : "authorization_error");
-    return false;
-  }
+async function ownsActivity(profile: AccessProfile, activityId: string) {
+  const pessoaId = requireCorretorPessoaId(profile);
+  if (!pessoaId) return true;
+  const result = await (await createClient()).from("tarefas").select("id").eq("id", activityId).eq("responsavel_id", pessoaId).maybeSingle();
+  return !result.error && Boolean(result.data);
 }
 
 function parseRecifeTimestamp(value: string) {
@@ -70,12 +74,22 @@ function revalidate(leadId?: string | null, atendimentoId?: string | null, negoc
 }
 
 export async function saveActivity(_: ActivityActionState, data: FormData): Promise<ActivityActionState> {
-  if (!(await authorizeOperator())) return errorState("Operacao nao autorizada.");
   const id = field(data, "atividade_id"); const editing = Boolean(id);
-  if (!(await authorize(editing ? "atividades.editar" : "atividades.criar"))) return errorState("Operacao nao autorizada.");
+  const actor = await authorize(editing ? "atividades.editar" : "atividades.criar");
+  if (!actor) return errorState("Operacao nao autorizada.");
   if (editing && (!UUID.test(id) || Number.isNaN(Date.parse(field(data, "updated_at"))))) return errorState("Os dados atuais da Atividade sao invalidos. Recarregue a pagina.");
-  const parsed = payload(data); if ("status" in parsed) return parsed;
+  if (editing && !(await ownsActivity(actor, id))) return errorState("Operacao nao autorizada.");
+  const parsedResult = payload(data); if ("status" in parsedResult) return parsedResult;
+  const parsed: ActivityOperationalPayload = actor.papel === "corretor"
+    ? { ...parsedResult, responsavel_id: actor.pessoaId }
+    : parsedResult;
   const supabase = await createClient();
+  if (actor.papel === "corretor") {
+    const direct = await supabase.from("tarefas").update(parsed).eq("id", id).eq("responsavel_id", actor.pessoaId!).eq("updated_at", field(data, "updated_at")).select("id").maybeSingle();
+    if (direct.error || !direct.data) return errorState("Esta Atividade foi atualizada por outra operacao. Revise os dados atuais.");
+    revalidate(parsed.lead_id, parsed.atendimento_id, parsed.negocio_id);
+    return { status: "sucesso", mensagem: "Atividade atualizada." };
+  }
   const result = editing
     ? await supabase.rpc("atualizar_atividade", { p_atividade_id: id, p_updated_at_esperado: field(data, "updated_at"), p_payload: parsed })
     : await supabase.rpc("criar_atividade", { p_payload: parsed });
@@ -87,12 +101,25 @@ export async function saveActivity(_: ActivityActionState, data: FormData): Prom
 }
 
 export async function changeActivityState(_: ActivityActionState, data: FormData): Promise<ActivityActionState> {
-  if (!(await authorizeOperator())) return errorState("Operacao nao autorizada.");
-  if (!(await authorize("atividades.editar"))) return errorState("Operacao nao autorizada.");
+  const actor = await authorize("atividades.editar");
+  if (!actor) return errorState("Operacao nao autorizada.");
   const id = field(data, "atividade_id"), updatedAt = field(data, "updated_at"), current = field(data, "status_atual"), destination = field(data, "status_destino"), observation = optional(data, "observacao");
   if (!UUID.test(id) || Number.isNaN(Date.parse(updatedAt)) || !isActivityStatus(current) || !isActivityStatus(destination)) return errorState("Os dados atuais da Atividade sao invalidos. Recarregue a pagina.");
+  if (!(await ownsActivity(actor, id))) return errorState("Operacao nao autorizada.");
   if ((observation?.length ?? 0) > ACTIVITY_RPC_LIMITS.movementObservation) return errorState("A observacao excede o limite permitido.");
   const supabase = await createClient();
+  if (actor.papel === "corretor") {
+    const allowed = (current === "pendente" && (destination === "em_andamento" || destination === "aguardando"))
+      || (current === "em_andamento" && destination === "aguardando")
+      || (current === "aguardando" && destination === "em_andamento");
+    if (!allowed) return errorState("Transicao de estado nao permitida.");
+    const changes: Record<string, unknown> = { status: destination };
+    if (destination === "em_andamento") changes.iniciado_em = new Date().toISOString();
+    const direct = await supabase.from("tarefas").update(changes).eq("id", id).eq("responsavel_id", actor.pessoaId!).eq("status", current).eq("updated_at", updatedAt).select("id").maybeSingle();
+    if (direct.error || !direct.data) return errorState("Esta Atividade foi atualizada por outra operacao. Revise os dados atuais.");
+    revalidate(field(data, "lead_id"), field(data, "atendimento_id"), field(data, "negocio_id"));
+    return { status: "sucesso", mensagem: "Estado da Atividade atualizado." };
+  }
   const result = current === "pendente" && destination === "em_andamento"
     ? await supabase.rpc("iniciar_atividade", { p_atividade_id: id, p_updated_at_esperado: updatedAt })
     : await supabase.rpc("alterar_estado_atividade", { p_atividade_id: id, p_status_destino: destination, p_updated_at_esperado: updatedAt, p_observacao: observation });

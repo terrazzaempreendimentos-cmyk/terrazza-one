@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { AlertTriangle, CalendarDays, CheckCircle2, Clock3 } from "lucide-react";
+import { requireCorretorPessoaId } from "../../../../lib/auth/access-profile";
+import { hasPermission } from "../../../../lib/auth/permissions";
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import { getActivityPriority, getActivityStatus } from "../../../../lib/crm/atividades/catalogs";
 import { ACTIVITY_SELECT, formatRecife, normalizeActivity, type ActivityView } from "../../../../lib/crm/atividades/view-model";
@@ -15,8 +17,12 @@ function due(activity: ActivityView) { return activity.inicio_planejado_em ?? ac
 
 export default async function AgendaPage({ searchParams }: { searchParams: Promise<Search> }) {
   const profile = await requirePagePermission("agenda.visualizar"); const search = await searchParams; const supabase = await createClient();
+  const corretorPessoaId = requireCorretorPessoaId(profile);
+  const canEdit = hasPermission(profile.papel, "agenda.editar");
   const canOperate = profile.papel === "administrador" || profile.papel === "gestor";
-  const result = await supabase.from("tarefas").select(ACTIVITY_SELECT).eq("ativo", true).order("inicio_planejado_em", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false });
+  let query = supabase.from("tarefas").select(ACTIVITY_SELECT).eq("ativo", true);
+  if (corretorPessoaId) query = query.eq("responsavel_id", corretorPessoaId);
+  const result = await query.order("inicio_planejado_em", { ascending: true, nullsFirst: false }).order("created_at", { ascending: false });
   if (result.error) console.error({ modulo: "crm_agenda", etapa: "list", codigo: result.error.code });
   const activities = ((result.data ?? []) as unknown[]).map(normalizeActivity).filter((x): x is ActivityView => x !== null);
   const now = new Date(); const today = recifeDay(now); const weekEnd = new Date(now.getTime() + 7 * day);
@@ -43,8 +49,8 @@ export default async function AgendaPage({ searchParams }: { searchParams: Promi
     <form className="mt-6 grid gap-3 rounded-3xl border border-[#E8DDCB] bg-white p-5 sm:grid-cols-3"><select name="periodo" defaultValue={search.periodo ?? ""} className={inputClass}><option value="">Todos os periodos</option><option value="hoje">Hoje</option><option value="semana">Proximos 7 dias</option><option value="proximas">Todas as proximas</option><option value="atrasadas">Atrasadas</option><option value="sem_planejamento">Sem planejamento</option></select><select name="status" defaultValue={search.status ?? ""} className={inputClass}><option value="">Todos os estados</option>{["pendente","em_andamento","aguardando","concluida","cancelada"].map((x) => <option key={x} value={x}>{x.replaceAll("_"," ")}</option>)}</select><select name="responsavel" defaultValue={search.responsavel ?? ""} className={inputClass}><option value="">Todos os responsaveis</option>{responsaveis.map((x) => <option key={x.id} value={x.id}>{x.label}</option>)}</select><button className="rounded-xl bg-[#071E36] px-4 py-2 text-sm font-semibold text-white">Filtrar</button></form>
     {result.error ? <p role="alert" className="mt-6 rounded-2xl border border-red-200 bg-red-50 p-4 text-red-700">Nao foi possivel carregar a Agenda.</p> : null}
     {!result.error && filtered.length === 0 ? <p className="mt-6 rounded-3xl border border-[#E8DDCB] bg-white p-8 text-center text-[#64736D]">Nenhuma Atividade neste periodo.</p> : null}
-    {planned.length ? <AgendaGroup title="Atividades planejadas" activities={planned} canOperate={canOperate} /> : null}
-    {unplanned.length ? <AgendaGroup title="Sem planejamento" activities={unplanned} canOperate={canOperate} /> : null}
+    {planned.length ? <AgendaGroup title="Atividades planejadas" activities={planned} canOperate={canEdit} /> : null}
+    {unplanned.length ? <AgendaGroup title="Sem planejamento" activities={unplanned} canOperate={canEdit} /> : null}
     {canOperate && filtered.some((activity) => activity.status === "concluida" || activity.status === "cancelada") ? <section className="mt-8 grid gap-3"><h2 className="text-xl font-bold text-[#071E36]">Histórico recente</h2>{filtered.filter((activity) => activity.status === "concluida" || activity.status === "cancelada").map((activity) => <div key={`history-${activity.id}`} className="rounded-2xl border border-[#E8DDCB] bg-white p-4"><p className="font-semibold text-[#071E36]">{activity.titulo}</p><ActivityFinalActions activity={activity} /></div>)}</section> : null}
   </div></main>;
 }

@@ -10,8 +10,10 @@ import {
   type SalvarImovelState,
 } from "../../../components/ImovelUniqueForm";
 import {
+  requireCorretorPessoaId,
   requirePermission,
   requireRole,
+  type AccessProfile,
 } from "../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../lib/auth/page-permission";
 import { hasPapel } from "../../../lib/crm/pessoas/papeis";
@@ -64,6 +66,7 @@ type Imovel = {
   status?: string | null;
   situacao?: string | null;
   responsavel_id?: string | null;
+  responsavel_pessoa_id?: string | null;
   origem?: string | null;
   data_captacao?: string | null;
   exclusividade?: boolean | null;
@@ -169,6 +172,7 @@ const imoveisLeituraFields = `
   status,
   situacao,
   responsavel_id,
+  responsavel_pessoa_id,
   origem,
   data_captacao,
   exclusividade,
@@ -757,7 +761,8 @@ export default async function ImoveisPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
-  await requirePagePermission("imoveis.visualizar");
+  const profile = await requirePagePermission("imoveis.visualizar");
+  const corretorPessoaId = requireCorretorPessoaId(profile);
   const supabase = await createClient();
 
   const resolvedSearchParams = (await searchParams) ?? {};
@@ -784,10 +789,10 @@ export default async function ImoveisPage({
 
   async function salvarImovel(formData: FormData): Promise<SalvarImovelState> {
     "use server";
+    let actor: AccessProfile;
     try {
-      await requireRole("administrador", "gestor");
-      await requirePermission("imoveis.criar");
-      await requirePermission("imoveis.editar");
+      actor = await requirePermission(formData.get("id") ? "imoveis.editar" : "imoveis.criar");
+      requireCorretorPessoaId(actor);
     } catch {
       console.error("Falha de autorizacao ao salvar imovel.", {
         module: "imoveis.salvar",
@@ -889,7 +894,10 @@ export default async function ImoveisPage({
         finalidade,
         status,
         situacao: status,
-        responsavel_id: uuidOpcional(formData, "responsavel_id"),
+        responsavel_pessoa_id:
+          actor.papel === "corretor"
+            ? actor.pessoaId
+            : uuidOpcional(formData, "responsavel_pessoa_id"),
         origem: textoOpcional(formData, "origem") ?? "manual",
         data_captacao: dataOpcional(formData, "data_captacao"),
         exclusividade: valorBooleano(formData, "exclusividade"),
@@ -1023,43 +1031,82 @@ export default async function ImoveisPage({
 
     try {
       const supabase = await createClient();
-      const { data: resultado, error } = await supabase.rpc(
-        "salvar_imovel_com_proprietarios",
-        {
-          p_imovel_id: id,
-          p_payload: payload,
-          p_proprietarios: proprietarios,
-        },
-      );
+      if (id && actor.papel === "corretor") {
+        const ownership = await supabase
+          .from("imoveis")
+          .select("id")
+          .eq("id", id)
+          .eq("responsavel_pessoa_id", actor.pessoaId)
+          .maybeSingle();
+        if (ownership.error || !ownership.data) {
+          return { status: "erro", mensagem: "Voce nao possui permissao para realizar esta operacao." };
+        }
+      }
+      if (actor.papel === "corretor") {
+        const propertyResult = id
+          ? await supabase.from("imoveis").update(payload).eq("id", id).eq("responsavel_pessoa_id", actor.pessoaId).select("id").maybeSingle()
+          : await supabase.from("imoveis").insert(payload).select("id").single();
+        if (propertyResult.error || !propertyResult.data) {
+          const code = propertyResult.error?.code ?? "missing_result";
+          console.error("Falha na persistencia do imovel do Corretor.", { module: "imoveis.salvar", stage: "ownership_write", code });
+          return { status: "erro", mensagem: code === "42501" ? "Voce nao possui permissao para realizar esta operacao." : "Nao foi possivel salvar o imovel. Tente novamente." };
+        }
 
-      const resultadoRpc = Array.isArray(resultado) ? resultado[0] : null;
-      const operacaoEsperada = id ? "editado" : "criado";
-      if (
-        error ||
-        typeof resultadoRpc?.imovel_id !== "string" ||
-        resultadoRpc?.operacao !== operacaoEsperada
-      ) {
-        const code = error?.code ?? "missing_result";
-        console.error("Falha na RPC de persistencia do imovel.", {
-          module: "imoveis.salvar",
-          stage: "rpc",
-          code,
-        });
+        const propertyId = propertyResult.data.id;
+        const archiveRelations = await supabase.from("imovel_proprietarios").update({ ativo: false }).eq("imovel_id", propertyId).eq("ativo", true);
+        if (archiveRelations.error) return { status: "erro", mensagem: "Nao foi possivel atualizar os proprietarios do imovel." };
+        if (proprietarios.length > 0) {
+          const relationResult = await supabase.from("imovel_proprietarios").insert(proprietarios.map((item) => ({ ...item, imovel_id: propertyId, ativo: true })));
+          if (relationResult.error) return { status: "erro", mensagem: "Nao foi possivel atualizar os proprietarios do imovel." };
+        }
+      } else {
+        const rpcPayload = { ...payload };
+        delete rpcPayload.responsavel_pessoa_id;
+        const { data: resultado, error } = await supabase.rpc(
+          "salvar_imovel_com_proprietarios",
+          {
+            p_imovel_id: id,
+            p_payload: rpcPayload,
+            p_proprietarios: proprietarios,
+          },
+        );
 
-        const mensagem =
-          code === "23505"
-            ? "Codigo ou matricula ja cadastrados em outro imovel ativo."
-            : code === "23503"
-              ? "Um dos proprietarios ou relacionamentos informados e invalido."
-              : code === "23514"
-                ? "Revise os dados do imovel e dos proprietarios."
-                : code === "42501"
-                  ? "Voce nao possui permissao para realizar esta operacao."
-                  : code === "P0001"
-                    ? "Nao foi possivel validar o imovel e seus proprietarios."
-                    : "Nao foi possivel salvar o imovel. Tente novamente.";
+        const resultadoRpc = Array.isArray(resultado) ? resultado[0] : null;
+        const operacaoEsperada = id ? "editado" : "criado";
+        if (
+          error ||
+          typeof resultadoRpc?.imovel_id !== "string" ||
+          resultadoRpc?.operacao !== operacaoEsperada
+        ) {
+          const code = error?.code ?? "missing_result";
+          console.error("Falha na RPC de persistencia do imovel.", {
+            module: "imoveis.salvar",
+            stage: "rpc",
+            code,
+          });
 
-        return { status: "erro", mensagem };
+          const mensagem =
+            code === "23505"
+              ? "Codigo ou matricula ja cadastrados em outro imovel ativo."
+              : code === "23503"
+                ? "Um dos proprietarios ou relacionamentos informados e invalido."
+                : code === "23514"
+                  ? "Revise os dados do imovel e dos proprietarios."
+                  : code === "42501"
+                    ? "Voce nao possui permissao para realizar esta operacao."
+                    : code === "P0001"
+                      ? "Nao foi possivel validar o imovel e seus proprietarios."
+                      : "Nao foi possivel salvar o imovel. Tente novamente.";
+
+          return { status: "erro", mensagem };
+        }
+        const ownershipResult = await supabase
+          .from("imoveis")
+          .update({ responsavel_pessoa_id: payload.responsavel_pessoa_id })
+          .eq("id", resultadoRpc.imovel_id);
+        if (ownershipResult.error) {
+          return { status: "erro", mensagem: "O imovel foi salvo, mas nao foi possivel associar o responsavel canonico." };
+        }
       }
     } catch (error) {
       console.error("Falha inesperada na persistencia do imovel.", {
@@ -1080,18 +1127,22 @@ export default async function ImoveisPage({
 
   async function excluirImovel(formData: FormData) {
     "use server";
-    await requirePermission("imoveis.arquivar");
+    const actor = await requirePermission("imoveis.arquivar");
+    const ownerId = requireCorretorPessoaId(actor);
     const supabase = await createClient();
 
     const id = valorTexto(formData, "id");
     if (!id) throw new Error("Imovel nao informado.");
 
-    const { error } = await supabase
+    let archiveQuery = supabase
       .from("imoveis")
       .update({ ativo: false, updated_at: new Date().toISOString() })
-      .eq("id", id);
+      .eq("id", id)
+      .select("id");
+    if (ownerId) archiveQuery = archiveQuery.eq("responsavel_pessoa_id", ownerId);
+    const { data, error } = await archiveQuery.maybeSingle();
 
-    if (error) throw new Error("Nao foi possivel excluir logicamente o imovel.");
+    if (error || !data) throw new Error("Nao foi possivel excluir logicamente o imovel.");
 
     revalidatePath("/dashboard/imoveis");
     revalidatePath("/dashboard");
@@ -1183,9 +1234,10 @@ export default async function ImoveisPage({
         .eq("ativo", true)
         .order("nome", { ascending: true }),
       supabase
-        .from("corretores")
+        .from("pessoas")
         .select("id, nome")
         .eq("ativo", true)
+        .contains("papeis", ["corretor"])
         .order("nome", { ascending: true }),
       supabase
         .from("imovel_proprietarios")
@@ -1224,12 +1276,13 @@ export default async function ImoveisPage({
 
   let imovelEmEdicao: Imovel | null = null;
   if (editId) {
-    const { data, error } = await supabase
+    let editQuery = supabase
       .from("imoveis")
       .select(imoveisLeituraFields)
       .eq("id", editId)
-      .eq("ativo", true)
-      .maybeSingle();
+      .eq("ativo", true);
+    if (corretorPessoaId) editQuery = editQuery.eq("responsavel_pessoa_id", corretorPessoaId);
+    const { data, error } = await editQuery.maybeSingle();
 
     if (error) {
       console.error("Falha ao consultar imovel para edicao.", {
@@ -1280,7 +1333,7 @@ export default async function ImoveisPage({
         statusImovel(imovel),
         finalidadeImovel(imovel),
         proprietarios,
-        imovel.responsavel_id ? corretoresPorId.get(imovel.responsavel_id) : "",
+        imovel.responsavel_pessoa_id ? corretoresPorId.get(imovel.responsavel_pessoa_id) : "",
       ].join(" "),
     );
 
@@ -1306,7 +1359,7 @@ export default async function ImoveisPage({
         (filtroPiscina === "sim" ? Boolean(imovel.piscina) : !imovel.piscina)) &&
       (!filtroPet ||
         (filtroPet === "sim" ? Boolean(imovel.aceita_pet) : !imovel.aceita_pet)) &&
-      (!filtroResponsavel || imovel.responsavel_id === filtroResponsavel)
+      (!filtroResponsavel || imovel.responsavel_pessoa_id === filtroResponsavel)
     );
   });
 
@@ -1516,7 +1569,7 @@ export default async function ImoveisPage({
                 ["Codigo", codigoImovel(imovelVisualizado)],
                 ["Status", statusImovel(imovelVisualizado)],
                 ["Finalidade", finalidadeImovel(imovelVisualizado) ?? "-"],
-                ["Responsavel", corretoresPorId.get(imovelVisualizado.responsavel_id ?? "") || "-"],
+                ["Responsavel", corretoresPorId.get(imovelVisualizado.responsavel_pessoa_id ?? "") || "-"],
               ].map(([label, value]) => (
                 <div key={label} className="rounded-xl bg-white/10 p-4">
                   <p className="text-xs uppercase tracking-[0.14em] text-[#E4C478]">{label}</p>
@@ -1552,6 +1605,7 @@ export default async function ImoveisPage({
                   : null) ??
                 "Proprietário não vinculado";
               const areaUtil = areaUtilImovel(imovel);
+              const canMutate = profile.papel !== "corretor" || imovel.responsavel_pessoa_id === corretorPessoaId;
               const compartilharHref = `mailto:?subject=${encodeURIComponent(
                 `Imovel ${textoPreenchido(imovel.codigo) ?? tituloImovel(imovel)}`,
               )}&body=${encodeURIComponent(
@@ -1627,7 +1681,7 @@ export default async function ImoveisPage({
                       </p>
                       <p>
                         <strong>Responsavel:</strong>{" "}
-                        {corretoresPorId.get(imovel.responsavel_id ?? "") || "-"}
+                        {corretoresPorId.get(imovel.responsavel_pessoa_id ?? "") || "-"}
                       </p>
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -1637,25 +1691,25 @@ export default async function ImoveisPage({
                       >
                         Visualizar
                       </Link>
-                      <Link
+                      {canMutate ? <Link
                         href={`/dashboard/imoveis?edit=${imovel.id}#dados`}
                         className="rounded-full border border-[#E8DDCB] px-3 py-1 text-xs font-semibold text-[#071E36] hover:bg-[#F7F3ED]"
                       >
                         Editar
-                      </Link>
-                      <form action={duplicarImovel}>
+                      </Link> : null}
+                      {profile.papel !== "corretor" ? <form action={duplicarImovel}>
                         <input type="hidden" name="id" value={imovel.id} />
                         <button className="rounded-full border border-[#E8DDCB] px-3 py-1 text-xs font-semibold text-[#071E36] hover:bg-[#F7F3ED]">
                           Duplicar
                         </button>
-                      </form>
+                      </form> : null}
                       <Link
                         href={compartilharHref}
                         className="rounded-full border border-[#E8DDCB] px-3 py-1 text-xs font-semibold text-[#8B6827] hover:bg-[#F7F3ED]"
                       >
                         Compartilhar
                       </Link>
-                      <form action={excluirImovel}>
+                      {canMutate ? <form action={excluirImovel}>
                         <input type="hidden" name="id" value={imovel.id} />
                         <ConfirmSubmitButton
                           message="Confirmar exclusao logica deste imovel?"
@@ -1663,7 +1717,7 @@ export default async function ImoveisPage({
                         >
                           Excluir
                         </ConfirmSubmitButton>
-                      </form>
+                      </form> : null}
                     </div>
                   </div>
                 </article>
@@ -1746,8 +1800,8 @@ export default async function ImoveisPage({
             <label className="grid gap-2 text-sm font-medium text-[#102A27]">
               Responsavel
               <select
-                name="responsavel_id"
-                defaultValue={imovelEmEdicao?.responsavel_id ?? ""}
+                name="responsavel_pessoa_id"
+                defaultValue={imovelEmEdicao?.responsavel_pessoa_id ?? ""}
                 className={inputClass()}
               >
                 <option value="">Sem responsavel</option>
@@ -1869,7 +1923,7 @@ export default async function ImoveisPage({
                 ],
                 [
                   "Responsavel",
-                  corretoresPorId.get(imovelEmEdicao?.responsavel_id ?? "") || "Sem responsavel",
+                  corretoresPorId.get(imovelEmEdicao?.responsavel_pessoa_id ?? "") || "Sem responsavel",
                   "Corretor ou equipe responsavel pela captacao e andamento.",
                 ],
               ].map(([title, value, description]) => (

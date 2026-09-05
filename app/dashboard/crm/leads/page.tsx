@@ -2,6 +2,7 @@ import Link from "next/link";
 import { BarChart3, Clock3, Flame, Plus, Search, UserCheck } from "lucide-react";
 
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
+import { requireCorretorPessoaId } from "../../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import {
   getLeadEntryChannelLabel,
@@ -87,7 +88,8 @@ export default async function LeadsPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
-  await requirePagePermission("leads.visualizar");
+  const profile = await requirePagePermission("leads.visualizar");
+  const corretorPessoaId = requireCorretorPessoaId(profile);
   const supabase = await createClient();
   const params = (await searchParams) ?? {};
 
@@ -102,26 +104,29 @@ export default async function LeadsPage({
   const editRequested = Boolean(editId);
   const editIdValid = UUID_PATTERN.test(editId);
 
-  const listPromise = supabase
+  let listPromise = supabase
     .from("leads")
     .select(
       "id, nome, telefone, email, cidade, bairro_interesse, tipo_relacionamento, objetivo_imobiliario, canal, origem_detalhe, etapa_funil, status_operacional, temperatura, handoff_status, responsavel_id, atribuido_em, responsavel, observacao, created_at, responsavel_pessoa:pessoas!leads_responsavel_id_fkey(id, nome)",
     )
     .order("created_at", { ascending: false });
-  const responsiblePromise = supabase
+  if (profile.papel === "corretor") listPromise = listPromise.eq("responsavel_id", corretorPessoaId!);
+  let responsiblePromise = supabase
     .from("pessoas")
     .select("id, nome, ativo, papeis")
     .eq("ativo", true)
     .contains("papeis", ["corretor"])
     .order("nome", { ascending: true });
-  const editPromise = editRequested && editIdValid
-    ? supabase
+  if (profile.papel === "corretor") responsiblePromise = responsiblePromise.eq("id", corretorPessoaId!);
+  let editQuery = supabase
         .from("leads")
         .select(
           "id, nome, telefone, email, cidade, bairro_interesse, tipo_relacionamento, objetivo_imobiliario, canal, origem_detalhe, etapa_funil, status_operacional, temperatura, handoff_status, responsavel_id, observacao",
         )
-        .eq("id", editId)
-        .maybeSingle()
+        .eq("id", editId);
+  if (profile.papel === "corretor") editQuery = editQuery.eq("responsavel_id", corretorPessoaId!);
+  const editPromise = editRequested && editIdValid
+    ? editQuery.maybeSingle()
     : Promise.resolve({ data: null, error: null });
 
   const [listResult, responsibleResult, editResult] = await Promise.all([

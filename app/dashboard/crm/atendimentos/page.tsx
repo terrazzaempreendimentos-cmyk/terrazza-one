@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { AlertCircle, Clock3, Flame, MessageSquareText, UserRoundCheck } from "lucide-react";
 
+import { requireCorretorPessoaId } from "../../../../lib/auth/access-profile";
 import { hasPermission } from "../../../../lib/auth/permissions";
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import {
@@ -63,18 +64,20 @@ const ELIGIBLE_LEAD_STAGES = ["novo", "qualificacao", "atendimento", "visita_ava
 export default async function AtendimentosPage() {
   const profile = await requirePagePermission("atendimentos.visualizar");
   const supabase = await createClient();
+  const corretorPessoaId = requireCorretorPessoaId(profile);
   const bankAllowsMutation = profile.papel === "administrador" || profile.papel === "gestor";
   const canCreate = bankAllowsMutation && hasPermission(profile.papel, "atendimentos.criar");
-  const canAssume = bankAllowsMutation && hasPermission(profile.papel, "atendimentos.assumir");
-  const canEdit = bankAllowsMutation && hasPermission(profile.papel, "atendimentos.editar");
+  const canAssume = hasPermission(profile.papel, "atendimentos.assumir");
+  const canEdit = hasPermission(profile.papel, "atendimentos.editar");
   const canConclude = bankAllowsMutation && hasPermission(profile.papel, "atendimentos.concluir");
   const canCancel = bankAllowsMutation && hasPermission(profile.papel, "atendimentos.cancelar");
   const canReopen = bankAllowsMutation && hasPermission(profile.papel, "atendimentos.reabrir");
 
-  const atendimentosPromise = supabase
+  let atendimentosPromise = supabase
     .from("atendimentos")
-    .select("id, lead_id, responsavel_id, atendimento_anterior_id, status, prioridade, canal, origem, assunto, resumo, proxima_acao_em, assumido_em, created_at, updated_at, resultado, concluido_em, cancelado_em, lead:leads!atendimentos_lead_id_fkey(id, nome), responsavel:pessoas!atendimentos_responsavel_id_fkey(id, nome)")
-    .order("updated_at", { ascending: false });
+    .select("id, lead_id, responsavel_id, atendimento_anterior_id, status, prioridade, canal, origem, assunto, resumo, proxima_acao_em, assumido_em, created_at, updated_at, resultado, concluido_em, cancelado_em, lead:leads!atendimentos_lead_id_fkey(id, nome), responsavel:pessoas!atendimentos_responsavel_id_fkey(id, nome)");
+  if (corretorPessoaId) atendimentosPromise = atendimentosPromise.eq("responsavel_id", corretorPessoaId);
+  atendimentosPromise = atendimentosPromise.order("updated_at", { ascending: false });
   const leadsPromise = canCreate
     ? supabase
         .from("leads")

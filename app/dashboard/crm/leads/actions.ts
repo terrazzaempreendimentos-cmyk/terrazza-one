@@ -6,7 +6,9 @@ import { redirect } from "next/navigation";
 import {
   AccessPermissionRequiredError,
   AccessProfileRequiredError,
+  requireCorretorPessoaId,
   requirePermission,
+  type AccessProfile,
 } from "../../../../lib/auth/access-profile";
 import {
   isLeadEntryChannel,
@@ -71,8 +73,9 @@ function optionalText(formData: FormData, field: string, maxLength: number) {
 
 async function authorize(permission: "leads.criar" | "leads.editar") {
   try {
-    await requirePermission(permission);
-    return null;
+    const profile = await requirePermission(permission);
+    requireCorretorPessoaId(profile);
+    return profile;
   } catch (error) {
     logLeadError(
       "authorization",
@@ -81,11 +84,11 @@ async function authorize(permission: "leads.criar" | "leads.editar") {
         ? error.name
         : "authorization_error",
     );
-    return errorState("Operacao nao autorizada.");
+    return null;
   }
 }
 
-async function saveLead(mode: SaveMode, formData: FormData): Promise<LeadFormState> {
+async function saveLead(mode: SaveMode, formData: FormData, actor: AccessProfile): Promise<LeadFormState> {
   const id = textValue(formData, "id");
   if ((mode === "create" && id) || (mode === "edit" && !UUID_PATTERN.test(id))) {
     return errorState(mode === "edit" ? "Lead nao encontrado." : "Cadastro invalido.");
@@ -137,7 +140,7 @@ async function saveLead(mode: SaveMode, formData: FormData): Promise<LeadFormSta
     return errorState("A classificacao informada e invalida.");
   }
 
-  const responsavelIdRaw = textValue(formData, "responsavel_id");
+  const responsavelIdRaw = actor.papel === "corretor" ? actor.pessoaId! : textValue(formData, "responsavel_id");
   if (responsavelIdRaw && !UUID_PATTERN.test(responsavelIdRaw)) {
     return errorState("O responsavel informado e invalido.");
   }
@@ -145,11 +148,12 @@ async function saveLead(mode: SaveMode, formData: FormData): Promise<LeadFormSta
   const supabase = await createClient();
   let existingLead: ExistingLead | null = null;
   if (mode === "edit") {
-    const existingResult = await supabase
+    let existingQuery = supabase
       .from("leads")
       .select("id, responsavel_id, atribuido_em")
-      .eq("id", id)
-      .maybeSingle();
+      .eq("id", id);
+    if (actor.papel === "corretor") existingQuery = existingQuery.eq("responsavel_id", actor.pessoaId!);
+    const existingResult = await existingQuery.maybeSingle();
 
     if (existingResult.error) {
       logLeadError("load_existing", existingResult.error.code);
@@ -255,10 +259,11 @@ async function saveLead(mode: SaveMode, formData: FormData): Promise<LeadFormSta
     responsavel: responsible?.nome.trim() ?? null,
   };
 
-  const result =
-    mode === "create"
-      ? await supabase.from("leads").insert(payload).select("id").single()
-      : await supabase.from("leads").update(payload).eq("id", id).select("id").maybeSingle();
+  let updateQuery = supabase.from("leads").update(payload).eq("id", id);
+  if (actor.papel === "corretor") updateQuery = updateQuery.eq("responsavel_id", actor.pessoaId!);
+  const result = mode === "create"
+    ? await supabase.from("leads").insert(payload).select("id").single()
+    : await updateQuery.select("id").maybeSingle();
 
   if (result.error) {
     logLeadError(mode === "create" ? "insert" : "update", result.error.code);
@@ -284,10 +289,10 @@ async function saveLead(mode: SaveMode, formData: FormData): Promise<LeadFormSta
   return { status: "idle", mensagem: null };
 }
 
-async function executeSave(mode: SaveMode, formData: FormData): Promise<LeadFormState> {
+async function executeSave(mode: SaveMode, formData: FormData, actor: AccessProfile): Promise<LeadFormState> {
   let result: LeadFormState;
   try {
-    result = await saveLead(mode, formData);
+    result = await saveLead(mode, formData, actor);
   } catch {
     logLeadError(mode === "create" ? "create_unexpected" : "edit_unexpected", "unexpected_error");
     return errorState("Nao foi possivel salvar o lead. Tente novamente.");
@@ -299,15 +304,15 @@ async function executeSave(mode: SaveMode, formData: FormData): Promise<LeadForm
 }
 
 export async function createLead(_: LeadFormState, formData: FormData) {
-  const authorizationError = await authorize("leads.criar");
-  if (authorizationError) return authorizationError;
-  return executeSave("create", formData);
+  const actor = await authorize("leads.criar");
+  if (!actor) return errorState("Operacao nao autorizada.");
+  return executeSave("create", formData, actor);
 }
 
 export async function updateLead(_: LeadFormState, formData: FormData) {
-  const authorizationError = await authorize("leads.editar");
-  if (authorizationError) return authorizationError;
-  return executeSave("edit", formData);
+  const actor = await authorize("leads.editar");
+  if (!actor) return errorState("Operacao nao autorizada.");
+  return executeSave("edit", formData, actor);
 }
 
 export async function archiveLead(formData: FormData) {

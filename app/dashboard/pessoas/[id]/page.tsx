@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import { ConfirmSubmitButton } from "../../../../components/ConfirmSubmitButton";
-import { requirePermission } from "../../../../lib/auth/access-profile";
+import { requireCorretorPessoaId, requirePermission } from "../../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import { createClient } from "../../../../lib/supabase/server";
 
@@ -40,6 +40,7 @@ type Pessoa = {
   origem: string | null;
   status: string | null;
   responsavel_id: string | null;
+  responsavel_pessoa_id: string | null;
   temperatura: string | null;
   score_relacionamento: number | null;
   perfil_comportamental: string | null;
@@ -101,25 +102,29 @@ export default async function PessoaDetalhePage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePagePermission("pessoas.visualizar");
+  const profile = await requirePagePermission("pessoas.visualizar");
+  const corretorPessoaId = requireCorretorPessoaId(profile);
   const supabase = await createClient();
 
   const { id } = await params;
 
   async function excluirPessoa(formData: FormData) {
     "use server";
-    await requirePermission("pessoas.arquivar");
+    const actor = await requirePermission("pessoas.arquivar");
+    requireCorretorPessoaId(actor);
     const supabase = await createClient();
 
     const pessoaId = String(formData.get("id") ?? "").trim();
     if (!pessoaId) throw new Error("Pessoa nao informada.");
 
-    const { error } = await supabase
+    let archiveQuery = supabase
       .from("pessoas")
       .update({ ativo: false, updated_at: new Date().toISOString() })
       .eq("id", pessoaId);
+    if (actor.papel === "corretor") archiveQuery = archiveQuery.eq("responsavel_pessoa_id", actor.pessoaId!);
+    const { data: archived, error } = await archiveQuery.select("id").maybeSingle();
 
-    if (error) {
+    if (error || !archived) {
       throw new Error("Nao foi possivel excluir logicamente a pessoa.");
     }
 
@@ -129,13 +134,13 @@ export default async function PessoaDetalhePage({
 
   const [pessoaResult, corretoresResult] = await Promise.all([
     supabase.from("pessoas").select("*").eq("id", id).eq("ativo", true).maybeSingle(),
-    supabase.from("corretores").select("id, nome").eq("ativo", true),
+    supabase.from("pessoas").select("id, nome").eq("ativo", true).contains("papeis", ["corretor"]),
   ]);
 
   const pessoa = (pessoaResult.data ?? null) as Pessoa | null;
   const corretores = (corretoresResult.data ?? []) as Corretor[];
   const responsavel = corretores.find(
-    (corretor) => corretor.id === pessoa?.responsavel_id,
+    (corretor) => corretor.id === pessoa?.responsavel_pessoa_id,
   );
   const placeholders = [
     { title: "Imoveis relacionados", icon: Building2 },
@@ -156,7 +161,7 @@ export default async function PessoaDetalhePage({
           >
             Voltar
           </Link>
-          {pessoa ? (
+          {pessoa && (profile.papel !== "corretor" || pessoa.responsavel_pessoa_id === corretorPessoaId) ? (
             <Link
               href={`/dashboard/pessoas?edit=${pessoa.id}`}
               className="rounded-xl bg-[#071E36] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0A2A4A]"
@@ -164,7 +169,7 @@ export default async function PessoaDetalhePage({
               Editar
             </Link>
           ) : null}
-          {pessoa ? (
+          {pessoa && (profile.papel !== "corretor" || pessoa.responsavel_pessoa_id === corretorPessoaId) ? (
             <form action={excluirPessoa}>
               <input type="hidden" name="id" value={pessoa.id} />
               <ConfirmSubmitButton

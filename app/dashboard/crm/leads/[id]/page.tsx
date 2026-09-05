@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { requireCorretorPessoaId } from "../../../../../lib/auth/access-profile";
 import { hasPermission } from "../../../../../lib/auth/permissions";
 import { requirePagePermission } from "../../../../../lib/auth/page-permission";
 import { getLeadFunnelStageLabel, getLeadTemperatureLabel } from "../../../../../lib/crm/leads/catalogs";
@@ -92,6 +93,7 @@ export default async function LeadDetalhePage({
   params: Promise<{ id: string }>;
 }) {
   const profile = await requirePagePermission("leads.visualizar");
+  const corretorPessoaId = requireCorretorPessoaId(profile);
   const canTransfer = (profile.papel === "administrador" || profile.papel === "gestor")
     && hasPermission(profile.papel, "leads.distribuir")
     && hasPermission(profile.papel, "leads.editar");
@@ -99,19 +101,19 @@ export default async function LeadDetalhePage({
 
   const { id } = await params;
 
-  const [leadResult, timelineResult] = await Promise.all([
-    supabase
+  let leadQuery = supabase
       .from("leads")
       .select("id, nome, telefone, tipo_lead, objetivo, cidade, origem, status, responsavel, responsavel_id, etapa_funil, status_operacional, temperatura, created_at, responsavel_pessoa:pessoas!leads_responsavel_id_fkey(nome)")
-      .eq("id", id)
-      .maybeSingle(),
+      .eq("id", id);
+  if (profile.papel === "corretor") leadQuery = leadQuery.eq("responsavel_id", corretorPessoaId!);
+  const leadResult = await leadQuery.maybeSingle();
+  const timelineResult = leadResult.data && profile.papel !== "corretor" ? await
     supabase
       .from("timeline")
       .select("id, tipo, titulo, descricao, origem, created_at")
       .eq("lead_id", id)
       .order("created_at", { ascending: false })
-      .limit(5),
-  ]);
+      .limit(5) : { data: [], error: null };
 
   const lead = (leadResult.data ?? null) as Lead | null;
   const eventos = (timelineResult.data ?? []) as TimelineEvento[];

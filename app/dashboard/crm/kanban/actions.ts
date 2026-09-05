@@ -5,7 +5,9 @@ import { revalidatePath } from "next/cache";
 import {
   AccessPermissionRequiredError,
   AccessProfileRequiredError,
+  requireCorretorPessoaId,
   requirePermission,
+  type AccessProfile,
 } from "../../../../lib/auth/access-profile";
 import {
   isLeadFunnelStage,
@@ -27,6 +29,7 @@ type RpcResult = {
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+const FUNNEL_SEQUENCE = ["novo", "qualificacao", "atendimento", "visita_avaliacao", "proposta", "negociacao", "documentacao", "fechado"] as const;
 
 function errorState(mensagem: string): KanbanMoveState {
   return { status: "erro", mensagem };
@@ -66,9 +69,11 @@ export async function moveLead(
   _: KanbanMoveState,
   formData: FormData,
 ): Promise<KanbanMoveState> {
+  let actor: AccessProfile;
   try {
     await requirePermission("kanban.usar");
-    await requirePermission("leads.editar");
+    actor = await requirePermission("leads.editar");
+    requireCorretorPessoaId(actor);
   } catch (error) {
     logKanbanError(
       "authorization",
@@ -91,6 +96,30 @@ export async function moveLead(
   }
 
   const supabase = await createClient();
+  if (actor.papel === "corretor") {
+    const { data: ownedLead, error: ownershipError } = await supabase
+      .from("leads")
+      .select("id, etapa_funil, status_operacional")
+      .eq("id", leadId)
+      .eq("responsavel_id", actor.pessoaId!)
+      .maybeSingle();
+    if (ownershipError || !ownedLead) return errorState("Operacao nao autorizada.");
+    if (!isLeadFunnelStage(ownedLead.etapa_funil) || !isLeadOperationalStatus(ownedLead.status_operacional)) return errorState("Estado atual do Lead inconsistente.");
+    const fromIndex = FUNNEL_SEQUENCE.indexOf(ownedLead.etapa_funil as (typeof FUNNEL_SEQUENCE)[number]);
+    const toIndex = FUNNEL_SEQUENCE.indexOf(destination as (typeof FUNNEL_SEQUENCE)[number]);
+    const allowed = ownedLead.etapa_funil === "perdido"
+      ? destination !== "perdido" && destination !== "fechado"
+      : ownedLead.etapa_funil !== "fechado" && (destination === "perdido" || (fromIndex >= 0 && toIndex >= 0 && Math.abs(toIndex - fromIndex) === 1));
+    if (!allowed) return errorState("Transicao de etapa nao permitida.");
+    const status_operacional = destination === "fechado" ? "convertido" : destination === "perdido" ? "perdido" : "ativo";
+    const legacyStatus: Record<string, string> = { novo: "novo", qualificacao: "ia_qualificando", atendimento: "corretor", visita_avaliacao: "visita", proposta: "proposta", negociacao: "negociacao", documentacao: "documentacao", fechado: "fechado", perdido: "perdido" };
+    const direct = await supabase.from("leads").update({ etapa_funil: destination, status_operacional, status: legacyStatus[destination] }).eq("id", leadId).eq("responsavel_id", actor.pessoaId!).eq("etapa_funil", ownedLead.etapa_funil).eq("status_operacional", ownedLead.status_operacional).select("id").maybeSingle();
+    if (direct.error || !direct.data) return errorState("Este Lead foi atualizado. Recarregue o Kanban antes de tentar novamente.");
+    revalidatePath("/dashboard/crm/kanban");
+    revalidatePath("/dashboard/crm/leads");
+    revalidatePath(`/dashboard/crm/leads/${leadId}`);
+    return { status: "idle", mensagem: null };
+  }
   const { data, error } = await supabase.rpc("movimentar_lead_funil", {
     p_lead_id: leadId,
     p_etapa_destino: destination,

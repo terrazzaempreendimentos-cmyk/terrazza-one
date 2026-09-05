@@ -6,8 +6,10 @@ import {
   AccessPermissionRequiredError,
   AccessProfileRequiredError,
   AccessRoleRequiredError,
+  requireCorretorPessoaId,
   requirePermission,
   requireRole,
+  type AccessProfile,
 } from "../../../../lib/auth/access-profile";
 import {
   isAtendimentoResult,
@@ -62,9 +64,10 @@ function logError(etapa: string, codigo: unknown) {
 
 async function authorize(permission: "atendimentos.criar" | "atendimentos.assumir" | "atendimentos.editar" | "atendimentos.concluir" | "atendimentos.cancelar" | "atendimentos.reabrir") {
   try {
-    await requirePermission(permission);
-    await requireRole("administrador", "gestor");
-    return true;
+    const profile = await requirePermission(permission);
+    if (profile.papel !== "corretor") await requireRole("administrador", "gestor");
+    requireCorretorPessoaId(profile);
+    return profile;
   } catch (error) {
     logError(
       "authorization",
@@ -76,6 +79,18 @@ async function authorize(permission: "atendimentos.criar" | "atendimentos.assumi
     );
     return false;
   }
+}
+
+async function ownsAtendimento(profile: AccessProfile, atendimentoId: string) {
+  const pessoaId = requireCorretorPessoaId(profile);
+  if (!pessoaId) return true;
+  const result = await (await createClient())
+    .from("atendimentos")
+    .select("id")
+    .eq("id", atendimentoId)
+    .eq("responsavel_id", pessoaId)
+    .maybeSingle();
+  return !result.error && Boolean(result.data);
 }
 
 function rpcRow(data: unknown): unknown {
@@ -169,7 +184,8 @@ export async function assumeAtendimento(
   _: AtendimentoActionState,
   formData: FormData,
 ): Promise<AtendimentoActionState> {
-  if (!(await authorize("atendimentos.assumir"))) return errorState("Operacao nao autorizada.");
+  const actor = await authorize("atendimentos.assumir");
+  if (!actor) return errorState("Operacao nao autorizada.");
 
   const atendimentoId = String(formData.get("atendimento_id") ?? "").trim();
   const leadId = String(formData.get("lead_id") ?? "").trim();
@@ -177,8 +193,15 @@ export async function assumeAtendimento(
   if (!UUID_PATTERN.test(atendimentoId) || !UUID_PATTERN.test(leadId) || !isTimestamp(updatedAt)) {
     return errorState("Os dados atuais do Atendimento sao invalidos. Recarregue a pagina.");
   }
+  if (!(await ownsAtendimento(actor, atendimentoId))) return errorState("Operacao nao autorizada.");
 
   const supabase = await createClient();
+  if (actor.papel === "corretor") {
+    const direct = await supabase.from("atendimentos").update({ status: "em_atendimento", assumido_em: new Date().toISOString() }).eq("id", atendimentoId).eq("lead_id", leadId).eq("responsavel_id", actor.pessoaId!).eq("status", "aguardando").eq("updated_at", updatedAt).select("id").maybeSingle();
+    if (direct.error || !direct.data) return errorState(CONCURRENCY_MESSAGE);
+    revalidateAtendimentoPaths(leadId);
+    return { status: "idle", mensagem: null };
+  }
   const { data, error } = await supabase.rpc("assumir_atendimento", {
     p_atendimento_id: atendimentoId,
     p_updated_at_esperado: updatedAt,
@@ -206,7 +229,8 @@ export async function changeAtendimentoState(
   _: AtendimentoActionState,
   formData: FormData,
 ): Promise<AtendimentoActionState> {
-  if (!(await authorize("atendimentos.editar"))) return errorState("Operacao nao autorizada.");
+  const actor = await authorize("atendimentos.editar");
+  if (!actor) return errorState("Operacao nao autorizada.");
 
   const atendimentoId = String(formData.get("atendimento_id") ?? "").trim();
   const leadId = String(formData.get("lead_id") ?? "").trim();
@@ -219,6 +243,7 @@ export async function changeAtendimentoState(
   if (!UUID_PATTERN.test(atendimentoId) || !UUID_PATTERN.test(leadId) || !isTimestamp(updatedAt)) {
     return errorState("Os dados atuais do Atendimento sao invalidos. Recarregue a pagina.");
   }
+  if (!(await ownsAtendimento(actor, atendimentoId))) return errorState("Operacao nao autorizada.");
   if (!isAtendimentoOpenManagedStatus(currentStatus)
     || !isAtendimentoOpenManagedStatus(destination)
     || !canChangeAtendimentoOpenState(currentStatus, destination)) {
@@ -230,6 +255,12 @@ export async function changeAtendimentoState(
   if (nextActionValue && !nextAction) return errorState("A data da proxima acao e invalida.");
 
   const supabase = await createClient();
+  if (actor.papel === "corretor") {
+    const direct = await supabase.from("atendimentos").update({ status: destination, resumo: resumo || null, proxima_acao_em: nextAction }).eq("id", atendimentoId).eq("lead_id", leadId).eq("responsavel_id", actor.pessoaId!).eq("status", currentStatus).eq("updated_at", updatedAt).select("id").maybeSingle();
+    if (direct.error || !direct.data) return errorState(CONCURRENCY_MESSAGE);
+    revalidateAtendimentoPaths(leadId);
+    return { status: "idle", mensagem: null };
+  }
   const { data, error } = await supabase.rpc("alterar_estado_atendimento", {
     p_atendimento_id: atendimentoId,
     p_status_esperado: currentStatus,

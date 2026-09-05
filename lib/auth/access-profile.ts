@@ -13,6 +13,7 @@ import { isPapelAcesso, type PapelAcesso } from "./roles";
 export type AccessProfile = Readonly<{
   id: string;
   userId: string;
+  pessoaId: string | null;
   papel: PapelAcesso;
   ativo: true;
 }>;
@@ -26,6 +27,7 @@ export type AccessState =
 type AccessProfileRow = {
   id: unknown;
   user_id: unknown;
+  pessoa_id: unknown;
   papel: unknown;
   ativo: unknown;
 };
@@ -64,7 +66,7 @@ export const getAccessState = cache(async (): Promise<AccessState> => {
 
   const { data, error: profileError } = await supabase
     .from("usuarios_perfis")
-    .select("id, user_id, papel, ativo")
+    .select("id, user_id, pessoa_id, papel, ativo")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -89,6 +91,7 @@ export const getAccessState = cache(async (): Promise<AccessState> => {
     profile: {
       id: row.id as string,
       userId: user.id,
+      pessoaId: typeof row.pessoa_id === "string" ? row.pessoa_id : null,
       papel: row.papel,
       ativo: true,
     },
@@ -99,6 +102,12 @@ export async function getOptionalAccessProfile() {
   const state = await getAccessState();
 
   return state.status === "active_profile" ? state.profile : null;
+}
+
+export function requireCorretorPessoaId(profile: AccessProfile) {
+  if (profile.papel !== "corretor") return null;
+  if (!profile.pessoaId) throw new AccessProfileRequiredError();
+  return profile.pessoaId;
 }
 
 export async function requireActiveProfile() {

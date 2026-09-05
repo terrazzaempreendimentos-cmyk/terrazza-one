@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { requireCorretorPessoaId } from "../../lib/auth/access-profile";
 import { requirePagePermission } from "../../lib/auth/page-permission";
 import { hasPapel } from "../../lib/crm/pessoas/papeis";
 import { createClient } from "../../lib/supabase/server";
@@ -50,14 +51,17 @@ function smallItem(title: string, description: string, badge: string) {
 }
 
 export default async function DashboardPage() {
-  await requirePagePermission("dashboard.visualizar");
+  const profile = await requirePagePermission("dashboard.visualizar");
+  const corretorPessoaId = requireCorretorPessoaId(profile);
   const supabase = await createClient();
+  let atendimentosQuery = supabase.from("atendimentos").select("id, status");
+  if (corretorPessoaId) atendimentosQuery = atendimentosQuery.eq("responsavel_id", corretorPessoaId);
 
   const [pessoasResult, imoveisResult, atendimentosResult, manutencoesResult] =
     await Promise.all([
       supabase.from("pessoas").select("id, papeis, temperatura, status").eq("ativo", true),
       supabase.from("imoveis").select("id, status").eq("ativo", true),
-      supabase.from("atendimentos").select("id, status"),
+      atendimentosQuery,
       supabase.from("manutencoes_conflitos").select("id, prioridade, status").eq("ativo", true),
     ]);
 

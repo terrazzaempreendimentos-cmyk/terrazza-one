@@ -11,6 +11,7 @@ import {
   UsersRound,
 } from "lucide-react";
 
+import { requireCorretorPessoaId } from "../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../lib/auth/page-permission";
 import { createClient } from "../../../lib/supabase/server";
 
@@ -64,25 +65,25 @@ function formatarData(data: string | null) {
 }
 
 export default async function CRMPage() {
-  await requirePagePermission("dashboard.visualizar");
+  const profile = await requirePagePermission("dashboard.visualizar");
+  const corretorPessoaId = requireCorretorPessoaId(profile);
   const supabase = await createClient();
 
   const hoje = dataHoje();
+  let leadsQuery = supabase.from("leads").select("id, nome, tipo_lead, objetivo, origem, status, responsavel, created_at");
+  let tarefasQuery = supabase.from("tarefas").select("id, titulo, tipo, status, prioridade, data, hora, responsavel");
+  if (corretorPessoaId) {
+    leadsQuery = leadsQuery.eq("responsavel_id", corretorPessoaId);
+    tarefasQuery = tarefasQuery.eq("responsavel_id", corretorPessoaId);
+  }
   const [leadsResult, tarefasResult, timelineResult] = await Promise.all([
-    supabase
-      .from("leads")
-      .select("id, nome, tipo_lead, objetivo, origem, status, responsavel, created_at")
-      .order("created_at", { ascending: false }),
-    supabase
-      .from("tarefas")
-      .select("id, titulo, tipo, status, prioridade, data, hora, responsavel")
+    leadsQuery.order("created_at", { ascending: false }),
+    tarefasQuery
       .order("data", { ascending: true, nullsFirst: false })
       .order("created_at", { ascending: false }),
-    supabase
-      .from("timeline")
-      .select("id, tipo, titulo, origem, created_at")
-      .order("created_at", { ascending: false })
-      .limit(6),
+    corretorPessoaId
+      ? Promise.resolve({ data: [], error: null })
+      : supabase.from("timeline").select("id, tipo, titulo, origem, created_at").order("created_at", { ascending: false }).limit(6),
   ]);
 
   const leads = (leadsResult.data ?? []) as Lead[];

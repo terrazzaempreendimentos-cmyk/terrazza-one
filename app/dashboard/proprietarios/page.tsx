@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { AddressFields } from "../../../components/AddressFields";
 import { ConfirmSubmitButton } from "../../../components/ConfirmSubmitButton";
 import { DocumentUniqueForm } from "../../../components/DocumentUniqueForm";
-import { requirePermission } from "../../../lib/auth/access-profile";
+import { requireCorretorPessoaId, requirePermission } from "../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../lib/auth/page-permission";
 import {
   addPapel,
@@ -41,6 +41,7 @@ type Proprietario = {
   temperatura: string | null;
   score_relacionamento: number | null;
   responsavel_id: string | null;
+  responsavel_pessoa_id: string | null;
   observacoes: string | null;
   papeis: string[] | null;
   created_at: string | null;
@@ -97,7 +98,8 @@ export default async function ProprietariosPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
-  await requirePagePermission("pessoas.visualizar");
+  const profile = await requirePagePermission("pessoas.visualizar");
+  const corretorPessoaId = requireCorretorPessoaId(profile);
   const supabase = await createClient();
 
   const resolvedSearchParams = (await searchParams) ?? {};
@@ -112,7 +114,8 @@ export default async function ProprietariosPage({
   async function salvarProprietario(formData: FormData) {
     "use server";
     const id = valorTexto(formData, "id");
-    await requirePermission(id ? "pessoas.editar" : "pessoas.criar");
+    const actor = await requirePermission(id ? "pessoas.editar" : "pessoas.criar");
+    requireCorretorPessoaId(actor);
     if (id && !uuidValido(id)) throw new Error("Proprietario invalido.");
     const supabase = await createClient();
     const nome = valorTexto(formData, "nome");
@@ -158,7 +161,7 @@ export default async function ProprietariosPage({
     }
 
     const { data: pessoaAtual } = id
-      ? await supabase.from("pessoas").select("papeis").eq("id", id).single()
+      ? await supabase.from("pessoas").select("papeis, responsavel_pessoa_id").eq("id", id).single()
       : { data: null };
 
     const payload = {
@@ -182,6 +185,7 @@ export default async function ProprietariosPage({
       status: valorTexto(formData, "status") || "ativo",
       temperatura: valorTexto(formData, "temperatura") || null,
       responsavel_id: null,
+      responsavel_pessoa_id: actor.papel === "corretor" ? actor.pessoaId : (pessoaAtual as { responsavel_pessoa_id?: string | null } | null)?.responsavel_pessoa_id ?? null,
       score_relacionamento: valorNumero(formData, "score_relacionamento"),
       observacoes: valorTexto(formData, "observacoes") || null,
       papeis: addPapel(
@@ -193,12 +197,14 @@ export default async function ProprietariosPage({
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = id
-      ? await supabase.from("pessoas").update(payload).eq("id", id)
-      : await supabase.from("pessoas").insert(payload);
+    let updateQuery = supabase.from("pessoas").update(payload).eq("id", id);
+    if (actor.papel === "corretor") updateQuery = updateQuery.eq("responsavel_pessoa_id", actor.pessoaId!);
+    const { data: saved, error } = id
+      ? await updateQuery.select("id").maybeSingle()
+      : await supabase.from("pessoas").insert(payload).select("id").single();
 
-    if (error) {
-      const mensagem = `${error.message ?? ""} ${error.code ?? ""}`.toLowerCase();
+    if (error || !saved) {
+      const mensagem = `${error?.message ?? ""} ${error?.code ?? ""}`.toLowerCase();
       if (
         mensagem.includes("cpf") ||
         mensagem.includes("cnpj") ||
@@ -218,7 +224,8 @@ export default async function ProprietariosPage({
 
   async function excluirProprietario(formData: FormData) {
     "use server";
-    await requirePermission("pessoas.arquivar");
+    const actor = await requirePermission("pessoas.arquivar");
+    requireCorretorPessoaId(actor);
     const supabase = await createClient();
 
     const id = valorTexto(formData, "id");
@@ -238,8 +245,10 @@ export default async function ProprietariosPage({
       updated_at: new Date().toISOString(),
     };
 
-    const { error } = await supabase.from("pessoas").update(payload).eq("id", id);
-    if (error) throw new Error("Nao foi possivel excluir logicamente o proprietario.");
+    let archiveQuery = supabase.from("pessoas").update(payload).eq("id", id);
+    if (actor.papel === "corretor") archiveQuery = archiveQuery.eq("responsavel_pessoa_id", actor.pessoaId!);
+    const { data: archived, error } = await archiveQuery.select("id").maybeSingle();
+    if (error || !archived) throw new Error("Nao foi possivel excluir logicamente o proprietario.");
 
     revalidatePath("/dashboard/proprietarios");
     revalidatePath("/dashboard");
@@ -248,7 +257,7 @@ export default async function ProprietariosPage({
   const pessoasResult = await supabase
       .from("pessoas")
       .select(
-        "id, nome, tipo_pessoa, cpf_cnpj, telefone, celular, whatsapp, email, cep, endereco, numero, complemento, cidade, bairro, estado, status, temperatura, score_relacionamento, responsavel_id, observacoes, papeis, created_at",
+        "id, nome, tipo_pessoa, cpf_cnpj, telefone, celular, whatsapp, email, cep, endereco, numero, complemento, cidade, bairro, estado, status, temperatura, score_relacionamento, responsavel_id, responsavel_pessoa_id, observacoes, papeis, created_at",
       )
       .eq("ativo", true)
       .order("created_at", { ascending: false });
@@ -272,7 +281,8 @@ export default async function ProprietariosPage({
     );
   });
   const proprietarioEmEdicao =
-    proprietarios.find((proprietario) => proprietario.id === editId) ?? null;
+    proprietarios.find((proprietario) => proprietario.id === editId
+      && (profile.papel !== "corretor" || proprietario.responsavel_pessoa_id === corretorPessoaId)) ?? null;
   const proprietarioVisualizado =
     proprietarios.find((proprietario) => proprietario.id === viewId) ?? null;
   const mensagemErro =

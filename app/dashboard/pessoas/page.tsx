@@ -9,7 +9,7 @@ import {
   DocumentUniqueForm,
   type DocumentFormState,
 } from "../../../components/DocumentUniqueForm";
-import { requirePermission } from "../../../lib/auth/access-profile";
+import { requireCorretorPessoaId, requirePermission } from "../../../lib/auth/access-profile";
 import { requirePagePermission } from "../../../lib/auth/page-permission";
 import {
   isPapelComercial,
@@ -50,6 +50,7 @@ type Pessoa = {
   origem: string | null;
   status: string | null;
   responsavel_id: string | null;
+  responsavel_pessoa_id: string | null;
   temperatura: string | null;
   score_relacionamento: number | null;
   perfil_comportamental: string | null;
@@ -150,7 +151,8 @@ export default async function PessoasPage({
 }: {
   searchParams?: Promise<SearchParams>;
 }) {
-  await requirePagePermission("pessoas.visualizar");
+  const profile = await requirePagePermission("pessoas.visualizar");
+  const corretorPessoaId = requireCorretorPessoaId(profile);
   const supabase = await createClient();
 
   const resolvedSearchParams = (await searchParams) ?? {};
@@ -166,9 +168,13 @@ export default async function PessoasPage({
   async function salvarPessoa(formData: FormData): Promise<DocumentFormState> {
     "use server";
     const id = valorTexto(formData, "id");
-    try {
-      await requirePermission(id ? "pessoas.editar" : "pessoas.criar");
-    } catch {
+    const actor = await requirePermission(id ? "pessoas.editar" : "pessoas.criar")
+      .then((authorized) => {
+        requireCorretorPessoaId(authorized);
+        return authorized;
+      })
+      .catch(() => null);
+    if (!actor) {
       return {
         status: "erro",
         mensagem: "Voce nao possui permissao para realizar esta operacao.",
@@ -203,6 +209,9 @@ export default async function PessoasPage({
     if (papeis === null) {
       return { status: "erro", mensagem: "Um dos papeis comerciais informados e invalido." };
     }
+    const { data: ownershipAtual } = id
+      ? await supabase.from("pessoas").select("responsavel_pessoa_id").eq("id", id).maybeSingle()
+      : { data: null };
 
     const tipoPessoa = valorTexto(formData, "tipo_pessoa") || "fisica";
     const documento = valorTexto(formData, "cpf_cnpj");
@@ -279,6 +288,7 @@ export default async function PessoasPage({
       origem: valorTexto(formData, "origem") || "manual",
       status: valorTexto(formData, "status") || "ativo",
       responsavel_id: null,
+      responsavel_pessoa_id: actor.papel === "corretor" ? actor.pessoaId : ownershipAtual?.responsavel_pessoa_id ?? null,
       temperatura: valorOpcional(formData, "temperatura"),
       score_relacionamento: valorInteiro(formData, "score_relacionamento"),
       perfil_comportamental: valorOpcional(formData, "perfil_comportamental"),
@@ -288,8 +298,10 @@ export default async function PessoasPage({
       updated_at: new Date().toISOString(),
     };
 
+    let updateQuery = supabase.from("pessoas").update(payload).eq("id", id);
+    if (actor.papel === "corretor") updateQuery = updateQuery.eq("responsavel_pessoa_id", actor.pessoaId!);
     const { data: pessoaSalva, error } = id
-      ? await supabase.from("pessoas").update(payload).eq("id", id).select("id").maybeSingle()
+      ? await updateQuery.select("id").maybeSingle()
       : await supabase.from("pessoas").insert(payload).select("id").single();
 
     if (error) {
@@ -333,18 +345,21 @@ export default async function PessoasPage({
 
   async function excluirPessoa(formData: FormData) {
     "use server";
-    await requirePermission("pessoas.arquivar");
+    const actor = await requirePermission("pessoas.arquivar");
+    requireCorretorPessoaId(actor);
     const supabase = await createClient();
 
     const id = valorTexto(formData, "id");
     if (!id) throw new Error("Pessoa nao informada.");
 
-    const { error } = await supabase
+    let archiveQuery = supabase
       .from("pessoas")
       .update({ ativo: false, updated_at: new Date().toISOString() })
       .eq("id", id);
+    if (actor.papel === "corretor") archiveQuery = archiveQuery.eq("responsavel_pessoa_id", actor.pessoaId!);
+    const { data: archived, error } = await archiveQuery.select("id").maybeSingle();
 
-    if (error) {
+    if (error || !archived) {
       throw new Error("Nao foi possivel excluir logicamente a pessoa.");
     }
 
@@ -374,7 +389,8 @@ export default async function PessoasPage({
   const documentosAtivos = pessoas
     .filter((pessoa) => pessoa.cpf_cnpj)
     .map((pessoa) => ({ id: pessoa.id, cpf_cnpj: pessoa.cpf_cnpj }));
-  const pessoaEmEdicao = pessoas.find((pessoa) => pessoa.id === editId) ?? null;
+  const pessoaEmEdicao = pessoas.find((pessoa) => pessoa.id === editId
+    && (profile.papel !== "corretor" || pessoa.responsavel_pessoa_id === corretorPessoaId)) ?? null;
   const mensagemErro =
     errorCode === "documento_duplicado"
       ? "Ja existe uma pessoa ativa cadastrada com este CPF/CNPJ."
@@ -709,15 +725,17 @@ export default async function PessoasPage({
                       <Link href={`/dashboard/pessoas/${pessoa.id}`} className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10">
                         Visualizar
                       </Link>
-                      <Link href={`/dashboard/pessoas?edit=${pessoa.id}`} className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10">
-                        Editar
-                      </Link>
-                      <form action={excluirPessoa}>
-                        <input type="hidden" name="id" value={pessoa.id} />
-                        <ConfirmSubmitButton message="Confirmar exclusao logica desta pessoa?" className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100">
-                          Excluir
-                        </ConfirmSubmitButton>
-                      </form>
+                      {profile.papel !== "corretor" || pessoa.responsavel_pessoa_id === corretorPessoaId ? <>
+                        <Link href={`/dashboard/pessoas?edit=${pessoa.id}`} className="rounded-full border border-[#E8DDCB] bg-white px-3 py-1 text-xs font-semibold text-[#071E36] transition hover:border-[#C89B3C]/45 hover:bg-[#C89B3C]/10">
+                          Editar
+                        </Link>
+                        <form action={excluirPessoa}>
+                          <input type="hidden" name="id" value={pessoa.id} />
+                          <ConfirmSubmitButton message="Confirmar exclusao logica desta pessoa?" className="rounded-full border border-red-100 bg-red-50 px-3 py-1 text-xs font-semibold text-red-700 transition hover:bg-red-100">
+                            Excluir
+                          </ConfirmSubmitButton>
+                        </form>
+                      </> : null}
                     </div>
                   </div>
                 </article>

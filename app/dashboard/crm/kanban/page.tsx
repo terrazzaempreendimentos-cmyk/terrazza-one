@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { requireCorretorPessoaId } from "../../../../lib/auth/access-profile";
 import { hasPermission } from "../../../../lib/auth/permissions";
 import { requirePagePermission } from "../../../../lib/auth/page-permission";
 import {
@@ -62,18 +63,20 @@ function stageAccent(variant: LeadSemanticVariant) {
 
 export default async function KanbanPage() {
   const profile = await requirePagePermission("kanban.usar");
+  const corretorPessoaId = requireCorretorPessoaId(profile);
   const canMove =
-    hasPermission(profile.papel, "leads.editar") &&
-    (profile.papel === "administrador" || profile.papel === "gestor");
+    hasPermission(profile.papel, "leads.editar");
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  let leadsQuery = supabase
     .from("leads")
     .select(
       "id, nome, telefone, email, etapa_funil, status_operacional, temperatura, responsavel_id, updated_at, responsavel_pessoa:pessoas!leads_responsavel_id_fkey(nome)",
     )
     .neq("status_operacional", "arquivado")
     .order("updated_at", { ascending: false });
+  if (profile.papel === "corretor") leadsQuery = leadsQuery.eq("responsavel_id", corretorPessoaId!);
+  const { data, error } = await leadsQuery;
 
   if (error) {
     console.error({ modulo: "crm_kanban", etapa: "list", codigo: error.code });
