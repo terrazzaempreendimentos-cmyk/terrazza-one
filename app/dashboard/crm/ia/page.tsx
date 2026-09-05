@@ -136,10 +136,6 @@ function gerarRespostaSimulada(
   ].join("\n");
 }
 
-function resumoCurto(texto: string, limite = 180) {
-  return texto.length > limite ? `${texto.slice(0, limite)}...` : texto;
-}
-
 function formatarDataHora(data: string | null) {
   if (!data) return "Agora";
 
@@ -203,15 +199,19 @@ export default async function IaComercialPage() {
       throw new Error("Não foi possível salvar a resposta da IA Comercial.");
     }
 
-    const { error: timelineError } = await supabase.from("timeline").insert({
-      tipo: "ia",
-      titulo: "Interação com IA Comercial",
-      descricao: resumoCurto(pergunta),
-      origem: "ia_comercial",
-    });
+    const { error: timelineError } = await supabase.rpc(
+      "registrar_timeline_ia_conversa",
+      {
+        p_conversa_id: conversaCriada.id,
+      },
+    );
 
     if (timelineError) {
-      console.error("timelineError", timelineError);
+      console.error({
+        modulo: "crm_ia",
+        etapa: "registrar_timeline",
+        codigo: timelineError.code,
+      });
     }
 
     revalidatePath("/dashboard/crm/ia");
