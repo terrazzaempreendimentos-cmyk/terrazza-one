@@ -2,36 +2,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { safeDashboardRedirect } from "../../lib/auth/dashboard-redirect";
 import { getOptionalUser } from "../../lib/auth/require-user";
-import { LoginForm } from "./login-form";
+import { RecoveryForm } from "./recovery-form";
 
-type SearchParams = Record<string, string | string[] | undefined>;
-
-function firstParam(value: string | string[] | undefined) {
-  return Array.isArray(value) ? value[0] : value;
-}
-
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams?: Promise<SearchParams>;
-}) {
+export default async function EsqueciSenhaPage() {
   const user = await getOptionalUser();
 
   if (user) {
     redirect("/dashboard");
   }
-
-  const params = (await searchParams) ?? {};
-  const redirectTo = safeDashboardRedirect(firstParam(params.redirectTo));
-  const authError = firstParam(params.error);
-  const initialMessage =
-    authError === "invite"
-      ? "Link de convite invalido ou expirado."
-      : authError === "recovery"
-        ? "Link de recuperacao invalido ou expirado."
-        : "";
 
   return (
     <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#F7F3ED] px-5 py-10">
@@ -53,10 +32,10 @@ export default async function LoginPage({
               CRM Imobiliario
             </span>
             <h1 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
-              Operacao imobiliaria em um unico lugar.
+              Recupere o acesso ao CRM.
             </h1>
             <p className="mt-4 max-w-md text-sm leading-7 text-white/70">
-              Acesso interno ao ambiente comercial e operacional da Terrazza.
+              Enviaremos as instrucoes de recuperacao para o e-mail cadastrado.
             </p>
           </div>
 
@@ -71,20 +50,20 @@ export default async function LoginPage({
               Terrazza
             </p>
             <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#071E36]">
-              Entrar no CRM
+              Esqueci minha senha
             </h2>
             <p className="mt-3 text-sm leading-6 text-[#64736D]">
-              Use o e-mail e a senha fornecidos pela administracao.
+              Informe seu e-mail para receber um link seguro de recuperacao.
             </p>
 
-            <LoginForm redirectTo={redirectTo} initialMessage={initialMessage} />
+            <RecoveryForm />
 
             <p className="mt-5 text-center text-sm text-[#64736D]">
               <Link
-                href="/esqueci-senha"
+                href="/login"
                 className="font-semibold text-[#8B6827] transition hover:text-[#071E36] focus:outline-none focus:ring-2 focus:ring-[#C89B3C] focus:ring-offset-2"
               >
-                Esqueci minha senha
+                Voltar para o login
               </Link>
             </p>
           </div>
