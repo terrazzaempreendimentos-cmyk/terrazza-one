@@ -1686,10 +1686,10 @@ export default async function ImoveisPage({
                     </div>
                     <div className="mt-4 flex flex-wrap gap-2">
                       <Link
-                        href={`/dashboard/imoveis?view=${imovel.id}`}
+                        href={`/dashboard/imoveis/${imovel.id}`}
                         className="rounded-full border border-[#E8DDCB] px-3 py-1 text-xs font-semibold text-[#071E36] hover:bg-[#F7F3ED]"
                       >
-                        Visualizar
+                        Detalhes
                       </Link>
                       {canMutate ? <Link
                         href={`/dashboard/imoveis?edit=${imovel.id}#dados`}
