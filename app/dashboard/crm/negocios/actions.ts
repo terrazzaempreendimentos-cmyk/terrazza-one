@@ -34,6 +34,7 @@ import {
   isRpcDate,
   isRpcTimestamp,
   isRpcUuid,
+  type MovimentarNegocioResult,
   type NegocioPartePayload,
   type NegocioPayload,
 } from "../../../../lib/crm/negocios/rpc-contracts";
@@ -44,6 +45,23 @@ export type NegocioActionState =
   | { status: "idle"; mensagem: null }
   | { status: "erro"; mensagem: string }
   | { status: "sucesso"; mensagem: string };
+
+export type MovimentarNegocioKanbanInput = Readonly<{
+  negocioId: string;
+  leadId: string;
+  etapaAtual: unknown;
+  etapaDestino: unknown;
+  updatedAt: string;
+  observacao?: string | null;
+}>;
+
+export type MovimentarNegocioKanbanResponse =
+  | Readonly<{ ok: true; data: MovimentarNegocioResult }>
+  | Readonly<{
+      ok: false;
+      code: "nao_autorizado" | "payload_invalido" | "transicao_invalida" | "concorrencia" | "erro_rpc";
+      message: string;
+    }>;
 
 type Operation = "create" | "update" | "move" | "conclude" | "lose" | "cancel" | "reopen" | "archive";
 type Permission = "negocios.criar" | "negocios.editar" | "negocios.concluir" | "negocios.perder" | "negocios.cancelar" | "negocios.reabrir" | "negocios.arquivar";
@@ -321,15 +339,52 @@ export async function updateNegocio(_: NegocioActionState, formData: FormData): 
   redirect("/dashboard/crm/negocios");
 }
 
-export async function moveNegocio(_: NegocioActionState, formData: FormData): Promise<NegocioActionState> {
-  if (!(await authorize("negocios.editar", "move"))) return errorState("Operacao nao autorizada.");
-  const negocioId=field(formData,"negocio_id"); const leadId=field(formData,"lead_id"); const current=field(formData,"etapa_atual"); const destination=field(formData,"etapa_destino"); const updatedAt=field(formData,"updated_at_esperado"); const observacao=field(formData,"observacao");
-  if (!isRpcUuid(negocioId)||!isRpcUuid(leadId)||!isRpcTimestamp(updatedAt)||!isNegocioStage(current)||!isNegocioStage(destination)||!canChangeNegocioStage(current,destination)) return errorState("A movimentacao solicitada nao e permitida.");
-  if (observacao.length>NEGOCIO_RPC_LIMITS.observacaoMovimentacao) return errorState("A observacao excede o limite permitido.");
-  const supabase=await createClient(); const {data,error}=await supabase.rpc("movimentar_negocio",{p_negocio_id:negocioId,p_etapa_destino:destination,p_updated_at_esperado:updatedAt,p_observacao:observacao||null});
-  if(error){logError("move","rpc",error.code);const message=safeRpcError(error.message,"Nao foi possivel movimentar o Negocio.");if(message===CONCURRENCY_MESSAGE)revalidateNegocioPaths(leadId);return errorState(message);}
-  const row=rpcRow(data); if(!isMovimentarNegocioResult(row)||row.negocio_id!==negocioId||row.etapa_anterior!==current||row.etapa_atual!==destination){logError("move","return","invalid_return");return errorState("Nao foi possivel confirmar a movimentacao do Negocio.");}
-  revalidateNegocioPaths(leadId); return {status:"sucesso",mensagem:"Negocio movimentado com sucesso."};
+export async function movimentarNegocioKanban(input: MovimentarNegocioKanbanInput): Promise<MovimentarNegocioKanbanResponse> {
+  if (!(await authorize("negocios.editar", "move"))) {
+    return { ok: false, code: "nao_autorizado", message: "Operacao nao autorizada." };
+  }
+
+  const observacao = typeof input.observacao === "string" ? input.observacao.trim() : "";
+  if (!isRpcUuid(input.negocioId) || !isRpcUuid(input.leadId) || !isRpcTimestamp(input.updatedAt)) {
+    return { ok: false, code: "payload_invalido", message: "A fotografia do Negocio e invalida. Recarregue a pagina." };
+  }
+  if (!isNegocioStage(input.etapaAtual) || !isNegocioStage(input.etapaDestino) || !canChangeNegocioStage(input.etapaAtual, input.etapaDestino)) {
+    return { ok: false, code: "transicao_invalida", message: "A movimentacao solicitada nao e permitida." };
+  }
+  if (observacao.length > NEGOCIO_RPC_LIMITS.observacaoMovimentacao) {
+    return { ok: false, code: "payload_invalido", message: "A observacao excede o limite permitido." };
+  }
+
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("movimentar_negocio", {
+    p_negocio_id: input.negocioId,
+    p_etapa_destino: input.etapaDestino,
+    p_updated_at_esperado: input.updatedAt,
+    p_observacao: observacao || null,
+  });
+  if (error) {
+    const concurrency = error.message === "Negocio atualizado por outra operacao.";
+    const invalidTransition = error.message === "Transicao de etapa nao permitida.";
+    logError("move", "rpc", error.code);
+    if (concurrency) revalidateNegocioPaths(input.leadId);
+    return {
+      ok: false,
+      code: concurrency ? "concorrencia" : invalidTransition ? "transicao_invalida" : "erro_rpc",
+      message: concurrency
+        ? "Este negócio foi alterado por outra pessoa. O quadro foi atualizado com os dados mais recentes."
+        : invalidTransition
+          ? "A transicao de etapa nao e mais valida. O quadro foi atualizado."
+          : safeRpcError(error.message, "Nao foi possivel movimentar o Negocio."),
+    };
+  }
+
+  const row = rpcRow(data);
+  if (!isMovimentarNegocioResult(row) || row.negocio_id !== input.negocioId || row.etapa_anterior !== input.etapaAtual || row.etapa_atual !== input.etapaDestino) {
+    logError("move", "return", "invalid_return");
+    return { ok: false, code: "erro_rpc", message: "Nao foi possivel confirmar a movimentacao do Negocio." };
+  }
+  revalidateNegocioPaths(input.leadId);
+  return { ok: true, data: row };
 }
 
 export async function concluirNegocio(_: NegocioActionState, formData: FormData): Promise<NegocioActionState> {

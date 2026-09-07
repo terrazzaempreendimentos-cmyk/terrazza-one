@@ -2,10 +2,9 @@
 
 import { useActionState, useMemo, useState } from "react";
 
-import { NEGOCIO_PART_ROLES, NEGOCIO_TYPES, type NegocioPartRole, type NegocioStage } from "../../../../lib/crm/negocios/catalogs";
+import { NEGOCIO_PART_ROLES, NEGOCIO_TYPES, type NegocioPartRole } from "../../../../lib/crm/negocios/catalogs";
 import { NEGOCIO_RPC_LIMITS } from "../../../../lib/crm/negocios/rpc-contracts";
-import { NEGOCIO_STAGE_TRANSITIONS } from "../../../../lib/crm/negocios/transitions";
-import { createNegocio, moveNegocio, updateNegocio, type NegocioActionState } from "./actions";
+import { createNegocio, updateNegocio, type NegocioActionState } from "./actions";
 
 const INITIAL_STATE: NegocioActionState = { status: "idle", mensagem: null };
 const INPUT = "rounded-xl border border-[#E8DDCB] bg-white px-3 py-2 text-sm text-[#071E36] outline-none focus:border-[#C89B3C]";
@@ -104,12 +103,6 @@ export function NegocioForm(props: Props) {
       </fieldset>
     </form>
   );
-}
-
-export function MoveNegocioForm({ negocioId, leadId, currentStage, updatedAt }: { negocioId: string; leadId: string; currentStage: NegocioStage; updatedAt: string }) {
-  const [state, formAction, pending] = useActionState(moveNegocio, INITIAL_STATE);
-  const destinations = NEGOCIO_STAGE_TRANSITIONS[currentStage];
-  return <form action={formAction} className="mt-4 rounded-2xl border border-[#E8DDCB] bg-white p-3"><fieldset disabled={pending} className="grid gap-2"><input type="hidden" name="negocio_id" value={negocioId}/><input type="hidden" name="lead_id" value={leadId}/><input type="hidden" name="etapa_atual" value={currentStage}/><input type="hidden" name="updated_at_esperado" value={updatedAt}/><select name="etapa_destino" required className={INPUT}><option value="">Mover para...</option>{destinations.map((stage)=><option key={stage} value={stage}>{stage}</option>)}</select><input name="observacao" maxLength={NEGOCIO_RPC_LIMITS.observacaoMovimentacao} placeholder="Observacao opcional" className={INPUT}/><ActionMessage state={state}/><button disabled={pending} className="rounded-xl bg-[#071E36] px-3 py-2 text-xs font-semibold text-white">{pending?"Movendo...":"Mover etapa"}</button></fieldset></form>;
 }
 
 function ActionMessage({state}:{state:NegocioActionState}) { return state.mensagem ? <p role="alert" className={`rounded-xl px-3 py-2 text-sm ${state.status==="erro"?"bg-red-50 text-red-700":"bg-emerald-50 text-emerald-700"}`}>{state.mensagem}</p> : null; }

@@ -1,0 +1,7 @@
+{
+  "approved": true,
+  "role": "approved-responsive-reference",
+  "generatedWith": "image_gen",
+  "reference": ".impeccable/mocks/negocios-kanban-trilho-operacional.png",
+  "prompt": "Use case: precise-object-edit\nAsset type: corrected responsive desktop-and-mobile CRM UI comp.\nPrimary request: Preserve the entire current composition, navy/ivory/gold identity, desktop focus-by-stage layout, phone inset, card styling and explicit mobile previous/next actions. Change only the summary metrics and funnel stage labels to match the approved Terrazza scope.\nReplace the desktop summary strip with exactly these existing indicators: \"Negócios ativos\", \"Estruturação\", \"Proposta\", \"Negociação\", \"Documentos e contrato\", \"Previsão comercial\". Remove \"Valor total\", \"Valor com previsão\", \"Negócios ganhos\", \"Taxa de conversão\", and every other invented metric.\nSet stage labels on desktop and mobile exactly to: \"Estruturação\", \"Proposta\", \"Negociação\", \"Documentação\", \"Contrato\", \"Assinatura\".\nEach column header retains only count, total commercial value, and stalled quantity.\nKeep the mobile view without drag handles and retain the explicit buttons \"Voltar etapa\" and \"Avançar etapa\".\nConstraints: modify only those metric/stage texts and any spacing necessary to fit them. No conversion rate, no won-deals count, no new analytics, no drag on mobile, no watermark."
+}
